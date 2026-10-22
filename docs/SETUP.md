@@ -6,9 +6,9 @@
 2. **Project Settings > API > Exposed schemas**: aggiungi `sdm_eventi` e salva.
 3. **Authentication > URL Configuration**: imposta *Site URL* sull'indirizzo Vercel dell'app
    (es. `https://sdm-eventi.vercel.app`) e aggiungilo anche in *Redirect URLs*.
-4. **Authentication > Email Templates > Magic Link**: aggiungi nel testo il codice
-   `{{ .Token }}` (es. "Oppure inserisci il codice: {{ .Token }}"). Serve su iPhone, dove il
-   link si apre in Safari e non nell'app installata: il codice si digita nell'app.
+4. **Authentication > Email Templates**: nei modelli **Magic Link** e **Confirm signup** aggiungi nel testo il codice
+   `{{ .Token }}` (es. "Oppure inserisci il codice: {{ .Token }}"). Servono entrambi: chi accede per la prima volta
+   riceve "Confirm signup". Il codice serve su iPhone, dove il link si apre in Safari e non nell'app installata.
 5. **Authentication > SMTP Settings**: configura un servizio di posta (Resend, Brevo, ecc.).
    Il mittente predefinito di Supabase invia pochissime mail all'ora ed è solo per prove.
 6. Il primo amministratore è `ivotaffarel@gmail.com` (inserito dallo script).
