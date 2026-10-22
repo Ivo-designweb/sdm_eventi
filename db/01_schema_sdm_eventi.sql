@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 0.1
+-- Versione script: 0.2
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -104,18 +104,29 @@ create table if not exists sdm_eventi.parametri (
   aggiornato_il  timestamptz not null default now()
 );
 
-create table if not exists sdm_eventi.log_modifiche (
+-- Registro dei movimenti: una riga per ogni inserimento/modifica/eliminazione.
+-- Operatore, evento e ramo sono copiati come testo, così restano leggibili
+-- anche se il record originale viene poi eliminato (nessuna chiave esterna).
+create table if not exists sdm_eventi.movimenti (
   id             bigint generated always as identity primary key,
-  data           timestamptz not null default now(),
-  tabella        text not null,
+  data_ora       timestamptz not null default now(),
+  utente_id      uuid,                 -- utente Supabase Auth
+  persona_id     uuid,                 -- operatore in anagrafica
+  operatore      text not null,        -- "Cognome Nome" al momento del movimento
+  tabella        text not null,        -- persone | eventi | nodi | incarichi
   record_id      uuid,
-  azione         text not null,
-  utente_id      uuid,
-  persona_id     uuid,
-  vecchio        jsonb,
-  nuovo          jsonb
+  azione         text not null check (azione in ('INSERT','UPDATE','DELETE')),
+  evento_id      uuid,
+  evento         text,                 -- titolo evento
+  nodo_id        uuid,
+  ramo           text,                 -- percorso testuale: "Logistica > Sedie"
+  descrizione    text not null,        -- frase leggibile
+  dettaglio      jsonb                 -- INSERT/DELETE: valori; UPDATE: {campo: {"da":..,"a":..}}
 );
-create index if not exists log_record_idx on sdm_eventi.log_modifiche (tabella, record_id, data desc);
+create index if not exists movimenti_data_idx   on sdm_eventi.movimenti (data_ora desc);
+create index if not exists movimenti_evento_idx on sdm_eventi.movimenti (evento_id, data_ora desc);
+create index if not exists movimenti_nodo_idx   on sdm_eventi.movimenti (nodo_id, data_ora desc);
+create index if not exists movimenti_record_idx on sdm_eventi.movimenti (tabella, record_id, data_ora desc);
 
 -- ---------------------------------------------------------------------
 -- FUNZIONI DI SUPPORTO (security definer: evitano ricorsioni nelle RLS)
@@ -142,6 +153,11 @@ language sql stable security definer set search_path = sdm_eventi, public, pg_te
       on r.responsabile_id = sdm_eventi.persona_corrente()
      and ((_incluso and r.id = n.id) or r.id = any(n.percorso))
     where n.id = _nodo)
+$$;
+
+create or replace function sdm_eventi.param_bool(_chiave text) returns boolean
+language sql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
+  select coalesce((select (valore #>> '{}')::boolean from sdm_eventi.parametri where chiave = _chiave), false)
 $$;
 
 create or replace function sdm_eventi.is_incaricato_in(_nodo uuid) returns boolean
@@ -355,31 +371,117 @@ drop trigger if exists a_controllo on sdm_eventi.incarichi;
 create trigger a_controllo before insert or update on sdm_eventi.incarichi
   for each row execute function sdm_eventi.trg_incarichi_controllo();
 
--- LOG delle modifiche
-create or replace function sdm_eventi.trg_log() returns trigger
+-- MOVIMENTI: registra ogni variazione con operatore, evento, ramo e dettaglio
+create or replace function sdm_eventi.percorso_testo(_nodo uuid) returns text
+language sql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
+  select string_agg(a.titolo, ' > ' order by x.ord)
+  from sdm_eventi.nodi n
+  cross join lateral unnest(n.percorso || n.id) with ordinality as x(id, ord)
+  join sdm_eventi.nodi a on a.id = x.id
+  where n.id = _nodo
+$$;
+
+create or replace function sdm_eventi.trg_movimenti() returns trigger
 language plpgsql security definer set search_path = sdm_eventi, public, pg_temp as $$
+declare
+  r       jsonb := case when tg_op = 'DELETE' then to_jsonb(old) else to_jsonb(new) end;
+  o       jsonb := case when tg_op <> 'INSERT' then to_jsonb(old) end;
+  v_id    uuid  := (r ->> 'id')::uuid;
+  v_ev    uuid;
+  v_evt   text;
+  v_nodo  uuid;
+  v_ramo  text;
+  v_etich text;
+  v_tipo  text;
+  v_det   jsonb;
+  v_campi text;
+  v_oper  text;
+  v_pers  uuid := sdm_eventi.persona_corrente();
 begin
-  if tg_table_name = 'nodi' and tg_op = 'UPDATE' and pg_trigger_depth() > 1 then
-    return null;    -- ricalcoli a cascata dopo uno spostamento
+  -- ricalcoli a cascata (spostamento rami, eliminazioni a cascata): niente righe in più
+  if tg_table_name in ('nodi','incarichi') and tg_op <> 'INSERT' and pg_trigger_depth() > 1 then
+    return null;
   end if;
-  insert into sdm_eventi.log_modifiche (tabella, record_id, azione, utente_id, persona_id, vecchio, nuovo)
-  values (tg_table_name,
-          case when tg_op = 'DELETE' then old.id else new.id end,
-          tg_op, auth.uid(), sdm_eventi.persona_corrente(),
-          case when tg_op <> 'INSERT' then to_jsonb(old) end,
-          case when tg_op <> 'DELETE' then to_jsonb(new) end);
+
+  select coalesce(cognome || ' ' || nome, 'Sistema') into v_oper
+    from sdm_eventi.persone where id = v_pers;
+  v_oper := coalesce(v_oper, case when auth.uid() is null then 'Sistema' else 'Utente non collegato' end);
+
+  if tg_table_name = 'persone' then
+    v_tipo := 'persona'; v_etich := r ->> 'cognome' || ' ' || (r ->> 'nome');
+  elsif tg_table_name = 'eventi' then
+    v_tipo := 'evento'; v_etich := r ->> 'titolo';
+    v_ev := v_id; v_evt := v_etich;
+  elsif tg_table_name = 'nodi' then
+    v_tipo := 'ramo/attività'; v_etich := r ->> 'titolo';
+    v_ev := (r ->> 'evento_id')::uuid; v_nodo := v_id;
+    v_ramo := sdm_eventi.percorso_testo(v_id);
+    if v_ramo is null then                                   -- nodo appena eliminato
+      select string_agg(a.titolo, ' > ' order by x.ord) into v_ramo
+        from unnest(array(select jsonb_array_elements_text(r -> 'percorso')::uuid)) with ordinality as x(id, ord)
+        join sdm_eventi.nodi a on a.id = x.id;
+      v_ramo := coalesce(v_ramo || ' > ', '') || v_etich;
+    end if;
+  else  -- incarichi
+    v_tipo := 'incarico';
+    select cognome || ' ' || nome into v_etich from sdm_eventi.persone where id = (r ->> 'persona_id')::uuid;
+    v_nodo := (r ->> 'nodo_id')::uuid;
+    select evento_id into v_ev from sdm_eventi.nodi where id = v_nodo;
+    v_ramo := sdm_eventi.percorso_testo(v_nodo);
+  end if;
+
+  if v_evt is null and v_ev is not null then
+    select titolo into v_evt from sdm_eventi.eventi where id = v_ev;
+  end if;
+
+  if tg_op = 'UPDATE' then
+    select jsonb_object_agg(n.key, jsonb_build_object('da', o2.value, 'a', n.value)),
+           string_agg(n.key, ', ' order by n.key)
+      into v_det, v_campi
+      from jsonb_each(r) n
+      join jsonb_each(o) o2 using (key)
+     where n.value is distinct from o2.value
+       and n.key not in ('aggiornato_il','livello','percorso','auth_user_id');
+    if v_det is null then return null; end if;     -- nessuna variazione significativa
+    if tg_table_name = 'nodi' and (o ->> 'parent_id') is distinct from (r ->> 'parent_id') then
+      v_det := v_det || jsonb_build_object('ramo_precedente',
+                 (select string_agg(a.titolo, ' > ' order by x.ord)
+                    from unnest(array(select jsonb_array_elements_text(o -> 'percorso')::uuid) || v_id)
+                         with ordinality as x(id, ord)
+                    join sdm_eventi.nodi a on a.id = x.id));
+    end if;
+  else
+    v_det := r - 'aggiornato_il' - 'creato_il' - 'auth_user_id';
+  end if;
+
+  insert into sdm_eventi.movimenti
+    (utente_id, persona_id, operatore, tabella, record_id, azione,
+     evento_id, evento, nodo_id, ramo, descrizione, dettaglio)
+  values
+    (auth.uid(), v_pers, v_oper, tg_table_name, v_id, tg_op,
+     v_ev, v_evt, v_nodo, v_ramo,
+     case tg_op when 'INSERT' then 'Inserito '
+                when 'UPDATE' then 'Modificato '
+                else 'Eliminato ' end
+       || v_tipo || ': ' || coalesce(v_etich, '?')
+       || case when tg_op = 'UPDATE' then ' (' || v_campi || ')' else '' end,
+     v_det);
   return null;
 end $$;
 
+-- sostituisce il vecchio registro "log_modifiche" delle versioni precedenti dello script
 do $$
 declare t text;
 begin
   foreach t in array array['persone','eventi','nodi','incarichi'] loop
     execute format('drop trigger if exists z_log on sdm_eventi.%I', t);
-    execute format('create trigger z_log after insert or update or delete on sdm_eventi.%I
-                    for each row execute function sdm_eventi.trg_log()', t);
+    execute format('drop trigger if exists z_movimenti on sdm_eventi.%I', t);
+    execute format('create trigger z_movimenti after insert or update or delete on sdm_eventi.%I
+                    for each row execute function sdm_eventi.trg_movimenti()', t);
   end loop;
 end $$;
+drop function if exists sdm_eventi.trg_log();
+drop table if exists sdm_eventi.log_modifiche;
 
 -- ---------------------------------------------------------------------
 -- ROW LEVEL SECURITY
@@ -390,7 +492,7 @@ alter table sdm_eventi.eventi       enable row level security;
 alter table sdm_eventi.nodi         enable row level security;
 alter table sdm_eventi.incarichi    enable row level security;
 alter table sdm_eventi.parametri    enable row level security;
-alter table sdm_eventi.log_modifiche enable row level security;
+alter table sdm_eventi.movimenti    enable row level security;
 
 -- PERSONE: anagrafica completa solo all'admin (e la propria scheda in lettura).
 -- Gli altri vedono nome e cognome dei colleghi tramite la vista v_persone_elenco.
@@ -428,7 +530,9 @@ create policy nodi_select on sdm_eventi.nodi for select to authenticated
 drop policy if exists nodi_insert on sdm_eventi.nodi;
 create policy nodi_insert on sdm_eventi.nodi for insert to authenticated
   with check (sdm_eventi.is_admin()
-              or (parent_id is not null and sdm_eventi.is_responsabile_di(parent_id, true)));
+              or (parent_id is not null
+                  and sdm_eventi.param_bool('responsabile_crea_rami')
+                  and sdm_eventi.is_responsabile_di(parent_id, true)));
 drop policy if exists nodi_update on sdm_eventi.nodi;
 create policy nodi_update on sdm_eventi.nodi for update to authenticated
   using (sdm_eventi.is_admin() or sdm_eventi.is_responsabile_di(id, true) or sdm_eventi.is_incaricato_in(id))
@@ -464,10 +568,13 @@ drop policy if exists parametri_write on sdm_eventi.parametri;
 create policy parametri_write on sdm_eventi.parametri for all to authenticated
   using (sdm_eventi.is_admin()) with check (sdm_eventi.is_admin());
 
--- LOG: lettura solo admin; le scritture avvengono solo dai trigger
-drop policy if exists log_select on sdm_eventi.log_modifiche;
-create policy log_select on sdm_eventi.log_modifiche for select to authenticated
-  using (sdm_eventi.is_admin());
+-- MOVIMENTI: lettura per admin e, per il proprio ramo, per i responsabili;
+-- le scritture avvengono solo dal trigger
+drop policy if exists log_select on sdm_eventi.movimenti;
+drop policy if exists movimenti_select on sdm_eventi.movimenti;
+create policy movimenti_select on sdm_eventi.movimenti for select to authenticated
+  using (sdm_eventi.is_admin()
+         or (nodo_id is not null and sdm_eventi.is_responsabile_di(nodo_id, true)));
 
 -- ---------------------------------------------------------------------
 -- VISTE
@@ -477,6 +584,16 @@ create policy log_select on sdm_eventi.log_modifiche for select to authenticated
 -- del proprietario, quindi aggira volutamente la RLS di "persone").
 create or replace view sdm_eventi.v_persone_elenco as
   select id, cognome, nome from sdm_eventi.persone where attivo;
+
+-- Movimenti con data e ora separate (fuso orario italiano), più recenti per primi
+create or replace view sdm_eventi.v_movimenti with (security_invoker = true) as
+  select id,
+         (data_ora at time zone 'Europe/Rome')::date as data,
+         (data_ora at time zone 'Europe/Rome')::time(0) as ora,
+         operatore, evento, ramo, azione, tabella, descrizione, dettaglio,
+         evento_id, nodo_id, persona_id, data_ora
+  from sdm_eventi.movimenti
+  order by data_ora desc, id desc;
 
 -- Avanzamento per nodo: foglie totali e completate ("finito")
 create or replace view sdm_eventi.v_avanzamento_nodi with (security_invoker = true) as
@@ -510,8 +627,8 @@ grant usage on schema sdm_eventi to authenticated, service_role;
 
 grant select, insert, update, delete on sdm_eventi.persone, sdm_eventi.eventi, sdm_eventi.nodi,
       sdm_eventi.incarichi, sdm_eventi.parametri to authenticated;
-grant select on sdm_eventi.log_modifiche to authenticated;
-grant select on sdm_eventi.v_persone_elenco, sdm_eventi.v_avanzamento_nodi,
+grant select on sdm_eventi.movimenti to authenticated;
+grant select on sdm_eventi.v_movimenti, sdm_eventi.v_persone_elenco, sdm_eventi.v_avanzamento_nodi,
       sdm_eventi.v_avanzamento_eventi to authenticated;
 grant all on all tables in schema sdm_eventi to service_role;
 grant usage, select on all sequences in schema sdm_eventi to authenticated, service_role;
@@ -526,7 +643,8 @@ insert into sdm_eventi.parametri (chiave, valore, descrizione) values
   ('tema',                     '"chiaro"',      'Tema grafico: chiaro | scuro'),
   ('colore_primario',          '"#1d4ed8"',     'Colore principale dell''interfaccia'),
   ('max_livelli',              '10',            'Livelli massimi dell''albero (da 1 a 10)'),
-  ('giorni_preavviso_scadenza','7',             'Giorni prima della scadenza per evidenziare una foglia')
+  ('giorni_preavviso_scadenza','7',             'Giorni prima della scadenza per evidenziare una foglia'),
+  ('responsabile_crea_rami',   'false',         'Se true i responsabili possono creare sottorami nel proprio ramo (altrimenti solo l''admin)')
 on conflict (chiave) do nothing;
 
 -- Primo amministratore: modificare cognome/nome dopo il primo accesso.
