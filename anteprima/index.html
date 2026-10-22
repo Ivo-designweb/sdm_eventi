@@ -129,7 +129,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 <body>
 
 <div class="demo">
-  <b>ANTEPRIMA</b> step 0-4: rami dell'evento (dati finti)
+  <b>ANTEPRIMA</b> step 0-5: attività, incaricati (dati finti)
   <span>Vedi l'app come:
     <select id="ruolo">
       <option value="admin">Amministratore (Ivo Taffarel)</option>
@@ -146,7 +146,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 <section id="login" class="login">
   <div class="box">
     <div class="logo">SDM</div>
-    <h1><span class="nome-app">SDM Eventi</span> <span class="ver">v0.6</span></h1>
+    <h1><span class="nome-app">SDM Eventi</span> <span class="ver">v0.7</span></h1>
     <p class="sec">Gestione eventi sportivi. Inserisci la tua email: ti invieremo un link per accedere, senza password.</p>
     <div id="loginForm">
       <label for="mail">Email</label>
@@ -165,7 +165,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 <!-- APP -->
 <div id="app" class="app hidden">
   <nav class="side">
-    <div class="brand"><div class="logo">SDM</div><span class="nome-app">SDM Eventi</span><span class="ver">v0.6</span></div>
+    <div class="brand"><div class="logo">SDM</div><span class="nome-app">SDM Eventi</span><span class="ver">v0.7</span></div>
     <button class="nv on" data-p="home">🏠 Home</button>
     <button class="nv" data-p="persone">👥 Persone</button>
     <button class="nv" data-p="eventi">📅 Eventi</button>
@@ -273,7 +273,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
       <div class="avviso off-only">Sei offline: puoi consultare la struttura ma non modificarla.</div>
       <div class="avviso hidden" id="strModAvv">Modalità modifica: trascina ☰ per riordinare o spostare (rilascia sopra/sotto un elemento per riordinare, al centro per metterlo dentro). Su smartphone usa "⇄ Sposta in…".</div>
       <div id="strLista"></div>
-      <div class="todo" style="margin-top:12px">Foglie (scadenza, stato, incaricati e note per persona) si completano nello step 5.</div>
+      
     </div>
 
     <div id="modNodo" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
@@ -287,6 +287,17 @@ body.offline .need-net{opacity:.5;pointer-events:none}
         <label>Note</label><input type="text" id="nNot" maxlength="1000">
         <div id="nErr" class="avviso hidden" style="margin-top:12px"></div>
         <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end"><button class="btn sec" onclick="$('#modNodo').classList.add('hidden')">Annulla</button><button class="btn" onclick="salvaNodo()">Salva</button></div>
+      </div>
+    </div>
+
+    <div id="modAtt" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
+      <div class="card" style="max-width:640px;margin:0 auto">
+        <h2 id="aTitH">Attività</h2>
+        <p class="sec" id="aPerc" style="margin-top:-6px"></p>
+        <div class="avviso off-only" style="margin-bottom:12px">Sei offline: puoi solo consultare. (Lo stato e la tua nota si potranno cambiare anche offline con lo step di sincronizzazione.)</div>
+        <div id="aCorpo"></div>
+        <div id="aErr" class="avviso hidden" style="margin-top:12px"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end"><button class="btn sec" onclick="$('#modAtt').classList.add('hidden')">Chiudi</button><button class="btn need-net" id="aSalva" onclick="salvaScheda()">Salva</button></div>
       </div>
     </div>
 
@@ -324,7 +335,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
       </div>
       <div class="card">
         <h2>Applicazione</h2>
-        <div class="row"><span>Versione</span><b>0.6</b></div>
+        <div class="row"><span>Versione</span><b>0.7</b></div>
         <div class="row"><span>Ultima sincronizzazione</span><b id="ultSync">oggi</b></div>
         <div class="row"><span>Modifiche in attesa di invio</span><b id="nPend">0</b></div>
         <div class="row"><span>Installa sul dispositivo</span><button class="btn sec" id="installa">Installa app</button></div>
@@ -372,7 +383,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
     </div>
 
     <footer class="fine">
-      Versione 0.6 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a>
+      Versione 0.7 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a>
     </footer>
   </main>
 
@@ -385,7 +396,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
   </div>
 </div>
 
-<footer class="fine" id="footLogin">Versione 0.6 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
+<footer class="fine" id="footLogin">Versione 0.7 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
 
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -533,11 +544,11 @@ const MAXL=10, RESP_CREA=false;
 const ME={admin:1,resp:2,utente:3};
 let NODI=[
  {id:1,ev:1,p:null,t:'Logistica',d:'Tutto ciò che serve per allestire',r:2},
- {id:2,ev:1,p:1,t:'Sedie',L:{st:'in_corso',sc:'2026-10-30',inc:[3]}},
+ {id:2,ev:1,p:1,t:'Sedie',d:'Sedie per il pubblico',note:'Ne servono almeno 300',L:{st:'in_corso',sc:'2026-10-30',inc:[3],inN:{3:'Chiesto 40 sedie al circolo'}}},
  {id:3,ev:1,p:1,t:'Tavoli',L:{st:'da_fare',sc:'2026-11-15',inc:[4]}},
  {id:4,ev:1,p:1,t:'Trasporti'},
  {id:5,ev:1,p:4,t:'Furgone',L:{st:'da_fare',sc:'',inc:[5]}},
- {id:6,ev:1,p:4,t:'Autisti',L:{st:'fatto',sc:'',inc:[3,5]}},
+ {id:6,ev:1,p:4,t:'Autisti',d:'Trasporto materiali',L:{st:'fatto',sc:'',inc:[3,5],inN:{3:'',5:'Disponibile il sabato'}}},
  {id:7,ev:1,p:null,t:'Premiazioni',r:4},
  {id:8,ev:1,p:7,t:'Premi',L:{st:'da_fare',sc:'2026-10-10',inc:[4]}},
  {id:9,ev:1,p:7,t:'Coppe',L:{st:'finito',sc:'',inc:[3]}},
@@ -597,8 +608,8 @@ function renderStr(){
       if(canEdit(n))btns+=`<button class="ib" title="Modifica" onclick="apriNodo(${n.id},null)">✎</button><button class="ib" title="Sposta in…" onclick="apriSposta(${n.id})">⇄</button>`;
       if(canDel(n))btns+=`<button class="ib dn" title="Elimina" onclick="eliminaNodo(${n.id})">🗑</button>`;
     }
-    out.push(`<div class="tn ${lf?'':'br'}" data-id="${n.id}" style="margin-left:${(lv-1)*20}px">
-      ${act}${lf?'<span style="width:26px;display:inline-block"></span>':`<button class="tg" onclick="strTog(${n.id})">${aperto?'▼':'▶'}</button>`}
+    out.push(`<div class="tn ${lf?'':'br'}" data-id="${n.id}" style="margin-left:${(lv-1)*20}px;${lf&&!strMod?'cursor:pointer':''}" ${lf&&!strMod?`onclick="apriScheda(${n.id})"`:''}>
+      ${act}${lf?'<span style="width:26px;display:inline-block"></span>':`<button class="tg" onclick="event.stopPropagation();strTog(${n.id})">${aperto?'▼':'▶'}</button>`}
       <div class="tt2"><b>${n.t}</b>${n.d?`<div class="sec" style="font-size:13px">${n.d}</div>`:''}</div>
       <div class="meta">${meta}</div><div style="display:flex;gap:6px">${btns}</div></div>`);
     if(!lf&&aperto)rows(n.id);
@@ -608,6 +619,47 @@ function renderStr(){
   if(strMod)agganciaDrag();
 }
 function strTog(id){collassati.has(id)?collassati.delete(id):collassati.add(id);renderStr()}
+
+// ===== Scheda attività (foglia) =====
+let attCorr=null;
+function apriScheda(id){
+  const n=nodo(id); attCorr=n; if(!n.L)n.L={st:'da_fare',sc:'',inc:[],inN:{}}; if(!n.L.inN)n.L.inN={};
+  const r=ruolo(), me=ME[r], ed=canEdit(n), isInc=n.L.inc.includes(me), chiuso=n.L.st==='finito';
+  const puoStato=ed||(isInc&&!chiuso);
+  const ro=(v,l)=>`<label>${l}</label><div style="padding:8px 0">${v?v:'<span class="sec">—</span>'}</div>`;
+  const stOpt=['da_fare','in_corso','fatto'].concat(ed?['finito']:[]).concat(!ed&&chiuso?['finito']:[]);
+  const lab={da_fare:'Da fare',in_corso:'In corso',fatto:'Fatto',finito:'Finito (confermato dal responsabile)'};
+  let h='';
+  h+= ed? `<label>Titolo *</label><input type="text" id="aTit" value="${n.t}"><label>Descrizione</label><input type="text" id="aDes" value="${n.d||''}"><label>Note</label><input type="text" id="aNot" value="${n.note||''}">`
+        : ro('<b>'+n.t+'</b>','Attività')+ro(n.d,'Descrizione')+ro(n.note,'Note');
+  h+= `<div class="grid2"><div><label>Scadenza</label>${ed?`<input type="date" id="aScad" value="${n.L.sc||''}">`:`<div style="padding:8px 0">${n.L.sc?fmtData(n.L.sc):'<span class="sec">—</span>'}</div>`}</div>
+       <div><label>Stato</label><select class="f" id="aStato" ${puoStato?'':'disabled'}>${stOpt.map(k=>`<option value="${k}" ${n.L.st===k?'selected':''}>${lab[k]}</option>`).join('')}</select></div></div>`;
+  if(!ed&&chiuso)h+=`<p class="note">Questa attività è stata confermata come finita dal responsabile: solo lui può riaprirla.</p>`;
+  if(!ed&&!chiuso)h+=`<p class="note">Puoi indicare "Fatto": sarà il responsabile a confermare "Finito".</p>`;
+  h+=`<label>Persone incaricate</label><div id="aInc"></div>`;
+  if(ed)h+=`<div style="display:flex;gap:8px;margin-top:8px"><select class="f" id="aIncSel" style="flex:1"></select><button class="btn sec need-net" onclick="aggiungiInc()">+ Aggiungi</button></div>`;
+  $('#aTitH').textContent=n.t; $('#aPerc').textContent=percorsoTxt(n); $('#aCorpo').innerHTML=h; $('#aErr').classList.add('hidden'); $('#aSalva').classList.toggle('hidden',!(ed||puoStato||isInc));
+  renderInc(); $('#modAtt').classList.remove('hidden');
+}
+function renderInc(){
+  const n=attCorr, me=ME[ruolo()], ed=canEdit(n);
+  $('#aInc').innerHTML=n.L.inc.length?n.L.inc.map(pid=>{const mia=pid===me, edit=ed||mia;
+    return `<div class="row" style="align-items:flex-start;flex-wrap:wrap"><div style="min-width:150px"><b>${nomeP(pid)}</b>${mia?' <span class="badge">tu</span>':''}</div>
+     <div style="flex:1;min-width:200px">${edit?`<input type="text" data-nota="${pid}" value="${(n.L.inN[pid]||'').replace(/"/g,'&quot;')}" placeholder="Nota di ${mia?'tua':nomeP(pid)}…">`:`<span class="sec">${n.L.inN[pid]||'—'}</span>`}</div>
+     ${ed?`<button class="ib dn need-net" title="Togli dall'attività" onclick="rimuoviInc(${pid})">✕</button>`:''}</div>`}).join(''):'<p class="sec">Nessuna persona incaricata.</p>';
+  if(ed){$('#aIncSel').innerHTML='<option value="">Scegli una persona…</option>'+PERS.filter(p=>p.att&&!n.L.inc.includes(p.id)).map(p=>`<option value="${p.id}">${p.c} ${p.n}</option>`).join('')}
+}
+function aggiungiInc(){const v=+$('#aIncSel').value; if(!v)return; leggiNote(); attCorr.L.inc.push(v); renderInc()}
+function rimuoviInc(pid){leggiNote(); attCorr.L.inc=attCorr.L.inc.filter(x=>x!==pid); delete attCorr.L.inN[pid]; renderInc()}
+function leggiNote(){$$('#aInc [data-nota]').forEach(i=>{attCorr.L.inN[i.dataset.nota]=i.value})}
+function salvaScheda(){
+  const n=attCorr, ed=canEdit(n);
+  if(ed){const t=$('#aTit').value.trim(); if(!t){$('#aErr').textContent='Il titolo è obbligatorio.';$('#aErr').classList.remove('hidden');return}
+    n.t=t; n.d=$('#aDes').value.trim(); n.note=$('#aNot').value.trim(); n.L.sc=$('#aScad').value}
+  if(!$('#aStato').disabled)n.L.st=$('#aStato').value; leggiNote();
+  $('#modAtt').classList.add('hidden'); renderStr(); toast('Attività salvata (simulato)');
+}
+
 // --- modifica ---
 function percorsoTxt(n){return [...anc(n).reverse(),n].map(x=>x.t).join(' › ')}
 function apriNodo(id,padre){
