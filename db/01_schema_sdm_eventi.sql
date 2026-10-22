@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 0.3
+-- Versione script: 0.4
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -603,7 +603,7 @@ alter table sdm_eventi.parametri    enable row level security;
 alter table sdm_eventi.movimenti    enable row level security;
 
 -- PERSONE: anagrafica completa solo all'admin (e la propria scheda in lettura).
--- Gli altri vedono nome e cognome dei colleghi tramite la vista v_persone_elenco.
+-- Gli altri vedono nome e cognome dei colleghi tramite la funzione persone_evento().
 drop policy if exists persone_select on sdm_eventi.persone;
 create policy persone_select on sdm_eventi.persone for select to authenticated
   using (sdm_eventi.is_admin() or auth_user_id = auth.uid());
@@ -688,10 +688,41 @@ create policy movimenti_select on sdm_eventi.movimenti for select to authenticat
 -- VISTE
 -- ---------------------------------------------------------------------
 
--- Elenco persone per assegnazioni: solo nome e cognome (esegue con i diritti
--- del proprietario, quindi aggira volutamente la RLS di "persone").
-create or replace view sdm_eventi.v_persone_elenco as
-  select id, cognome, nome from sdm_eventi.persone where attivo;
+-- Persone visibili nella pagina "Persone" (solo cognome e nome) per l'evento scelto.
+-- Admin: tutte le persone attive. Gli altri: sé stessi, gli incaricati delle foglie
+-- che possono vedere e i responsabili dei rami che possono vedere, in quell'evento.
+create or replace function sdm_eventi.persone_evento(_evento uuid)
+returns table (id uuid, cognome text, nome text)
+language sql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
+  select p.id, p.cognome, p.nome
+  from sdm_eventi.persone p
+  where p.attivo
+    and ( sdm_eventi.is_admin()
+       or p.id = sdm_eventi.persona_corrente()
+       or exists (select 1 from sdm_eventi.incarichi i
+                  join sdm_eventi.nodi n on n.id = i.nodo_id
+                  where i.persona_id = p.id and n.evento_id = _evento
+                    and sdm_eventi.puo_vedere_nodo(n.id))
+       or exists (select 1 from sdm_eventi.nodi n
+                  where n.responsabile_id = p.id and n.evento_id = _evento
+                    and sdm_eventi.puo_vedere_nodo(n.id)) )
+  order by p.cognome, p.nome
+$$;
+
+-- Persone tra cui scegliere quando si assegna un incarico o un responsabile:
+-- admin e responsabili di almeno un ramo vedono tutti i nomi, gli altri nessuno.
+create or replace function sdm_eventi.persone_assegnabili()
+returns table (id uuid, cognome text, nome text)
+language sql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
+  select p.id, p.cognome, p.nome
+  from sdm_eventi.persone p
+  where p.attivo
+    and ( sdm_eventi.is_admin()
+       or exists (select 1 from sdm_eventi.nodi r
+                  where r.responsabile_id = sdm_eventi.persona_corrente()) )
+  order by p.cognome, p.nome
+$$;
+drop view if exists sdm_eventi.v_persone_elenco;
 
 -- Movimenti con data e ora separate (fuso orario italiano), più recenti per primi
 create or replace view sdm_eventi.v_movimenti with (security_invoker = true) as
@@ -736,7 +767,7 @@ grant usage on schema sdm_eventi to authenticated, service_role;
 grant select, insert, update, delete on sdm_eventi.persone, sdm_eventi.eventi, sdm_eventi.nodi,
       sdm_eventi.incarichi, sdm_eventi.parametri to authenticated;
 grant select on sdm_eventi.movimenti to authenticated;
-grant select on sdm_eventi.v_movimenti, sdm_eventi.v_persone_elenco, sdm_eventi.v_avanzamento_nodi,
+grant select on sdm_eventi.v_movimenti, sdm_eventi.v_avanzamento_nodi,
       sdm_eventi.v_avanzamento_eventi to authenticated;
 grant all on all tables in schema sdm_eventi to service_role;
 grant usage, select on all sequences in schema sdm_eventi to authenticated, service_role;
