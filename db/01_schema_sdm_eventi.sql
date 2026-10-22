@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 0.4
+-- Versione script: 0.5
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -239,6 +239,28 @@ begin
                     for each row execute function sdm_eventi.trg_aggiornato_il()', t);
   end loop;
 end $$;
+
+-- PERSONE: non si può togliere l'ultimo amministratore attivo (cancellazione, declassamento,
+-- disattivazione) e cambiando l'email si perde il collegamento con l'utente di accesso:
+-- la persona dovrà accedere con la nuova email (il collegamento si rifà al primo accesso).
+create or replace function sdm_eventi.trg_persone_controllo() returns trigger
+language plpgsql security definer set search_path = sdm_eventi, public, pg_temp as $$
+begin
+  if old.ruolo = 'admin' and old.attivo
+     and (tg_op = 'DELETE' or new.ruolo <> 'admin' or not new.attivo)
+     and not exists (select 1 from sdm_eventi.persone p
+                     where p.id <> old.id and p.ruolo = 'admin' and p.attivo) then
+    raise exception 'Deve restare almeno un amministratore attivo';
+  end if;
+  if tg_op = 'DELETE' then return old; end if;
+  if lower(new.email) is distinct from lower(old.email) then
+    new.auth_user_id := null;
+  end if;
+  return new;
+end $$;
+drop trigger if exists a_controllo on sdm_eventi.persone;
+create trigger a_controllo before update or delete on sdm_eventi.persone
+  for each row execute function sdm_eventi.trg_persone_controllo();
 
 -- Momento dell'ultima modifica dei due campi modificabili offline
 create or replace function sdm_eventi.trg_nodi_stato_il() returns trigger

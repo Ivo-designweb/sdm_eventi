@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="0.3">
+<meta name="app-version" content="0.4">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -29,21 +29,23 @@
 <section id="login" class="login hidden"><div class="box">
   <div class="logo">SDM</div>
   <h1 class="nome-app">SDM Eventi</h1>
-  <p class="sec">Gestione eventi sportivi. Inserisci la tua email: ti invieremo un link per accedere, senza password.</p>
+  <p class="sec">Gestione eventi sportivi. Inserisci la tua email: ti invieremo un codice per accedere, senza password.</p>
   <form id="loginForm" novalidate>
     <label for="mail">Email</label>
     <input id="mail" type="email" autocomplete="email" inputmode="email" placeholder="nome@esempio.it" required>
-    <button class="btn full" id="invia" type="submit">Invia link di accesso</button>
+    <button class="btn full" id="invia" type="submit">Invia codice di accesso</button>
     <p class="note">Puoi accedere solo se la tua email è presente nell'anagrafica.</p>
   </form>
   <div id="loginOk" class="hidden">
-    <div class="msg">Link inviato a <b id="mailInv"></b>. Apri la mail e tocca il link per entrare.</div>
-    <p class="note" id="redirInfo"></p>
+    <div class="msg">Ti abbiamo inviato una mail a <b id="mailInv"></b> con un <b>codice di accesso</b>.</div>
     <form id="codeForm" novalidate>
-      <label for="codice">Hai installato l'app sull'iPhone? Inserisci qui il codice ricevuto per mail</label>
-      <input id="codice" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Codice di accesso">
-      <button class="btn sec full" id="verifica" type="submit">Accedi con il codice</button>
+      <label for="codice">Inserisci qui il codice</label>
+      <input id="codice" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="••••••" style="font-size:26px;letter-spacing:6px;text-align:center">
+      <button class="btn full" id="verifica" type="submit">Accedi</button>
     </form>
+    <p class="note">Il codice vale su qualsiasi dispositivo: puoi leggere la mail sul telefono e digitarlo qui, anche da PC. Dura un'ora e vale l'ultima mail ricevuta.</p>
+    <p class="note" id="redirInfo"></p>
+    <button class="btn sec full" id="reinvia" type="button" style="margin-top:10px">Invia di nuovo il codice</button>
     <button class="btn sec full" id="indietro" type="button" style="margin-top:10px">Cambia email</button>
   </div>
   <div id="loginErr" class="avviso hidden" style="margin-top:16px"></div>
@@ -87,7 +89,45 @@
       <div class="todo">Segnaposto: attività e avanzamento arrivano con gli step successivi.</div>
     </div>
 
-    <div id="p-persone" class="pg hidden"><h1>Persone</h1><div class="todo">Anagrafica persone: step 2</div></div>
+    <div id="p-persone" class="pg hidden">
+      <div class="top"><div><h1>Persone</h1><span class="sec" id="perSotto"></span></div>
+        <button class="btn need-net adminOnly" id="perNuova" type="button">+ Nuova persona</button></div>
+      <div class="avviso off-only">Sei offline: stai consultando la copia salvata sul dispositivo. Per modificare serve la connessione.</div>
+      <div class="card adminOnly" style="padding:12px">
+        <div class="grid2">
+          <input type="text" id="perCerca" placeholder="Cerca per cognome, nome, email, telefono…">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <select class="f" id="perFiltro" style="flex:1;min-width:140px"><option value="">Tutte</option><option value="isc">Solo iscritti</option><option value="non">Non iscritti</option><option value="adm">Amministratori</option></select>
+            <label style="margin:0;font-weight:400;display:flex;gap:6px;align-items:center"><input type="checkbox" id="perNonAttivi"> anche non attivi</label>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="perLista" style="padding:6px 18px"></div>
+      <p class="note" id="perAgg"></p>
+    </div>
+
+    <div id="modPer" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
+      <form class="card" id="perForm" style="max-width:640px;margin:0 auto" novalidate>
+        <h2 id="modTit">Persona</h2>
+        <div class="grid2">
+          <div><label for="fCog">Cognome *</label><input type="text" id="fCog" maxlength="80"></div>
+          <div><label for="fNom">Nome *</label><input type="text" id="fNom" maxlength="80"></div>
+          <div><label for="fMail">Email * (serve per l'accesso)</label><input type="email" id="fMail" maxlength="120"></div>
+          <div><label for="fCel">Cellulare</label><input type="text" id="fCel" inputmode="tel" placeholder="+39 ..." maxlength="30"></div>
+          <div><label for="fNas">Data di nascita</label><input type="date" id="fNas"></div>
+          <div><label for="fRuo">Ruolo</label><select class="f" id="fRuo"><option value="utente">Utente</option><option value="admin">Amministratore</option></select></div>
+        </div>
+        <div class="row" style="margin-top:8px"><div><b>Iscritto</b><div class="sec">Se iscritto, il numero è obbligatorio e univoco.</div></div><input type="checkbox" class="sw" id="fIsc"></div>
+        <div id="fNumW" class="hidden"><label for="fNum">Numero iscritto *</label><input type="text" id="fNum" maxlength="30"></div>
+        <label for="fNot">Note</label><input type="text" id="fNot" maxlength="500">
+        <div class="row"><div><b>Attivo</b><div class="sec">Se disattivato non può accedere e non compare negli elenchi.</div></div><input type="checkbox" class="sw" id="fAtt"></div>
+        <div id="fErr" class="avviso hidden" style="margin-top:12px"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
+          <button class="btn sec" id="fAnnulla" type="button">Annulla</button>
+          <button class="btn need-net" id="fSalva" type="submit">Salva</button>
+        </div>
+      </form>
+    </div>
     <div id="p-eventi" class="pg hidden"><h1>Eventi</h1><div class="todo">Anagrafica eventi: step 3</div></div>
 
     <div id="p-imp" class="pg hidden">

@@ -19,9 +19,16 @@
   };
   const RUOLI = { admin: 'Amministratore', utente: 'Utente' };
 
-  const stato = { sb: null, persona: null, parametri: { ...PARAM_DEFAULT }, avviata: false };
+  const stato = { sb: null, persona: null, evento: null, parametri: { ...PARAM_DEFAULT }, avviata: false };
 
   // ---------- schermate ----------
+  function mostraLogin() {
+    mostra('login');
+    const att = LS.get('sdm_mail_attesa');
+    if (att && att.mail && Date.now() - att.t < 3600 * 1000) mostraCodice(att.mail);
+    else { $('#loginForm').classList.remove('hidden'); $('#loginOk').classList.add('hidden'); }
+  }
+
   function mostra(id) {
     ['boot', 'setup', 'login', 'noaccess', 'app'].forEach(x => $('#' + x).classList.toggle('hidden', x !== id));
     $('#footLogin').classList.toggle('hidden', id === 'app');
@@ -63,33 +70,58 @@
   }
 
   // ---------- accesso ----------
+  const MAIL_ATTESA = 'sdm_mail_attesa';   // mail a cui è stato inviato il codice (resta valida 1 ora)
+  let ultimoInvio = 0;
+
+  function mostraCodice(mail) {
+    $('#mailInv').textContent = mail;
+    $('#redirInfo').textContent = '';
+    $('#loginForm').classList.add('hidden');
+    $('#loginOk').classList.remove('hidden');
+    $('#codice').value = '';
+  }
+
+  async function inviaCodice(mail) {
+    if (!navigator.onLine) { errore('Sei offline: l\'accesso richiede la connessione.'); return false; }
+    const prec = LS.get(MAIL_ATTESA);
+    const attesa = 60 - Math.floor((Date.now() - Math.max(ultimoInvio, prec && prec.mail === mail ? prec.t : 0)) / 1000);
+    if (attesa > 0) { errore('Attendi ' + attesa + ' secondi prima di richiedere un nuovo codice.'); return false; }
+    const redirect = location.origin;   // senza "/" finale: coincide con la voce inserita in Redirect URLs
+    const { error } = await stato.sb.auth.signInWithOtp({ email: mail, options: { emailRedirectTo: redirect } });
+    if (error) {
+      errore(error.status === 429 ? 'Troppe richieste: attendi qualche minuto e riprova.' : 'Invio non riuscito: ' + error.message);
+      return false;
+    }
+    ultimoInvio = Date.now();
+    LS.set(MAIL_ATTESA, { mail, t: Date.now() });
+    return true;
+  }
+
   async function inviaLink(ev) {
     ev.preventDefault();
     errore('');
     const mail = $('#mail').value.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) { errore('Inserisci un indirizzo email valido.'); return; }
-    if (!navigator.onLine) { errore('Sei offline: il primo accesso richiede la connessione.'); return; }
     const b = $('#invia'); b.disabled = true;
-    const redirect = location.origin;   // senza "/" finale: coincide con la voce inserita in Redirect URLs
-    const { error } = await stato.sb.auth.signInWithOtp({
-      email: mail, options: { emailRedirectTo: redirect }
-    });
+    const ok = await inviaCodice(mail);
     b.disabled = false;
-    if (error) {
-      errore(error.status === 429 ? 'Troppe richieste: attendi qualche minuto e riprova.' : 'Invio non riuscito: ' + error.message);
-      return;
-    }
-    $('#mailInv').textContent = mail;
-    $('#redirInfo').textContent = 'Il link della mail porta a: ' + redirect;
-    $('#loginForm').classList.add('hidden');
-    $('#loginOk').classList.remove('hidden');
+    if (ok) mostraCodice(mail);
+  }
+
+  async function reinvia() {
+    errore('');
+    const b = $('#reinvia'); b.disabled = true;
+    const ok = await inviaCodice($('#mailInv').textContent);
+    b.disabled = false;
+    if (ok) errore('');
   }
 
   async function verificaCodice(ev) {
     ev.preventDefault();
     errore('');
-    const token = $('#codice').value.trim();
+    const token = $('#codice').value.replace(/\s/g, '');
     if (!token) { errore('Inserisci il codice ricevuto per mail.'); return; }
+    if (!navigator.onLine) { errore('Sei offline: l\'accesso richiede la connessione.'); return; }
     const email = $('#mailInv').textContent;
     // il codice è valido per "email" (accesso) o "signup" (primo accesso): provo entrambi
     let { error } = await stato.sb.auth.verifyOtp({ email, token, type: 'email' });
@@ -97,19 +129,20 @@
       const r = await stato.sb.auth.verifyOtp({ email, token, type: 'signup' });
       if (!r.error) error = null;
     }
-    if (error) errore('Codice non accettato (' + error.message + '). Usa il codice dell\'ultima mail ricevuta, senza aver cliccato il link.');
+    if (error) errore('Codice non accettato (' + error.message + '). Usa il codice dell\'ultima mail ricevuta.');
+    else LS.del(MAIL_ATTESA);
     // in caso di successo parte onAuthStateChange
   }
 
   async function esci(ev) {
     if (ev) ev.preventDefault();
     try { await stato.sb.auth.signOut(); } catch (e) { /* offline: pulisco comunque */ }
-    LS.del('sdm_profilo');
+    LS.del('sdm_profilo'); LS.del('sdm_persone'); LS.del(MAIL_ATTESA);
     stato.persona = null;
     stato.avviata = false;
     $('#loginForm').classList.remove('hidden');
     $('#loginOk').classList.add('hidden');
-    mostra('login');
+    mostraLogin();
   }
 
   async function iniziaSessione(session) {
@@ -144,7 +177,7 @@
         avviaApp(false, 0, true);
       } else {
         stato.avviata = false;
-        mostra('login');
+        mostraLogin();
         errore('Impossibile completare l\'accesso: ' + (e && e.message ? e.message : 'connessione assente'));
       }
     }
@@ -176,6 +209,7 @@
     $('#p-' + p).classList.remove('hidden');
     $$('.nv, .bottom button').forEach(b => b.classList.toggle('on', b.dataset.p === p));
     if (p === 'par') riempiParametri();
+    if (p === 'persone') caricaPersone();
     window.scrollTo(0, 0);
   }
 
@@ -183,6 +217,150 @@
     const on = navigator.onLine, c = $('#rete');
     c.className = 'chip ' + (on ? 'on' : 'off');
     c.textContent = on ? '● Online' : '● Offline';
+    document.body.classList.toggle('offline', !on);
+  }
+
+
+  // ---------- persone ----------
+  const isAdmin = () => !!(stato.persona && stato.persona.ruolo === 'admin');
+  const COLONNE = 'id, cognome, nome, email, cellulare, iscritto, numero_iscritto, data_nascita, note, ruolo, attivo';
+  const P = { elenco: [], corrente: null, aggiornato: null };
+
+  function h(tag, attr, ...figli) {
+    const e = document.createElement(tag);
+    Object.entries(attr || {}).forEach(([k, v]) => { if (v !== null && v !== undefined) e.setAttribute(k, v); });
+    figli.flat().forEach(f => e.append(f));
+    return e;
+  }
+  const cifre = t => (t || '').replace(/[^0-9]/g, '');
+  const tel = t => (t || '').replace(/[^0-9+]/g, '');
+  function waNumero(t) {   // senza prefisso internazionale assumo l'Italia
+    const c = cifre(t);
+    if ((t || '').trim().startsWith('+')) return c;
+    if (c.startsWith('00')) return c.slice(2);
+    return '39' + c.replace(/^0+(?=3)/, '');
+  }
+
+  async function caricaPersone() {
+    const lista = $('#perLista');
+    if (!isAdmin()) {
+      // gli altri vedono solo nome e cognome delle persone dell'evento scelto (la scelta evento arriva con lo step 3)
+      $('#perSotto').textContent = 'Persone collegate alle attività a cui hai accesso';
+      $('#perAgg').textContent = '';
+      if (!stato.evento) {
+        lista.replaceChildren(h('p', { class: 'sec' }, 'Scegli prima un evento: qui vedrai le persone collegate alle attività a cui hai accesso. (La scelta dell\'evento arriva con lo step 3.)'));
+        return;
+      }
+      const { data, error } = await stato.sb.rpc('persone_evento', { _evento: stato.evento });
+      if (error) { lista.replaceChildren(h('p', { class: 'sec' }, 'Elenco non disponibile: ' + error.message)); return; }
+      lista.replaceChildren(...data.map(p => h('div', { class: 'row' }, h('b', {}, p.cognome + ' ' + p.nome))));
+      return;
+    }
+    $('#perSotto').textContent = 'Anagrafica completa';
+    const cache = LS.get('sdm_persone');
+    if (navigator.onLine) {
+      const { data, error } = await stato.sb.from('persone').select(COLONNE).order('cognome').order('nome');
+      if (!error) {
+        P.elenco = data; P.aggiornato = Date.now();
+        LS.set('sdm_persone', { t: P.aggiornato, d: data });
+      } else if (cache) { P.elenco = cache.d; P.aggiornato = cache.t; }
+    } else if (cache) { P.elenco = cache.d; P.aggiornato = cache.t; }
+    renderPersone();
+  }
+
+  function renderPersone() {
+    if (!isAdmin()) return;
+    const q = $('#perCerca').value.trim().toLowerCase(), f = $('#perFiltro').value, na = $('#perNonAttivi').checked;
+    const l = P.elenco.filter(p => (na || p.attivo)
+      && (!q || [p.cognome, p.nome, p.email, p.cellulare, p.numero_iscritto].join(' ').toLowerCase().includes(q))
+      && (!f || (f === 'isc' && p.iscritto) || (f === 'non' && !p.iscritto) || (f === 'adm' && p.ruolo === 'admin')));
+    const righe = l.map(p => {
+      const az = h('div', { style: 'display:flex;gap:6px;align-items:center;flex-wrap:wrap' },
+        p.iscritto ? h('span', { class: 'badge ok' }, 'iscritto ' + (p.numero_iscritto || '')) : h('span', { class: 'badge' }, 'non iscritto'),
+        p.ruolo === 'admin' ? h('span', { class: 'badge w' }, 'admin') : '');
+      const btn = (href, txt, titolo) => h('a', { class: 'btn sec', style: 'padding:4px 10px', href, title: titolo, 'aria-label': titolo }, txt);
+      if (p.cellulare) {
+        az.append(btn('tel:' + tel(p.cellulare), '📞', 'Chiama'), btn('https://wa.me/' + waNumero(p.cellulare), '💬', 'WhatsApp'));
+        az.lastChild.setAttribute('target', '_blank'); az.lastChild.setAttribute('rel', 'noopener');
+      }
+      az.append(btn('mailto:' + p.email, '✉️', 'Scrivi una mail'));
+      az.querySelectorAll('a').forEach(a => a.addEventListener('click', e => e.stopPropagation()));
+      const riga = h('div', { class: 'row', style: 'flex-wrap:wrap;cursor:pointer', tabindex: '0' },
+        h('div', { style: 'flex:1;min-width:200px' },
+          h('b', {}, p.cognome + ' ' + p.nome), ' ', p.attivo ? '' : h('span', { class: 'badge e' }, 'non attivo'),
+          h('div', { class: 'sec' }, p.email + (p.cellulare ? ' · ' + p.cellulare : ''))), az);
+      riga.addEventListener('click', () => apriPersona(p.id));
+      riga.addEventListener('keydown', e => { if (e.key === 'Enter') apriPersona(p.id); });
+      return riga;
+    });
+    $('#perLista').replaceChildren(...(righe.length ? righe : [h('p', { class: 'sec' }, 'Nessuna persona trovata.')]));
+    $('#perAgg').textContent = l.length + ' persone' + (P.aggiornato ? ' · aggiornato alle ' + new Date(P.aggiornato).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '')
+      + (navigator.onLine ? '' : ' · copia salvata sul dispositivo');
+  }
+
+  function apriPersona(id) {
+    const p = P.elenco.find(x => x.id === id);
+    P.corrente = p || null;
+    const v = p || { cognome: '', nome: '', email: '', cellulare: '', iscritto: false, numero_iscritto: '', data_nascita: '', note: '', ruolo: 'utente', attivo: true };
+    $('#modTit').textContent = p ? 'Modifica persona' : 'Nuova persona';
+    $('#fCog').value = v.cognome; $('#fNom').value = v.nome; $('#fMail').value = v.email;
+    $('#fCel').value = v.cellulare || ''; $('#fNas').value = v.data_nascita || ''; $('#fRuo').value = v.ruolo;
+    $('#fIsc').checked = v.iscritto; $('#fNum').value = v.numero_iscritto || '';
+    $('#fNumW').classList.toggle('hidden', !v.iscritto);
+    $('#fNot').value = v.note || ''; $('#fAtt').checked = v.attivo;
+    $('#fErr').classList.add('hidden');
+    $('#modPer').classList.remove('hidden');
+    $('#fCog').focus();
+  }
+  const chiudiPersona = () => $('#modPer').classList.add('hidden');
+
+  function erroreForm(msgs) {
+    const e = $('#fErr');
+    e.replaceChildren(...[].concat(msgs).flatMap((m, i) => (i ? [h('br'), m] : [m])));
+    e.classList.remove('hidden');
+  }
+
+  async function salvaPersona(ev) {
+    ev.preventDefault();
+    const rec = {
+      cognome: $('#fCog').value.trim(), nome: $('#fNom').value.trim(), email: $('#fMail').value.trim().toLowerCase(),
+      cellulare: $('#fCel').value.trim() || null, iscritto: $('#fIsc').checked,
+      numero_iscritto: $('#fIsc').checked ? ($('#fNum').value.trim() || null) : null,
+      data_nascita: $('#fNas').value || null, note: $('#fNot').value.trim() || null,
+      ruolo: $('#fRuo').value, attivo: $('#fAtt').checked
+    };
+    const err = [];
+    if (!rec.cognome) err.push('Il cognome è obbligatorio.');
+    if (!rec.nome) err.push('Il nome è obbligatorio.');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(rec.email)) err.push('Email non valida.');
+    if (rec.iscritto && !rec.numero_iscritto) err.push('Per un iscritto serve il numero di iscritto.');
+    if (P.elenco.some(p => p.id !== (P.corrente && P.corrente.id) && p.email.toLowerCase() === rec.email)) err.push('Questa email è già presente in anagrafica.');
+    if (rec.numero_iscritto && P.elenco.some(p => p.id !== (P.corrente && P.corrente.id) && p.numero_iscritto === rec.numero_iscritto)) err.push('Questo numero di iscritto è già assegnato.');
+    if (err.length) { erroreForm(err); return; }
+    if (!navigator.onLine) { erroreForm('Serve la connessione per salvare.'); return; }
+
+    const sono = P.corrente && P.corrente.id === stato.persona.id;
+    if (sono) {
+      const avvisi = [];
+      if (rec.email !== P.corrente.email.toLowerCase()) avvisi.push('cambiando la tua email dovrai accedere con quella nuova');
+      if (rec.ruolo !== 'admin') avvisi.push('perderai i diritti di amministratore');
+      if (!rec.attivo) avvisi.push('non potrai più accedere');
+      if (avvisi.length && !confirm('Stai modificando la tua scheda: ' + avvisi.join('; ') + '. Continuare?')) return;
+    }
+    const b = $('#fSalva'); b.disabled = true;
+    const q = stato.sb.from('persone');
+    const { error } = P.corrente ? await q.update(rec).eq('id', P.corrente.id) : await q.insert(rec);
+    b.disabled = false;
+    if (error) {
+      const m = error.message || '';
+      if (error.code === '23505') erroreForm(m.includes('numero_iscritto') ? 'Questo numero di iscritto è già assegnato.' : 'Questa email è già presente in anagrafica.');
+      else if (error.code === '23514') erroreForm('Per un iscritto serve il numero di iscritto.');
+      else erroreForm('Salvataggio non riuscito: ' + m);
+      return;
+    }
+    chiudiPersona();
+    await caricaPersone();
+    if (sono && (rec.email !== P.corrente.email.toLowerCase() || rec.ruolo !== 'admin' || !rec.attivo)) location.reload();
   }
 
   // ---------- parametri (admin) ----------
@@ -251,9 +429,16 @@
 
     $('#loginForm').addEventListener('submit', inviaLink);
     $('#codeForm').addEventListener('submit', verificaCodice);
-    $('#indietro').onclick = () => { $('#loginForm').classList.remove('hidden'); $('#loginOk').classList.add('hidden'); errore(''); };
+    $('#indietro').onclick = () => { LS.del(MAIL_ATTESA); $('#loginForm').classList.remove('hidden'); $('#loginOk').classList.add('hidden'); errore(''); };
+    $('#reinvia').onclick = reinvia;
     $('#esci').onclick = esci; $('#esci2').onclick = esci; $('#naEsci').onclick = esci;
     $('#parForm').addEventListener('submit', salvaParametri);
+    $('#perForm').addEventListener('submit', salvaPersona);
+    $('#fAnnulla').onclick = chiudiPersona;
+    $('#perNuova').onclick = () => apriPersona(null);
+    $('#fIsc').onchange = () => $('#fNumW').classList.toggle('hidden', !$('#fIsc').checked);
+    ['#perCerca', '#perFiltro', '#perNonAttivi'].forEach(id => $(id).addEventListener('input', renderPersone));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') chiudiPersona(); });
     $('#installa').onclick = installa;
     $('#vaiPar').onclick = () => vai('par');
     $$('.nv, .bottom button').forEach(b => { b.onclick = () => vai(b.dataset.p); });
@@ -269,12 +454,12 @@
 
     stato.sb.auth.onAuthStateChange((evento, session) => {
       if (evento === 'SIGNED_IN' && session) setTimeout(() => iniziaSessione(session), 0);
-      if (evento === 'SIGNED_OUT') { stato.avviata = false; stato.persona = null; mostra('login'); }
+      if (evento === 'SIGNED_OUT') { stato.avviata = false; stato.persona = null; mostraLogin(); }
     });
 
     const { data } = await stato.sb.auth.getSession();
     if (data && data.session) await iniziaSessione(data.session);
-    else mostra('login');
+    else mostraLogin();
   }
 
   avvia();
