@@ -108,7 +108,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 <body>
 
 <div class="demo">
-  <b>ANTEPRIMA</b> step 0-1 + offline + evento fisso (dati finti)
+  <b>ANTEPRIMA</b> step 0-2: persone, offline, evento fisso (dati finti)
   <span>Vedi l'app come:
     <select id="ruolo">
       <option value="admin">Amministratore (Ivo Taffarel)</option>
@@ -176,11 +176,46 @@ body.offline .need-net{opacity:.5;pointer-events:none}
     </div>
 
     <!-- placeholder per le sezioni future -->
-    <div id="p-persone" class="pg hidden"><h1>Persone</h1>
+    <div id="p-persone" class="pg hidden">
+      <div class="top"><div><h1>Persone</h1><span class="sec" id="perSotto"></span></div>
+        <button class="btn need-net adminOnly" onclick="apriPersona(null)">+ Nuova persona</button></div>
       <div class="avviso off-only">Sei offline: stai consultando la copia salvata sul dispositivo. Per modificare serve la connessione.</div>
-      <div class="card"><div class="row"><span>Rossi Anna</span><span class="badge">responsabile</span></div><div class="row"><span>Bianchi Marco</span><span class="badge">utente</span></div></div>
-      <button class="btn need-net">+ Nuova persona</button>
-      <div class="todo" style="margin-top:16px">Anagrafica persone completa: step 2 (sempre online per le modifiche)</div></div>
+      <div class="card adminOnly" style="padding:12px">
+        <div class="grid2">
+          <input type="text" id="perCerca" placeholder="Cerca per cognome, nome, email, telefono…" oninput="renderPersone()">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <select class="f" id="perFiltro" onchange="renderPersone()" style="flex:1;min-width:140px"><option value="">Tutte</option><option value="isc">Solo iscritti</option><option value="non">Non iscritti</option><option value="adm">Amministratori</option></select>
+            <label style="margin:0;font-weight:400;display:flex;gap:6px;align-items:center"><input type="checkbox" id="perNonAttivi" onchange="renderPersone()"> anche non attivi</label>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="perLista" style="padding:6px 18px"></div>
+      <p class="note adminOnly">Elimina e importa/esporta Excel arrivano in seguito (step 7). Le persone non più attive si disattivano invece di cancellarle, così restano nello storico.</p>
+    </div>
+
+    <!-- scheda persona (admin) -->
+    <div id="modPer" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
+      <div class="card" style="max-width:640px;margin:0 auto">
+        <h2 id="modTit">Persona</h2>
+        <div class="grid2">
+          <div><label>Cognome *</label><input type="text" id="fCog"></div>
+          <div><label>Nome *</label><input type="text" id="fNom"></div>
+          <div><label>Email * (serve per l'accesso)</label><input type="email" id="fMail"></div>
+          <div><label>Cellulare</label><input type="text" id="fCel" placeholder="+39 ..."></div>
+          <div><label>Data di nascita</label><input type="text" id="fNas" placeholder="gg/mm/aaaa"></div>
+          <div><label>Ruolo</label><select class="f" id="fRuo"><option value="utente">Utente</option><option value="admin">Amministratore</option></select></div>
+        </div>
+        <div class="row" style="margin-top:8px"><div><b>Iscritto</b><div class="sec">Se iscritto, il numero è obbligatorio e univoco.</div></div><input type="checkbox" class="sw" id="fIsc" onchange="$('#fNumW').classList.toggle('hidden',!this.checked)"></div>
+        <div id="fNumW" class="hidden"><label>Numero iscritto *</label><input type="text" id="fNum"></div>
+        <label>Note</label><input type="text" id="fNot">
+        <div class="row"><div><b>Attivo</b><div class="sec">Se disattivato non può accedere e non compare negli elenchi.</div></div><input type="checkbox" class="sw" id="fAtt" checked></div>
+        <div id="fErr" class="avviso hidden" style="margin-top:12px"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
+          <button class="btn sec" onclick="$('#modPer').classList.add('hidden')">Annulla</button>
+          <button class="btn need-net" onclick="salvaPersona()">Salva</button>
+        </div>
+      </div>
+    </div>
     <div id="p-eventi" class="pg hidden">
       <h1>Eventi</h1>
       <p class="sec" id="evInfo"></p>
@@ -216,7 +251,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
       </div>
       <div class="card">
         <h2>Applicazione</h2>
-        <div class="row"><span>Versione</span><b>0.3</b></div>
+        <div class="row"><span>Versione</span><b>0.4</b></div>
         <div class="row"><span>Ultima sincronizzazione</span><b id="ultSync">oggi</b></div>
         <div class="row"><span>Modifiche in attesa di invio</span><b id="nPend">0</b></div>
         <div class="row"><span>Installa sul dispositivo</span><button class="btn sec" id="installa">Installa app</button></div>
@@ -253,7 +288,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
     </div>
 
     <footer class="fine">
-      Versione 0.3 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a>
+      Versione 0.4 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a>
     </footer>
   </main>
 
@@ -265,7 +300,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
   </div>
 </div>
 
-<footer class="fine" id="footLogin">Versione 0.3 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
+<footer class="fine" id="footLogin">Versione 0.4 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
 
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -339,7 +374,48 @@ $('#sync').onclick=sincronizza;
 $('#cambiaEv').onclick=()=>vai('eventi');
 $('#dimentica').onclick=()=>{ev=null; renderEvBar(); renderEventi(); renderAtt(); if(!$('#app').classList.contains('hidden')) vai('eventi');};
 function rev(d){nRev+=d; $('#cntRev').textContent=nRev; $('#cntRev').style.display=nRev?'':'none'}
+const PERS=[
+ {id:1,c:'Taffarel',n:'Ivo',m:'ivotaffarel@gmail.com',t:'+39 333 1111111',isc:true,num:'0001',nas:'12/03/1975',ruo:'admin',att:true,rel:[]},
+ {id:2,c:'Rossi',n:'Anna',m:'anna.rossi@esempio.it',t:'+39 333 2222222',isc:true,num:'0102',nas:'05/09/1982',ruo:'utente',att:true,rel:['Responsabile · Logistica']},
+ {id:3,c:'Bianchi',n:'Marco',m:'marco.b@esempio.it',t:'+39 333 3333333',isc:true,num:'0215',nas:'21/01/1990',ruo:'utente',att:true,rel:['Incaricato · Sedie']},
+ {id:4,c:'Verdi',n:'Luca',m:'luca.verdi@esempio.it',t:'',isc:false,num:'',nas:'',ruo:'utente',att:true,rel:['Incaricato · Premi']},
+ {id:5,c:'Neri',n:'Giulia',m:'giulia.neri@esempio.it',t:'+39 333 5555555',isc:false,num:'',nas:'30/11/1995',ruo:'utente',att:true,rel:[]},
+ {id:6,c:'Gialli',n:'Paolo',m:'paolo.g@esempio.it',t:'+39 333 6666666',isc:true,num:'0310',nas:'',ruo:'utente',att:false,rel:[]}];
+let perCorr=null;
+function renderPersone(){
+  const adm=ruolo()==='admin', e=EVENTI.find(x=>x.id===ev);
+  $('#perSotto').textContent=adm?'Anagrafica completa':('Persone collegate alle attività a cui hai accesso'+(e?' · '+e.t:''));
+  let l=PERS.slice().sort((a,b)=>(a.c+a.n).localeCompare(b.c+b.n));
+  if(adm){
+    const q=($('#perCerca').value||'').toLowerCase(), f=$('#perFiltro').value, na=$('#perNonAttivi').checked;
+    l=l.filter(p=>(na||p.att)&&(!q||[p.c,p.n,p.m,p.t,p.num].join(' ').toLowerCase().includes(q))&&(!f||(f==='isc'&&p.isc)||(f==='non'&&!p.isc)||(f==='adm'&&p.ruo==='admin')));
+    $('#perLista').innerHTML=l.length?l.map(p=>`<div class="row" style="flex-wrap:wrap;cursor:pointer" onclick="apriPersona(${p.id})"><div style="flex:1;min-width:200px"><b>${p.c} ${p.n}</b> ${p.att?'':'<span class="badge e">non attivo</span>'}<div class="sec">${p.m}${p.t?' · '+p.t:''}</div></div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${p.isc?`<span class="badge ok">iscritto ${p.num}</span>`:'<span class="badge">non iscritto</span>'}${p.ruo==='admin'?'<span class="badge w">admin</span>':''}
+      ${p.t?`<a class="btn sec" style="padding:4px 10px" href="tel:${p.t.replace(/\s/g,'')}" onclick="event.stopPropagation()">📞</a><a class="btn sec" style="padding:4px 10px" href="https://wa.me/${p.t.replace(/[^0-9]/g,'')}" onclick="event.stopPropagation()">💬</a>`:''}
+      <a class="btn sec" style="padding:4px 10px" href="mailto:${p.m}" onclick="event.stopPropagation()">✉️</a></div></div>`).join(''):'<p class="sec">Nessuna persona trovata.</p>';
+  } else {
+    if(!ev){ $('#perLista').innerHTML='<p class="sec">Scegli prima un evento.</p>'; return }
+    const vis=PERS.filter(p=>p.att&&p.rel.length||p.id===2);
+    $('#perLista').innerHTML=vis.map(p=>`<div class="row"><b>${p.c} ${p.n}</b><span class="sec" style="text-align:right">${p.rel.join(' · ')||'—'}</span></div>`).join('');
+  }
+}
+function apriPersona(id){
+  perCorr=id; const p=PERS.find(x=>x.id===id)||{c:'',n:'',m:'',t:'',isc:false,num:'',nas:'',ruo:'utente',att:true};
+  $('#modTit').textContent=id?'Modifica persona':'Nuova persona';
+  $('#fCog').value=p.c;$('#fNom').value=p.n;$('#fMail').value=p.m;$('#fCel').value=p.t;$('#fNas').value=p.nas;$('#fRuo').value=p.ruo;
+  $('#fIsc').checked=p.isc;$('#fNumW').classList.toggle('hidden',!p.isc);$('#fNum').value=p.num;$('#fNot').value='';$('#fAtt').checked=p.att;
+  $('#fErr').classList.add('hidden'); $('#modPer').classList.remove('hidden');
+}
+function salvaPersona(){
+  const err=[]; if(!$('#fCog').value.trim())err.push('Il cognome è obbligatorio'); if(!$('#fNom').value.trim())err.push('Il nome è obbligatorio');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test($('#fMail').value))err.push('Email non valida');
+  if($('#fIsc').checked&&!$('#fNum').value.trim())err.push('Per un iscritto serve il numero di iscritto');
+  if(PERS.some(p=>p.id!==perCorr&&p.m.toLowerCase()===$('#fMail').value.toLowerCase()))err.push('Questa email è già presente in anagrafica');
+  if(err.length){$('#fErr').innerHTML=err.join('<br>');$('#fErr').classList.remove('hidden');return}
+  $('#modPer').classList.add('hidden'); toast('Persona salvata (simulato)');
+}
 function vai(p){
+  if(p==='persone') renderPersone();
   if(!ev && (p==='home'||p==='rev')) p='eventi';
   $$('.pg').forEach(e=>e.classList.add('hidden')); $('#p-'+p).classList.remove('hidden');
   $$('.nv,.bottom button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
