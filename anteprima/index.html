@@ -112,6 +112,18 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 .mini i{display:block;height:100%;background:var(--ok)}
 .mv{display:flex;gap:8px;align-items:center;padding:6px 4px;border-radius:8px}
 .mv.no{opacity:.45}
+/* home */
+.stk{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--bordo)}
+.stk i{display:block;height:100%}
+.s-fin{background:#15803d}.s-fat{background:#86efac}.s-cor{background:#60a5fa}.s-dar{background:transparent}
+.leg{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--sec);margin-top:8px}
+.leg span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.leg .l-fin::before{background:#15803d}.leg .l-fat::before{background:#86efac}.leg .l-cor::before{background:#60a5fa}.leg .l-dar::before{background:var(--bordo)}
+.tiles{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.tile{flex:1;min-width:130px;border:1px solid var(--bordo);border-radius:12px;padding:12px 14px;background:var(--card)}
+.tile b{font-size:28px;display:block;line-height:1.1}
+.tile.e b{color:var(--err)}.tile.w b{color:var(--warn)}
+.big{font-size:34px;font-weight:700;line-height:1}
 /* telefono */
 .bottom{display:none}
 @media (max-width:760px){
@@ -129,7 +141,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 <body>
 
 <div class="demo">
-  <b>ANTEPRIMA</b> step 0-5: attività, incaricati (dati finti)
+  <b>ANTEPRIMA</b> step 0-6: Home e avanzamento (dati finti)
   <span>Vedi l'app come:
     <select id="ruolo">
       <option value="admin">Amministratore (Ivo Taffarel)</option>
@@ -146,7 +158,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 <section id="login" class="login">
   <div class="box">
     <div class="logo">SDM</div>
-    <h1><span class="nome-app">SDM Eventi</span> <span class="ver">v0.7</span></h1>
+    <h1><span class="nome-app">SDM Eventi</span> <span class="ver">v0.8</span></h1>
     <p class="sec">Gestione eventi sportivi. Inserisci la tua email: ti invieremo un link per accedere, senza password.</p>
     <div id="loginForm">
       <label for="mail">Email</label>
@@ -165,7 +177,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 <!-- APP -->
 <div id="app" class="app hidden">
   <nav class="side">
-    <div class="brand"><div class="logo">SDM</div><span class="nome-app">SDM Eventi</span><span class="ver">v0.7</span></div>
+    <div class="brand"><div class="logo">SDM</div><span class="nome-app">SDM Eventi</span><span class="ver">v0.8</span></div>
     <button class="nv on" data-p="home">🏠 Home</button>
     <button class="nv" data-p="persone">👥 Persone</button>
     <button class="nv" data-p="eventi">📅 Eventi</button>
@@ -186,15 +198,9 @@ body.offline .need-net{opacity:.5;pointer-events:none}
     </div>
     <!-- HOME -->
     <div id="p-home" class="pg">
-      <div class="top">
-        <div><h1>Ciao, <span id="saluto"></span></h1><span class="sec" id="sottoSaluto"></span></div>
-              </div>
-      <div class="card">
-        <h2>Le mie attività</h2>
-        <div id="attivita"></div>
-        <p class="note">Anche senza rete puoi cambiare lo stato e scrivere la tua nota: le modifiche partono da sole appena c'è copertura. "Finito" lo imposta solo il responsabile.</p>
-      </div>
-      <div class="todo">Segnaposto: l'elenco reale delle attività e l'avanzamento arrivano allo step 6.<br>Negli step 0-1 la home mostra solo accesso e ruolo.</div>
+      <div class="top"><div><h1>Ciao, <span id="saluto"></span></h1><span class="sec" id="sottoSaluto"></span></div></div>
+      <div class="avviso off-only">Sei offline: stai vedendo l'ultima copia salvata sul dispositivo.</div>
+      <div id="homeCorpo"></div>
     </div>
 
     <!-- placeholder per le sezioni future -->
@@ -335,7 +341,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
       </div>
       <div class="card">
         <h2>Applicazione</h2>
-        <div class="row"><span>Versione</span><b>0.7</b></div>
+        <div class="row"><span>Versione</span><b>0.8</b></div>
         <div class="row"><span>Ultima sincronizzazione</span><b id="ultSync">oggi</b></div>
         <div class="row"><span>Modifiche in attesa di invio</span><b id="nPend">0</b></div>
         <div class="row"><span>Installa sul dispositivo</span><button class="btn sec" id="installa">Installa app</button></div>
@@ -383,7 +389,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
     </div>
 
     <footer class="fine">
-      Versione 0.7 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a>
+      Versione 0.8 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a>
     </footer>
   </main>
 
@@ -396,7 +402,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
   </div>
 </div>
 
-<footer class="fine" id="footLogin">Versione 0.7 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
+<footer class="fine" id="footLogin">Versione 0.8 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
 
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -433,11 +439,12 @@ let offline=false, pend=new Set(), nRev=2, ev=null;   // ev = evento scelto (res
 const lab={da_fare:'Da fare',in_corso:'In corso',fatto:'Fatto',finito:'Finito'};
 const ruolo=()=>$('#ruolo').value;
 const disponibili=()=>EVENTI.filter(e=>e.ruoli.includes(ruolo()));
+function percEv(e){const ls=NODI.filter(n=>n.ev===e.id&&!NODI.some(x=>x.p===n.id)); if(!ls.length)return 0; return Math.round(100*ls.filter(n=>(n.L||{}).st==='finito').length/ls.length)}
 function renderEvBar(){
   const e=EVENTI.find(x=>x.id===ev);
   $('#evTit').className='tt'+(e?'':' nessuno');
   $('#evTit').innerHTML=e?`<span>EVENTO</span><b>${e.t}</b><span>${fmtRange(e)}</span>`:'<b>Nessun evento selezionato</b><span>Scegli un evento per iniziare</span>';
-  $('#evProg').innerHTML=(e&&ruolo()!=='utente')?`<div class="sec" style="font-size:12px">Avanzamento ${e.perc}%</div><div class="prog"><i style="width:${e.perc}%"></i></div>`:'';
+  $('#evProg').innerHTML=(e&&ruolo()!=='utente')?`<div class="sec" style="font-size:12px">Avanzamento ${percEv(e)}%</div><div class="prog"><i style="width:${percEv(e)}%"></i></div>`:'';
   $('#cambiaEv').classList.toggle('hidden',!e);
   $('#iEv').textContent=e?e.t:'-';
 }
@@ -445,7 +452,7 @@ function renderEventi(){
   const l=disponibili();
   $('#evInfo').textContent=ev?'Il tuo evento di lavoro è evidenziato. Per cambiarlo, selezionane un altro.':(l.length?'Scegli l\'evento su cui lavorare: resterà selezionato in tutte le pagine.':'Nessun evento disponibile per te.');
   $('#evLista').innerHTML=l.map(e=>`<div class="evc ${e.id===ev?'sel':''}"><div class="inf"><b>${e.t}</b> ${passato(e)?'<span class="badge">concluso</span>':''}<div class="sec">${fmtRange(e)}</div></div>
-   ${ruolo()!=='utente'?`<div style="min-width:110px"><div class="sec" style="font-size:12px">Avanzamento ${e.perc}%</div><div class="prog"><i style="width:${e.perc}%"></i></div></div>`:''}
+   ${ruolo()!=='utente'?`<div style="min-width:110px"><div class="sec" style="font-size:12px">Avanzamento ${percEv(e)}%</div><div class="prog"><i style="width:${percEv(e)}%"></i></div></div>`:''}
    ${e.id===ev?'<span class="badge ok">● Selezionato</span>':`<button class="btn" onclick="scegli(${e.id})">Seleziona</button>`}
    ${ruolo()==='admin'?`<button class="btn sec need-net" onclick="apriEvento(${e.id})">Modifica</button>`:''}</div>`).join('');
 }
@@ -473,16 +480,10 @@ $('#lgFile').onchange=ev2=>{ const f=ev2.target.files[0]; if(!f)return;
 $('#lgDel').onclick=()=>{ setLogo(null); $('#lgFile').value=''; $('#lgMsg').textContent='Logo rimosso' };
 function scegli(id){ ev=id; renderEvBar(); renderEventi(); renderAtt(); vai('home'); toast('Evento selezionato'); }
 function verificaEv(){ if(ev&&!disponibili().some(e=>e.id===ev)) ev=null; const l=disponibili(); if(!ev&&l.length===1) ev=l[0].id; }
-function renderAtt(){
-  const puoFinito=ruolo()!=='utente';
-  const lista=att.map((a,i)=>({a,i})).filter(x=>x.a.ev===ev);
-  $('#attivita').innerHTML=lista.length?lista.map(({a,i})=>`<div class="row" style="flex-wrap:wrap"><div style="flex:1;min-width:180px"><b>${a.t}</b><div class="sec">${a.p}</div></div>
-   <div>${a.sc?`<span class="badge ${a.sk}">${a.sc}</span> `:''}<select class="st" onchange="cambia(${i},this.value)">${Object.keys(lab).filter(k=>k!=='finito'||puoFinito).map(k=>`<option value="${k}" ${a.st===k?'selected':''}>${lab[k]}</option>`).join('')}</select>${pend.has(i)?'<span class="pend">⏳ in attesa</span>':''}</div>
-   <textarea class="nt" rows="1" placeholder="La mia nota…" onchange="nota(${i},this.value)">${a.n}</textarea></div>`).join(''):'<p class="sec">Nessuna attività per questo evento.</p>';
-}
+function renderAtt(){ if(typeof renderHome==='function') renderHome() }
 function cambia(i,v){att[i].st=v; segna(i)}
 function nota(i,v){att[i].n=v; segna(i)}
-function segna(i){ if(offline){pend.add(i)} else {toast('Salvato')} aggiornaSync(); renderAtt(); }
+function segna(i){}
 function toast(m){const t=document.createElement('div');t.textContent='✔ '+m;t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:8px 16px;border-radius:99px;font-size:14px;z-index:9';document.body.appendChild(t);setTimeout(()=>t.remove(),1500)}
 function ora(){return new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}
 function aggiornaSync(stato){
@@ -538,6 +539,54 @@ function salvaPersona(){
   if(err.length){$('#fErr').innerHTML=err.join('<br>');$('#fErr').classList.remove('hidden');return}
   $('#modPer').classList.add('hidden'); toast('Persona salvata (simulato)');
 }
+
+
+// ===== Home (step 6) =====
+let homeFinite=false;
+const Lf=n=>n.L||{st:'da_fare',sc:'',inc:[],inN:{}};
+const oggiISO=()=>new Date().toISOString().slice(0,10);
+function conteggio(ls){const c={da_fare:0,in_corso:0,fatto:0,finito:0};ls.forEach(n=>c[Lf(n).st]++);c.tot=ls.length;c.perc=c.tot?Math.round(100*c.finito/c.tot):0;return c}
+function stack(c){if(!c.tot)return '<div class="stk"></div>';const w=k=>(100*c[k]/c.tot).toFixed(1)+'%';
+  return `<div class="stk" title="${c.finito} finite, ${c.fatto} da confermare, ${c.in_corso} in corso, ${c.da_fare} da fare"><i class="s-fin" style="width:${w('finito')}"></i><i class="s-fat" style="width:${w('fatto')}"></i><i class="s-cor" style="width:${w('in_corso')}"></i></div>`}
+const legenda='<div class="leg"><span class="l-fin">Finito</span><span class="l-fat">Fatto (da confermare)</span><span class="l-cor">In corso</span><span class="l-dar">Da fare</span></div>';
+function scadStato(n){const L=Lf(n);if(!L.sc||L.st==='finito'||L.st==='fatto')return '';const o=oggiISO();if(L.sc<o)return 'e';const gg=(new Date(L.sc)-new Date(o))/864e5;return gg<=7?'w':''}
+function renderHome(){
+  const e=EVENTI.find(x=>x.id===ev); if(!e){$('#homeCorpo').innerHTML='';return}
+  const r=ruolo(), me=ME[r], adm=r==='admin';
+  const tutte=NODI.filter(n=>n.ev===ev&&isLeaf(n)&&(adm||visibile(n)));
+  const mie=tutte.filter(n=>Lf(n).inc.includes(me));
+  const gestisco=!adm&&r==='resp'?tutte.filter(n=>canEdit(n)):(adm?tutte:[]);
+  const out=[];
+  const stNome={da_fare:'Da fare',in_corso:'In corso',fatto:'Fatto',finito:'Finito'};
+  // 1) avanzamento (admin/responsabile)
+  if(adm||r==='resp'){const c=conteggio(gestisco);
+    out.push(`<div class="card"><h2>${adm?"Avanzamento dell'evento":'Avanzamento dei tuoi rami'}</h2>
+      <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><div><div class="big">${c.perc}%</div><div class="sec" style="font-size:13px">completato (${c.finito} su ${c.tot})</div></div>
+      <div style="flex:1;min-width:220px">${stack(c)}${legenda}</div></div></div>`);
+    const scad=gestisco.filter(n=>scadStato(n)==='e').length, prox=gestisco.filter(n=>scadStato(n)==='w').length, senza=gestisco.filter(n=>!Lf(n).inc.length&&Lf(n).st!=='finito').length;
+    out.push(`<div class="tiles"><div class="tile ${scad?'e':''}"><b>${scad}</b><span class="sec">Scadute</span></div><div class="tile ${prox?'w':''}"><b>${prox}</b><span class="sec">In scadenza (7 giorni)</span></div><div class="tile ${senza?'w':''}"><b>${senza}</b><span class="sec">Senza persone incaricate</span></div><div class="tile"><b>${c.fatto}</b><span class="sec">Da confermare</span></div></div>`);
+    // 2) da confermare
+    const dc=gestisco.filter(n=>Lf(n).st==='fatto');
+    out.push(`<div class="card"><h2>Da confermare</h2>`+(dc.length?dc.map(n=>`<div class="row" style="flex-wrap:wrap"><div style="flex:1;min-width:180px"><b>${n.t}</b><div class="sec" style="font-size:13px">${percorsoTxt(n)} · ${Lf(n).inc.map(nomeP).join(', ')||'nessun incaricato'}</div></div><button class="btn need-net" onclick="confermaFinito(${n.id})">✔ Conferma finito</button></div>`).join(''):'<p class="sec" style="margin:0">Nessuna attività in attesa di conferma.</p>')+`</div>`);
+    // 3) rami
+    const rami=NODI.filter(n=>n.ev===ev&&n.p===null&&visibile(n)&&!isLeaf(n));
+    if(rami.length)out.push(`<div class="card"><h2>Avanzamento per ramo</h2>`+rami.map(n=>{const ls=leaves(n).filter(x=>adm||visibile(x)),c=conteggio(ls);
+      return `<div class="row" style="flex-wrap:wrap;cursor:pointer" onclick="vai('str')"><div style="min-width:170px;flex:1"><b>${n.t}</b>${n.r?`<div class="sec" style="font-size:13px">👤 ${nomeP(n.r)}</div>`:''}</div><div style="flex:2;min-width:200px">${stack(c)}</div><div style="min-width:90px;text-align:right"><b>${c.perc}%</b> <span class="sec" style="font-size:12px">${c.finito}/${c.tot}</span></div></div>`}).join('')+legenda+`</div>`);
+  }
+  // 4) le mie attività
+  const ordine=n=>{const L=Lf(n);return (L.st==='finito'?'3':scadStato(n)==='e'?'0':scadStato(n)==='w'?'1':'2')+(L.sc||'9999')};
+  let lista=mie.slice().sort((a,b)=>ordine(a).localeCompare(ordine(b)));
+  const nFin=lista.filter(n=>Lf(n).st==='finito').length; if(!homeFinite)lista=lista.filter(n=>Lf(n).st!=='finito');
+  out.push(`<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h2 style="margin:0">Le mie attività</h2>${nFin?`<label style="margin:0;font-weight:400;display:flex;gap:6px;align-items:center"><input type="checkbox" ${homeFinite?'checked':''} onchange="homeFinite=this.checked;renderHome()"> mostra anche le finite (${nFin})</label>`:''}</div>`+
+   (lista.length?lista.map(n=>{const L=Lf(n),puoFin=canEdit(n),chiuso=L.st==='finito',opt=['da_fare','in_corso','fatto'].concat(puoFin||chiuso?['finito']:[]),sc=scadStato(n);
+     return `<div class="row" style="flex-wrap:wrap;cursor:pointer" onclick="apriScheda(${n.id})"><div style="flex:1;min-width:170px"><b>${n.t}</b><div class="sec" style="font-size:13px">${percorsoTxt(n)}</div></div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap" onclick="event.stopPropagation()">${L.sc?`<span class="badge ${sc}">${sc==='e'?'scaduta':sc==='w'?'scade':'scad.'} ${fmtD(L.sc)}</span>`:''}
+      <select class="st need-net" ${chiuso&&!puoFin?'disabled':''} onchange="statoRapido(${n.id},this.value)">${opt.map(k=>`<option value="${k}" ${L.st===k?'selected':''}>${stNome[k]}</option>`).join('')}</select></div></div>`}).join(''):`<p class="sec" style="margin:12px 0 0">${mie.length?'Tutte le tue attività sono finite. 🎉':'Non hai attività assegnate in questo evento.'}</p>`)+
+   `<p class="note">Tocca un'attività per aprire la scheda con scadenza, note e colleghi.</p></div>`);
+  $('#homeCorpo').innerHTML=out.join('');
+}
+function statoRapido(id,v){const n=nodo(id);if(!n.L)n.L=Lf(n);n.L.st=v;toast('Stato aggiornato (simulato)');renderHome();if(!$('#p-str').classList.contains('hidden'))renderStr()}
+function confermaFinito(id){const n=nodo(id);n.L.st='finito';toast('Confermato: finito (simulato)');renderHome()}
 
 // ===== Struttura (rami) =====
 const MAXL=10, RESP_CREA=false;
@@ -657,7 +706,7 @@ function salvaScheda(){
   if(ed){const t=$('#aTit').value.trim(); if(!t){$('#aErr').textContent='Il titolo è obbligatorio.';$('#aErr').classList.remove('hidden');return}
     n.t=t; n.d=$('#aDes').value.trim(); n.note=$('#aNot').value.trim(); n.L.sc=$('#aScad').value}
   if(!$('#aStato').disabled)n.L.st=$('#aStato').value; leggiNote();
-  $('#modAtt').classList.add('hidden'); renderStr(); toast('Attività salvata (simulato)');
+  $('#modAtt').classList.add('hidden'); renderStr(); renderHome(); toast('Attività salvata (simulato)');
 }
 
 // --- modifica ---
@@ -718,6 +767,7 @@ function vai(p){
   if(p==='persone') renderPersone();
   if(!ev && (p==='home'||p==='rev'||p==='str')) p='eventi';
   if(p==='str') renderStr();
+  if(p==='home') renderHome();
   $$('.pg').forEach(e=>e.classList.add('hidden')); $('#p-'+p).classList.remove('hidden');
   $$('.nv,.bottom button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
   window.scrollTo(0,0);
