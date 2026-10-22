@@ -599,7 +599,9 @@
     figli(null).forEach(n => radice.append(rigaNodo(n)));
     lista.replaceChildren(...[nuovo, S.nodi.length ? radice : h('p', { class: 'sec' }, adm ? 'Nessun ramo: crea il primo con "Modifica struttura".' : 'Nessuna attività assegnata per questo evento.')].filter(Boolean));
     if (S.mod && window.Sortable) lista.querySelectorAll('ul.trl').forEach(ul => S.sort.push(new window.Sortable(ul, {
-      group: 'albero', handle: '.hd', animation: 150, forceFallback: true, fallbackOnBody: true, swapThreshold: 0.65, ghostClass: 'sortable-ghost',
+      group: 'albero', handle: '.hd', animation: 150, forceFallback: true, fallbackOnBody: true, swapThreshold: 0.65, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
+      delay: cfg.DRAG_DELAY_MS === undefined ? 500 : cfg.DRAG_DELAY_MS, delayOnTouchOnly: true, touchStartThreshold: 8,
+      onStart: () => { if (navigator.vibrate) navigator.vibrate(25); },
       onMove: e => { const n = nodo(e.dragged.dataset.id), d = e.to.dataset.parent ? nodo(e.to.dataset.parent) : null; return !motivoNo(n, d); },
       onEnd: e => { if (e.from === e.to && e.oldIndex === e.newIndex) return; spostaNodo(e.item.dataset.id, e.to.dataset.parent || null, e.newIndex); }
     })));
@@ -621,7 +623,9 @@
   async function spostaNodo(id, padre, indice) {
     if (!navigator.onLine) { alert('Serve la connessione per spostare.'); await caricaStruttura(); return; }
     const { error } = await stato.sb.rpc('sposta_nodo', { _nodo: id, _padre: padre, _indice: indice });
-    if (error) alert('Spostamento non riuscito: ' + error.message);
+    if (error) alert(/find the function|schema cache/i.test(error.message || '')
+      ? 'Spostamento non possibile: il database non è aggiornato. Riesegui lo script db/01_schema_sdm_eventi.sql nell\'SQL Editor di Supabase e riprova.'
+      : 'Spostamento non riuscito: ' + error.message);
     if (padre) S.collassati.delete(padre);
     await caricaStruttura();
   }

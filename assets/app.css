@@ -150,3 +150,5 @@ ul.trl{list-style:none;margin:0;padding:0}
 ul.trl ul.trl{margin-left:20px}
 ul.trl.vuoto{min-height:12px;border:1px dashed var(--bordo);border-radius:8px;margin:0 0 6px 20px}
 .sortable-ghost{opacity:.4}
+.sortable-chosen{box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.hd{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;padding:6px 10px}

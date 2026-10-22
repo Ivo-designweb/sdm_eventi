@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 0.6
+-- Versione script: 0.7
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -845,3 +845,6 @@ on conflict (chiave) do nothing;
 insert into sdm_eventi.persone (cognome, nome, email, ruolo)
 values ('Taffarel', 'Ivo', 'ivotaffarel@gmail.com', 'admin')
 on conflict ((lower(email))) do nothing;
+
+-- Fa rileggere all'API di Supabase lo schema (nuove funzioni e tabelle diventano subito utilizzabili)
+notify pgrst, 'reload schema';
