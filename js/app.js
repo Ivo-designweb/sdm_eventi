@@ -88,8 +88,14 @@
     errore('');
     const token = $('#codice').value.trim();
     if (!token) { errore('Inserisci il codice ricevuto per mail.'); return; }
-    const { error } = await stato.sb.auth.verifyOtp({ email: $('#mailInv').textContent, token, type: 'email' });
-    if (error) errore('Codice non valido o scaduto.');
+    const email = $('#mailInv').textContent;
+    // il codice è valido per "email" (accesso) o "signup" (primo accesso): provo entrambi
+    let { error } = await stato.sb.auth.verifyOtp({ email, token, type: 'email' });
+    if (error) {
+      const r = await stato.sb.auth.verifyOtp({ email, token, type: 'signup' });
+      if (!r.error) error = null;
+    }
+    if (error) errore('Codice non accettato (' + error.message + '). Usa il codice dell\'ultima mail ricevuta, senza aver cliccato il link.');
     // in caso di successo parte onAuthStateChange
   }
 
