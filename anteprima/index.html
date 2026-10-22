@@ -91,6 +91,12 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 .evc{border:2px solid var(--bordo);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--card);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .evc.sel{border-color:var(--primario);background:color-mix(in srgb,var(--primario) 6%,var(--card))}
 .evc .inf{flex:1;min-width:180px}
+.logo img{width:100%;height:100%;object-fit:contain;border-radius:inherit}
+.logo.hasimg{background:transparent}
+.ver{font-size:11px;font-weight:600;color:var(--sec);background:var(--bordo);border-radius:99px;padding:1px 8px;margin-left:2px;white-space:nowrap}
+.brand{flex-wrap:wrap}
+.lgprev{width:96px;height:96px;border:1px dashed var(--bordo);border-radius:14px;display:grid;place-items:center;overflow:hidden}
+.lgprev .logo{margin:0;width:100%;height:100%;border-radius:14px}
 /* telefono */
 .bottom{display:none}
 @media (max-width:760px){
@@ -108,7 +114,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 <body>
 
 <div class="demo">
-  <b>ANTEPRIMA</b> step 0-2: persone, offline, evento fisso (dati finti)
+  <b>ANTEPRIMA</b> step 0-3: logo, versione, eventi (dati finti)
   <span>Vedi l'app come:
     <select id="ruolo">
       <option value="admin">Amministratore (Ivo Taffarel)</option>
@@ -125,7 +131,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 <section id="login" class="login">
   <div class="box">
     <div class="logo">SDM</div>
-    <h1 class="nome-app">SDM Eventi</h1>
+    <h1><span class="nome-app">SDM Eventi</span> <span class="ver">v0.5</span></h1>
     <p class="sec">Gestione eventi sportivi. Inserisci la tua email: ti invieremo un link per accedere, senza password.</p>
     <div id="loginForm">
       <label for="mail">Email</label>
@@ -144,7 +150,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 <!-- APP -->
 <div id="app" class="app hidden">
   <nav class="side">
-    <div class="brand"><div class="logo">SDM</div><span class="nome-app">SDM Eventi</span></div>
+    <div class="brand"><div class="logo">SDM</div><span class="nome-app">SDM Eventi</span><span class="ver">v0.5</span></div>
     <button class="nv on" data-p="home">🏠 Home</button>
     <button class="nv" data-p="persone">👥 Persone</button>
     <button class="nv" data-p="eventi">📅 Eventi</button>
@@ -217,12 +223,27 @@ body.offline .need-net{opacity:.5;pointer-events:none}
       </div>
     </div>
     <div id="p-eventi" class="pg hidden">
-      <h1>Eventi</h1>
-      <p class="sec" id="evInfo"></p>
+      <div class="top"><div><h1>Eventi</h1><p class="sec" id="evInfo" style="margin:4px 0 0"></p></div>
+        <button class="btn need-net adminOnly" onclick="apriEvento(null)">+ Nuovo evento</button></div>
       <div id="evLista"></div>
-      <button class="btn need-net adminOnly">+ Nuovo evento</button>
-      <div class="avviso off-only" style="margin-top:12px">Sei offline: puoi scegliere l'evento e consultare i dati, ma la struttura si modifica solo con la connessione.</div>
-      <div class="todo" style="margin-top:16px">Struttura ad albero dell'evento scelto: step 3-5 (modifica solo online)</div>
+      <div class="avviso off-only" style="margin-top:12px">Sei offline: puoi scegliere l'evento e consultare i dati, ma gli eventi si modificano solo con la connessione.</div>
+      <div class="todo" style="margin-top:16px">I rami e le attività dell'evento scelto arrivano negli step 4-5</div>
+    </div>
+
+    <div id="modEv" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
+      <div class="card" style="max-width:520px;margin:0 auto">
+        <h2 id="evModTit">Evento</h2>
+        <label>Titolo *</label><input type="text" id="eTit" maxlength="120" placeholder="Es. Gara Sociale 2027">
+        <div class="grid2">
+          <div><label>Data (inizio) *</label><input type="date" id="eIni"></div>
+          <div><label>Data fine (se più giorni)</label><input type="date" id="eFin"></div>
+        </div>
+        <div id="eErr" class="avviso hidden" style="margin-top:12px"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:space-between;flex-wrap:wrap">
+          <button class="btn sec need-net" id="eDel" style="color:var(--err);border-color:var(--err)" onclick="eliminaEvento()">Elimina evento</button>
+          <span style="display:flex;gap:10px"><button class="btn sec" onclick="$('#modEv').classList.add('hidden')">Annulla</button><button class="btn need-net" onclick="salvaEvento()">Salva</button></span>
+        </div>
+      </div>
     </div>
 
     <!-- DA RIVEDERE -->
@@ -251,7 +272,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
       </div>
       <div class="card">
         <h2>Applicazione</h2>
-        <div class="row"><span>Versione</span><b>0.4</b></div>
+        <div class="row"><span>Versione</span><b>0.5</b></div>
         <div class="row"><span>Ultima sincronizzazione</span><b id="ultSync">oggi</b></div>
         <div class="row"><span>Modifiche in attesa di invio</span><b id="nPend">0</b></div>
         <div class="row"><span>Installa sul dispositivo</span><button class="btn sec" id="installa">Installa app</button></div>
@@ -264,6 +285,17 @@ body.offline .need-net{opacity:.5;pointer-events:none}
     <div id="p-par" class="pg hidden">
       <h1>Parametri</h1>
       <div class="avviso">Pagina riservata all'amministratore. Le modifiche valgono per tutti gli utenti. (Nell'anteprima il tema e il colore cambiano subito, così puoi vederli.)</div>
+      <div class="card">
+        <h2>Logo</h2>
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+          <div class="lgprev"><div class="logo">SDM</div></div>
+          <div style="flex:1;min-width:200px">
+            <input type="file" id="lgFile" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+            <p class="note">PNG, JPG, SVG o WebP. Meglio un'immagine quadrata o con sfondo trasparente. Viene ridimensionata automaticamente (max 256 px) e sostituisce la scritta "SDM" nel menu e nella pagina di accesso.</p>
+            <button class="btn sec" id="lgDel" type="button">Rimuovi logo</button> <span id="lgMsg" class="sec"></span>
+          </div>
+        </div>
+      </div>
       <div class="card">
         <h2>Aspetto</h2>
         <div class="grid2">
@@ -288,7 +320,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
     </div>
 
     <footer class="fine">
-      Versione 0.4 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a>
+      Versione 0.5 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a>
     </footer>
   </main>
 
@@ -300,7 +332,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
   </div>
 </div>
 
-<footer class="fine" id="footLogin">Versione 0.4 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
+<footer class="fine" id="footLogin">Versione 0.5 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
 
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -319,9 +351,15 @@ function applicaRuolo(){
   // sullo smartphone la voce Parametri compare dentro "Altro" solo per l'admin (vedi sotto)
 }
 const EVENTI=[
- {id:1,t:'Gara Sociale 2027',d:'14-16 maggio 2027',l:'Palazzetto dello sport',st:'attivo',perc:42,ruoli:['admin','resp','utente']},
- {id:2,t:'Festa dello Sport',d:'20 giugno 2027',l:'Piazza centrale',st:'in preparazione',perc:10,ruoli:['admin','resp']},
- {id:3,t:'Torneo Giovanile 2026',d:'3 ottobre 2026',l:'Campo sportivo',st:'concluso',perc:100,ruoli:['admin']}];
+ {id:1,t:'Gara Sociale 2027',ini:'2027-05-14',fin:'2027-05-16',perc:42,ruoli:['admin','resp','utente']},
+ {id:2,t:'Festa dello Sport',ini:'2027-06-20',fin:'',perc:10,ruoli:['admin','resp']},
+ {id:3,t:'Torneo Giovanile 2026',ini:'2026-10-03',fin:'',perc:100,ruoli:['admin']}];
+const MESI=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+function fmtData(iso){const [y,m,d]=iso.split('-').map(Number);return `${d} ${MESI[m-1]} ${y}`}
+function fmtRange(e){ if(!e.fin||e.fin===e.ini) return fmtData(e.ini);
+  const [y1,m1,d1]=e.ini.split('-').map(Number),[y2,m2,d2]=e.fin.split('-').map(Number);
+  return (y1===y2&&m1===m2)?`${d1}-${d2} ${MESI[m1-1]} ${y1}`:`${fmtData(e.ini)} – ${fmtData(e.fin)}`; }
+const passato=e=>(e.fin||e.ini)<new Date().toISOString().slice(0,10);
 const att=[
  {ev:1,t:'Sedie',p:'Logistica',sc:'scade 30/10',sk:'w',st:'in_corso',n:''},
  {ev:1,t:'Premi',p:'Premiazioni',sc:'scaduta',sk:'e',st:'da_fare',n:''},
@@ -334,7 +372,7 @@ const disponibili=()=>EVENTI.filter(e=>e.ruoli.includes(ruolo()));
 function renderEvBar(){
   const e=EVENTI.find(x=>x.id===ev);
   $('#evTit').className='tt'+(e?'':' nessuno');
-  $('#evTit').innerHTML=e?`<span>EVENTO</span><b>${e.t}</b><span>${e.d} · ${e.l}</span>`:'<b>Nessun evento selezionato</b><span>Scegli un evento per iniziare</span>';
+  $('#evTit').innerHTML=e?`<span>EVENTO</span><b>${e.t}</b><span>${fmtRange(e)}</span>`:'<b>Nessun evento selezionato</b><span>Scegli un evento per iniziare</span>';
   $('#evProg').innerHTML=(e&&ruolo()!=='utente')?`<div class="sec" style="font-size:12px">Avanzamento ${e.perc}%</div><div class="prog"><i style="width:${e.perc}%"></i></div>`:'';
   $('#cambiaEv').classList.toggle('hidden',!e);
   $('#iEv').textContent=e?e.t:'-';
@@ -342,11 +380,33 @@ function renderEvBar(){
 function renderEventi(){
   const l=disponibili();
   $('#evInfo').textContent=ev?'Il tuo evento di lavoro è evidenziato. Per cambiarlo, selezionane un altro.':(l.length?'Scegli l\'evento su cui lavorare: resterà selezionato in tutte le pagine.':'Nessun evento disponibile per te.');
-  $('#evLista').innerHTML=l.map(e=>`<div class="evc ${e.id===ev?'sel':''}"><div class="inf"><b>${e.t}</b> <span class="badge">${e.st}</span><div class="sec">${e.d} · ${e.l}</div></div>
+  $('#evLista').innerHTML=l.map(e=>`<div class="evc ${e.id===ev?'sel':''}"><div class="inf"><b>${e.t}</b> ${passato(e)?'<span class="badge">concluso</span>':''}<div class="sec">${fmtRange(e)}</div></div>
    ${ruolo()!=='utente'?`<div style="min-width:110px"><div class="sec" style="font-size:12px">Avanzamento ${e.perc}%</div><div class="prog"><i style="width:${e.perc}%"></i></div></div>`:''}
    ${e.id===ev?'<span class="badge ok">● Selezionato</span>':`<button class="btn" onclick="scegli(${e.id})">Seleziona</button>`}
-   ${ruolo()==='admin'?'<button class="btn sec need-net">Modifica</button>':''}</div>`).join('');
+   ${ruolo()==='admin'?`<button class="btn sec need-net" onclick="apriEvento(${e.id})">Modifica</button>`:''}</div>`).join('');
 }
+let evCorr=null;
+function apriEvento(id){ evCorr=id; const e=EVENTI.find(x=>x.id===id)||{t:'',ini:'',fin:''};
+  $('#evModTit').textContent=id?'Modifica evento':'Nuovo evento'; $('#eTit').value=e.t; $('#eIni').value=e.ini; $('#eFin').value=e.fin;
+  $('#eDel').classList.toggle('hidden',!id); $('#eErr').classList.add('hidden'); $('#modEv').classList.remove('hidden'); }
+function salvaEvento(){ const t=$('#eTit').value.trim(), i=$('#eIni').value, f=$('#eFin').value, err=[];
+  if(!t)err.push('Il titolo è obbligatorio.'); if(!i)err.push('La data è obbligatoria.'); if(i&&f&&f<i)err.push('La data fine non può precedere la data di inizio.');
+  if(err.length){$('#eErr').innerHTML=err.join('<br>');$('#eErr').classList.remove('hidden');return}
+  if(evCorr){const e=EVENTI.find(x=>x.id===evCorr);Object.assign(e,{t,ini:i,fin:f})} else {const n=Math.max(...EVENTI.map(x=>x.id))+1;EVENTI.push({id:n,t,ini:i,fin:f,perc:0,ruoli:['admin']})}
+  $('#modEv').classList.add('hidden'); renderEventi(); renderEvBar(); toast('Evento salvato (simulato)'); }
+function eliminaEvento(){ const e=EVENTI.find(x=>x.id===evCorr);
+  if(!confirm('Eliminare definitivamente l\'evento "'+e.t+'" con tutti i suoi rami, attività e incarichi? L\'operazione non si può annullare.'))return;
+  EVENTI.splice(EVENTI.indexOf(e),1); if(ev===e.id)ev=null; $('#modEv').classList.add('hidden'); renderEventi(); renderEvBar(); toast('Evento eliminato (simulato)'); }
+// logo: ridimensionato nel browser e salvato come piccola immagine
+function setLogo(url){ $$('.logo').forEach(l=>{ if(url){l.classList.add('hasimg');l.innerHTML='<img alt="logo" src="'+url+'">'} else {l.classList.remove('hasimg');l.textContent='SDM'} }); }
+$('#lgFile').onchange=ev2=>{ const f=ev2.target.files[0]; if(!f)return;
+  if(f.size>5*1024*1024){ $('#lgMsg').textContent='Immagine troppo grande (max 5 MB).'; return }
+  const rd=new FileReader(); rd.onload=()=>{ const im=new Image(); im.onload=()=>{
+    const k=Math.min(1,256/Math.max(im.width,im.height)), c=document.createElement('canvas'); c.width=Math.round(im.width*k)||256; c.height=Math.round(im.height*k)||256;
+    c.getContext('2d').drawImage(im,0,0,c.width,c.height); setLogo(c.toDataURL('image/png')); $('#lgMsg').textContent='Anteprima applicata (dimensione finale '+c.width+'×'+c.height+' px)'; };
+    im.onerror=()=>{ $('#lgMsg').textContent='File non leggibile come immagine.' }; im.src=rd.result; };
+  rd.readAsDataURL(f); };
+$('#lgDel').onclick=()=>{ setLogo(null); $('#lgFile').value=''; $('#lgMsg').textContent='Logo rimosso' };
 function scegli(id){ ev=id; renderEvBar(); renderEventi(); renderAtt(); vai('home'); toast('Evento selezionato'); }
 function verificaEv(){ if(ev&&!disponibili().some(e=>e.id===ev)) ev=null; const l=disponibili(); if(!ev&&l.length===1) ev=l[0].id; }
 function renderAtt(){
