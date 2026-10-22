@@ -70,8 +70,9 @@
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) { errore('Inserisci un indirizzo email valido.'); return; }
     if (!navigator.onLine) { errore('Sei offline: il primo accesso richiede la connessione.'); return; }
     const b = $('#invia'); b.disabled = true;
+    const redirect = location.origin;   // senza "/" finale: coincide con la voce inserita in Redirect URLs
     const { error } = await stato.sb.auth.signInWithOtp({
-      email: mail, options: { emailRedirectTo: location.origin + location.pathname }
+      email: mail, options: { emailRedirectTo: redirect }
     });
     b.disabled = false;
     if (error) {
@@ -79,6 +80,7 @@
       return;
     }
     $('#mailInv').textContent = mail;
+    $('#redirInfo').textContent = 'Il link della mail porta a: ' + redirect;
     $('#loginForm').classList.add('hidden');
     $('#loginOk').classList.remove('hidden');
   }

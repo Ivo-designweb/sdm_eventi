@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="0.2">
+<meta name="app-version" content="0.3">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -38,6 +38,7 @@
   </form>
   <div id="loginOk" class="hidden">
     <div class="msg">Link inviato a <b id="mailInv"></b>. Apri la mail e tocca il link per entrare.</div>
+    <p class="note" id="redirInfo"></p>
     <form id="codeForm" novalidate>
       <label for="codice">Hai installato l'app sull'iPhone? Inserisci qui il codice ricevuto per mail</label>
       <input id="codice" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Codice di accesso">
