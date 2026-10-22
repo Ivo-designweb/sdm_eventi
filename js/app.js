@@ -198,9 +198,6 @@
     $('#iMail').textContent = p.email;
     $('#iRuolo').textContent = RUOLI[p.ruolo] || p.ruolo;
     $$('.adminOnly').forEach(e => e.classList.toggle('hidden', !admin));
-    $('#stConn').textContent = online ? 'Connesso' : 'Non raggiungibile (dati salvati)';
-    $('#stUtente').textContent = nome + ' (' + (RUOLI[p.ruolo] || p.ruolo) + ')';
-    $('#stPar').textContent = parErr ? 'Non aggiornati' : (nPar + ' parametri');
     mostra('app');
     vai('eventi');
     aggiornaRete();
@@ -215,7 +212,7 @@
     $$('.nv, .bottom button').forEach(b => b.classList.toggle('on', b.dataset.p === p));
     if (p === 'par') riempiParametri();
     if (p === 'persone') caricaPersone();
-    if (p === 'str') caricaStruttura();
+    if (p === 'str' || p === 'home') caricaStruttura();
     window.scrollTo(0, 0);
   }
 
@@ -382,7 +379,7 @@
     const [y1, m1, d1] = e.data_inizio.split('-').map(Number), [y2, m2] = e.data_fine.split('-').map(Number);
     return (y1 === y2 && m1 === m2) ? d1 + '-' + e.data_fine.split('-')[2].replace(/^0/, '') + ' ' + MESI[m1 - 1] + ' ' + y1 : fmtData(e.data_inizio) + ' – ' + fmtData(e.data_fine);
   }
-  const oggi = () => new Date().toISOString().slice(0, 10);
+  const oggi = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const concluso = e => (e.data_fine || e.data_inizio || '9999') < oggi();
   const eventoCorrente = () => stato.eventi.find(e => e.id === stato.evento) || null;
 
@@ -537,7 +534,7 @@
       }
     }
     if (!ok) { const c = LS.get(chiave); if (c) { S.nodi = c.n; S.inc = c.i; S.nomi = c.m; S.assegnabili = c.a || []; } else S.nodi = []; }
-    renderStruttura();
+    renderStruttura(); renderHome();
   }
 
   function badgeStato(st) {
@@ -798,7 +795,100 @@
     for (const w of cambiati) await esegui(stato.sb.from('incarichi').update({ nota: (w.nota || '').trim() || null }).eq('id', w.id));
     b.disabled = false;
     if (errore) { erroreScheda('Salvataggio non riuscito: ' + errore); await caricaStruttura(); return; }
-    chiudiScheda(); await caricaStruttura();
+    chiudiScheda(); await aggiornaTutto();
+  }
+
+
+  // ---------- home: avanzamento e le mie attività ----------
+  let homeFinite = false;
+  const aggiornaTutto = () => Promise.all([caricaStruttura(), caricaEventi()]);
+  function toast(m) { const t = h('div', { class: 'toastm' }, '✔ ' + m); document.body.append(t); setTimeout(() => t.remove(), 1600); }
+  function conteggio(ls) {
+    const c = { da_fare: 0, in_corso: 0, fatto: 0, finito: 0 };
+    ls.forEach(n => { c[n.stato] = (c[n.stato] || 0) + 1; });
+    c.tot = ls.length; c.perc = c.tot ? Math.round(100 * c.finito / c.tot) : 0; return c;
+  }
+  function barraStack(c) {
+    const w = k => (c.tot ? (100 * c[k] / c.tot).toFixed(1) : 0) + '%';
+    return h('div', { class: 'stk', title: c.finito + ' finite, ' + c.fatto + ' da confermare, ' + c.in_corso + ' in corso, ' + c.da_fare + ' da fare' },
+      h('i', { class: 's-fin', style: 'width:' + w('finito') }), h('i', { class: 's-fat', style: 'width:' + w('fatto') }), h('i', { class: 's-cor', style: 'width:' + w('in_corso') }));
+  }
+  const legenda = () => h('div', { class: 'leg' }, h('span', { class: 'l-fin' }, 'Finito'), h('span', { class: 'l-fat' }, 'Fatto (da confermare)'), h('span', { class: 'l-cor' }, 'In corso'), h('span', { class: 'l-dar' }, 'Da fare'));
+  function scadClasse(n) {
+    if (!n.scadenza || n.stato === 'finito' || n.stato === 'fatto') return '';
+    const o = oggi();
+    if (n.scadenza < o) return 'e';
+    return (new Date(n.scadenza) - new Date(o)) / 864e5 <= (parseInt(stato.parametri.giorni_preavviso_scadenza, 10) || 7) ? 'w' : '';
+  }
+  const card = (titolo, ...figli) => h('div', { class: 'card' }, titolo ? h('h2', {}, titolo) : '', ...figli);
+  const tile = (n, etich, cl) => h('div', { class: 'tile ' + (n ? cl : '') }, h('b', {}, String(n)), h('span', { class: 'sec' }, etich));
+
+  async function statoRapido(n, v) {
+    if (!navigator.onLine) { alert('Serve la connessione per cambiare lo stato.'); renderHome(); return; }
+    const { error } = await stato.sb.from('nodi').update({ stato: v }).eq('id', n.id);
+    if (error) alert('Cambio di stato non riuscito: ' + error.message); else toast('Stato aggiornato');
+    await aggiornaTutto();
+  }
+
+  function renderHome() {
+    const box = $('#homeCorpo');
+    if (!box) return;
+    if (stato.evento === null || !stato.persona) { box.replaceChildren(); return; }
+    ordina();
+    const adm = isAdmin(), me = stato.persona.id;
+    const tutte = S.nodi.filter(isLeaf);
+    const gestisco = adm ? tutte : tutte.filter(canEdit);
+    const sonoResp = adm || S.nodi.some(n => n.responsabile_id === me);
+    const out = [];
+    if (sonoResp) {
+      const c = conteggio(gestisco);
+      out.push(card(adm ? 'Avanzamento dell\'evento' : 'Avanzamento dei tuoi rami',
+        h('div', { style: 'display:flex;gap:18px;align-items:center;flex-wrap:wrap' },
+          h('div', {}, h('div', { class: 'big' }, c.perc + '%'), h('div', { class: 'sec', style: 'font-size:13px' }, 'completato (' + c.finito + ' su ' + c.tot + ')')),
+          h('div', { style: 'flex:1;min-width:220px' }, barraStack(c), legenda()))));
+      const scad = gestisco.filter(n => scadClasse(n) === 'e').length, prox = gestisco.filter(n => scadClasse(n) === 'w').length;
+      const senza = gestisco.filter(n => !nIncarichi(n) && n.stato !== 'finito').length;
+      out.push(h('div', { class: 'tiles' }, tile(scad, 'Scadute', 'e'), tile(prox, 'In scadenza (' + (parseInt(stato.parametri.giorni_preavviso_scadenza, 10) || 7) + ' giorni)', 'w'), tile(senza, 'Senza persone incaricate', 'w'), tile(c.fatto, 'Da confermare', '')));
+      const dc = gestisco.filter(n => n.stato === 'fatto');
+      out.push(card('Da confermare', ...(dc.length ? dc.map(n => {
+        const b = h('button', { class: 'btn need-net', type: 'button' }, '✔ Conferma finito');
+        b.addEventListener('click', () => statoRapido(n, 'finito'));
+        return h('div', { class: 'row', style: 'flex-wrap:wrap' }, h('div', { style: 'flex:1;min-width:180px' }, h('b', {}, n.titolo),
+          h('div', { class: 'sec', style: 'font-size:13px' }, percorsoTxt(n) + ' · ' + ((S.inc[n.id] || []).map(x => nomeP(x.persona_id)).join(', ') || 'nessun incaricato'))), b);
+      }) : [h('p', { class: 'sec', style: 'margin:0' }, 'Nessuna attività in attesa di conferma.')])));
+      const rami = adm ? figli(null).filter(n => !isLeaf(n)) : S.nodi.filter(n => n.responsabile_id === me && !isLeaf(n) && !antenati(n).some(a => a.responsabile_id === me));
+      if (rami.length) out.push(card('Avanzamento per ramo', ...rami.map(n => {
+        const cc = conteggio(foglie(n)), riga = h('div', { class: 'row', style: 'flex-wrap:wrap;cursor:pointer' },
+          h('div', { style: 'min-width:170px;flex:1' }, h('b', {}, n.titolo), n.responsabile_id ? h('div', { class: 'sec', style: 'font-size:13px' }, '👤 ' + nomeP(n.responsabile_id)) : ''),
+          h('div', { style: 'flex:2;min-width:200px' }, barraStack(cc)),
+          h('div', { style: 'min-width:90px;text-align:right' }, h('b', {}, cc.perc + '%'), ' ', h('span', { class: 'sec', style: 'font-size:12px' }, cc.finito + '/' + cc.tot)));
+        riga.addEventListener('click', () => vai('str')); return riga;
+      }), legenda()));
+    }
+    // le mie attività
+    const ordine = n => (n.stato === 'finito' ? '3' : scadClasse(n) === 'e' ? '0' : scadClasse(n) === 'w' ? '1' : '2') + (n.scadenza || '9999');
+    const mie = tutte.filter(n => (S.inc[n.id] || []).some(x => x.persona_id === me)).sort((a, b) => ordine(a).localeCompare(ordine(b)));
+    const nFin = mie.filter(n => n.stato === 'finito').length;
+    const lista = homeFinite ? mie : mie.filter(n => n.stato !== 'finito');
+    const testa = h('div', { style: 'display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center' }, h('h2', { style: 'margin:0' }, 'Le mie attività'));
+    if (nFin) {
+      const cb = h('input', { type: 'checkbox' }); cb.checked = homeFinite; cb.addEventListener('change', () => { homeFinite = cb.checked; renderHome(); });
+      testa.append(h('label', { style: 'margin:0;font-weight:400;display:flex;gap:6px;align-items:center' }, cb, ' mostra anche le finite (' + nFin + ')'));
+    }
+    const righe = lista.map(n => {
+      const chiuso = n.stato === 'finito', puoFin = canEdit(n), sc = scadClasse(n);
+      const sel = h('select', { class: 'st need-net' }, ...['da_fare', 'in_corso', 'fatto', ...(puoFin || chiuso ? ['finito'] : [])].map(k => { const o = h('option', { value: k }, STATI[k].replace(' (confermato dal responsabile)', '')); if (n.stato === k) o.selected = true; return o; }));
+      if (chiuso && !puoFin) sel.disabled = true;
+      sel.addEventListener('change', () => statoRapido(n, sel.value));
+      const ctrl = h('div', { style: 'display:flex;gap:6px;align-items:center;flex-wrap:wrap' }, n.scadenza ? h('span', { class: 'badge ' + sc }, (sc === 'e' ? 'scaduta ' : sc === 'w' ? 'scade ' : 'scad. ') + n.scadenza.split('-').reverse().slice(0, 2).join('/')) : '', sel);
+      ctrl.addEventListener('click', e => e.stopPropagation());
+      const riga = h('div', { class: 'row', style: 'flex-wrap:wrap;cursor:pointer', tabindex: '0' }, h('div', { style: 'flex:1;min-width:170px' }, h('b', {}, n.titolo), h('div', { class: 'sec', style: 'font-size:13px' }, percorsoTxt(n))), ctrl);
+      riga.addEventListener('click', () => apriScheda(n.id));
+      return riga;
+    });
+    out.push(card('', testa, ...(righe.length ? righe : [h('p', { class: 'sec', style: 'margin:12px 0 0' }, mie.length ? 'Tutte le tue attività sono finite. 🎉' : 'Non hai attività assegnate in questo evento.')]),
+      h('p', { class: 'note' }, 'Tocca un\'attività per aprire la scheda con scadenza, note e colleghi.')));
+    box.replaceChildren(...out);
   }
 
   // ---------- logo (admin) ----------

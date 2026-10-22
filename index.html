@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="1.0">
+<meta name="app-version" content="1.1">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -83,15 +83,9 @@
     </div>
 
     <div id="p-home" class="pg">
-      <h1>Ciao, <span id="saluto"></span></h1>
-      <p class="sec" id="sottoSaluto"></p>
-      <div class="card">
-        <h2>Stato dell'applicazione</h2>
-        <div class="row"><span>Collegamento a Supabase</span><b id="stConn">-</b></div>
-        <div class="row"><span>Utente collegato all'anagrafica</span><b id="stUtente">-</b></div>
-        <div class="row"><span>Parametri caricati</span><b id="stPar">-</b></div>
-      </div>
-      <div class="todo">Segnaposto: attività e avanzamento arrivano con gli step successivi.</div>
+      <div class="top"><div><h1>Ciao, <span id="saluto"></span></h1><span class="sec" id="sottoSaluto"></span></div></div>
+      <div class="avviso off-only">Sei offline: stai vedendo l'ultima copia salvata sul dispositivo.</div>
+      <div id="homeCorpo"></div>
     </div>
 
     <div id="p-persone" class="pg hidden">
