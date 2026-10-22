@@ -589,7 +589,6 @@
     const puoMod = adm || S.nodi.some(n => n.responsabile_id === stato.persona.id);
     $('#strModBtn').classList.toggle('hidden', !puoMod);
     $('#strModBtn').textContent = S.mod ? '✔ Fine modifica' : '✎ Modifica struttura';
-    $('#strModAvv').classList.toggle('hidden', !S.mod);
     const lista = $('#strLista');
     $('#strInfo').textContent = adm ? 'Albero completo dell\'evento · max ' + maxLivelli() + ' livelli'
       : (puoMod ? 'I rami di cui sei responsabile e le tue attività' : 'Le attività in cui sei incaricato');
