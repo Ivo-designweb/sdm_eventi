@@ -129,3 +129,24 @@ nav.side .brand .brandimg{width:190px}
   .topbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
   .topbar .brandimg{height:44px;width:auto}
 }
+
+/* albero */
+.tn{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--bordo);border-radius:10px;margin-bottom:6px;background:var(--card)}
+.tn.br{background:color-mix(in srgb,var(--primario) 5%,var(--card))}
+.tn .tg{width:26px;height:26px;border:0;background:none;cursor:pointer;font-size:13px;color:var(--sec);flex:none}
+.tn .tt2{flex:1;min-width:150px}
+.tn .meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.hd{cursor:grab;color:var(--sec);user-select:none;padding:0 4px;font-size:18px}
+.tn.dropb{box-shadow:0 -4px 0 var(--primario)} .tn.dropa{box-shadow:0 4px 0 var(--primario)} .tn.dropi{outline:2px dashed var(--primario)}
+.tn.drg{opacity:.35}
+.ib{border:1px solid var(--bordo);background:var(--card);color:var(--testo);border-radius:8px;padding:3px 9px;cursor:pointer;font-size:14px}
+.ib.dn{color:var(--err);border-color:var(--err)}
+.mini{display:inline-block;width:60px;height:6px;background:var(--bordo);border-radius:99px;overflow:hidden;vertical-align:middle}
+.mini i{display:block;height:100%;background:var(--ok)}
+.mv{display:flex;gap:8px;align-items:center;padding:6px 4px;border-radius:8px}
+.mv.no{opacity:.45}
+
+ul.trl{list-style:none;margin:0;padding:0}
+ul.trl ul.trl{margin-left:20px}
+ul.trl.vuoto{min-height:12px;border:1px dashed var(--bordo);border-radius:8px;margin:0 0 6px 20px}
+.sortable-ghost{opacity:.4}

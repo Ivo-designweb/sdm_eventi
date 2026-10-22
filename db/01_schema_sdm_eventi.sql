@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 0.5
+-- Versione script: 0.6
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -495,7 +495,7 @@ begin
       from jsonb_each(r) n
       join jsonb_each(o) o2 using (key)
      where n.value is distinct from o2.value
-       and n.key not in ('aggiornato_il','livello','percorso','auth_user_id','stato_il','nota_il');
+       and n.key not in ('aggiornato_il','livello','percorso','posizione','auth_user_id','stato_il','nota_il');
     if v_det is null then return null; end if;     -- nessuna variazione significativa
     if tg_table_name = 'nodi' and (o ->> 'parent_id') is distinct from (r ->> 'parent_id') then
       v_det := v_det || jsonb_build_object('ramo_precedente',
@@ -597,6 +597,38 @@ begin
   end loop;
   perform set_config('sdm_eventi.ts_dispositivo', '', true);
   return res;
+end $$;
+
+-- STRUTTURA: sposta o riordina un nodo in un'unica operazione.
+-- _padre null = primo livello; _indice = posizione tra i fratelli (0 = primo).
+-- Gira con i diritti di chi la chiama: RLS e trigger (permessi, cicli, profondità massima,
+-- foglie con incaricati) valgono come per le modifiche dirette.
+create or replace function sdm_eventi.sposta_nodo(_nodo uuid, _padre uuid, _indice integer)
+returns void
+language plpgsql set search_path = sdm_eventi, public, pg_temp as $$
+declare
+  v_ev  uuid;
+  r     record;
+  i     integer := 0;
+  messo boolean := false;
+begin
+  select evento_id into v_ev from sdm_eventi.nodi where id = _nodo;
+  if not found then raise exception 'Elemento non trovato o non più accessibile'; end if;
+  if _padre is not null and not exists (select 1 from sdm_eventi.nodi where id = _padre and evento_id = v_ev) then
+    raise exception 'Destinazione non valida';
+  end if;
+  update sdm_eventi.nodi set parent_id = _padre where id = _nodo and parent_id is distinct from _padre;
+  for r in select id from sdm_eventi.nodi
+           where evento_id = v_ev and parent_id is not distinct from _padre and id <> _nodo
+           order by posizione, creato_il, id
+  loop
+    if i = greatest(_indice, 0) and not messo then
+      update sdm_eventi.nodi set posizione = i where id = _nodo; messo := true; i := i + 1;
+    end if;
+    update sdm_eventi.nodi set posizione = i where id = r.id and posizione <> i;
+    i := i + 1;
+  end loop;
+  if not messo then update sdm_eventi.nodi set posizione = i where id = _nodo; end if;
 end $$;
 
 -- Aggiornamenti in tempo reale (Supabase Realtime), se la publication esiste

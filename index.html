@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="0.6">
+<meta name="app-version" content="0.7">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -66,6 +66,7 @@
     <button class="nv on" data-p="home">🏠 Home</button>
     <button class="nv" data-p="persone">👥 Persone</button>
     <button class="nv" data-p="eventi">📅 Eventi</button>
+    <button class="nv" data-p="str">🌳 Struttura</button>
     <button class="nv" data-p="imp">⚙️ Impostazioni</button>
     <button class="nv lock adminOnly" data-p="par">🎛️ Parametri</button>
     <div class="spacer"></div>
@@ -101,7 +102,7 @@
         <div class="grid2">
           <input type="text" id="perCerca" placeholder="Cerca per cognome, nome, email, telefono…">
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <select class="f" id="perFiltro" style="flex:1;min-width:140px"><option value="">Tutte</option><option value="isc">Solo iscritti</option><option value="non">Non iscritti</option><option value="adm">Amministratori</option></select>
+            <select class="f" id="perFiltro" style="flex:1;min-width:140px"><option value="">Tutte</option><option value="isc">Solo iscritti</option><option value="non">Non iscritti</option><option value="adm">Amministratori</option><option value="resp">Responsabili di rami</option></select>
             <label style="margin:0;font-weight:400;display:flex;gap:6px;align-items:center"><input type="checkbox" id="perNonAttivi"> anche non attivi</label>
           </div>
         </div>
@@ -119,7 +120,7 @@
           <div><label for="fMail">Email * (serve per l'accesso)</label><input type="email" id="fMail" maxlength="120"></div>
           <div><label for="fCel">Cellulare</label><input type="text" id="fCel" inputmode="tel" placeholder="+39 ..." maxlength="30"></div>
           <div><label for="fNas">Data di nascita</label><input type="date" id="fNas"></div>
-          <div><label for="fRuo">Ruolo</label><select class="f" id="fRuo"><option value="utente">Utente</option><option value="admin">Amministratore</option></select></div>
+          <div><label for="fRuo">Ruolo</label><select class="f" id="fRuo"><option value="utente">Operatore</option><option value="admin">Amministratore</option></select></div>
         </div>
         <div class="row" style="margin-top:8px"><div><b>Iscritto</b><div class="sec">Se iscritto, il numero è obbligatorio e univoco.</div></div><input type="checkbox" class="sw" id="fIsc"></div>
         <div id="fNumW" class="hidden"><label for="fNum">Numero iscritto *</label><input type="text" id="fNum" maxlength="30"></div>
@@ -154,6 +155,41 @@
           <span style="display:flex;gap:10px"><button class="btn sec" id="eAnnulla" type="button">Annulla</button><button class="btn need-net" id="eSalva" type="submit">Salva</button></span>
         </div>
       </form>
+    </div>
+
+    <div id="p-str" class="pg hidden">
+      <div class="top"><div><h1>Struttura</h1><p class="sec" id="strInfo" style="margin:4px 0 0"></p></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn sec" id="strEspandi" type="button">Espandi tutto</button>
+          <button class="btn sec" id="strComprimi" type="button">Comprimi tutto</button>
+          <button class="btn need-net hidden" id="strModBtn" type="button">✎ Modifica struttura</button>
+        </div></div>
+      <div class="avviso off-only">Sei offline: puoi consultare la struttura ma non modificarla.</div>
+      <div class="avviso hidden" id="strModAvv">Modalità modifica: trascina ☰ per riordinare o spostare (rilascia dentro un elemento per metterlo sotto). Se preferisci usa "⇄ Sposta in…".</div>
+      <div id="strLista"></div>
+      <div class="todo" style="margin-top:12px">Scadenza, stato, incaricati e note per persona delle attività si completano nello step 5.</div>
+    </div>
+
+    <div id="modNodo" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
+      <form class="card" id="nodoForm" style="max-width:560px;margin:0 auto" novalidate>
+        <h2 id="nTitM">Ramo</h2>
+        <p class="sec" id="nPercorso" style="margin-top:-6px"></p>
+        <label for="nTit">Titolo *</label><input type="text" id="nTit" maxlength="120">
+        <label for="nDes">Descrizione</label><input type="text" id="nDes" maxlength="500">
+        <div id="nRespW"><label for="nResp">Responsabile del ramo</label><select class="f" id="nResp"></select>
+        <p class="note">Se vuoto, vale il responsabile del ramo sopra. Il responsabile gestisce tutto ciò che sta sotto.</p></div>
+        <label for="nNot">Note</label><input type="text" id="nNot" maxlength="1000">
+        <div id="nErr" class="avviso hidden" style="margin-top:12px"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end"><button class="btn sec" id="nAnnulla" type="button">Annulla</button><button class="btn need-net" id="nSalva" type="submit">Salva</button></div>
+      </form>
+    </div>
+
+    <div id="modMove" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
+      <div class="card" style="max-width:560px;margin:0 auto">
+        <h2>Sposta in…</h2><p class="sec" id="mvDa"></p>
+        <div id="mvLista"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end"><button class="btn sec" id="mvAnnulla" type="button">Annulla</button></div>
+      </div>
     </div>
 
     <div id="p-imp" class="pg hidden">
@@ -220,6 +256,7 @@
     <button class="on" data-p="home"><span>🏠</span>Home</button>
     <button data-p="persone"><span>👥</span>Persone</button>
     <button data-p="eventi"><span>📅</span>Eventi</button>
+    <button data-p="str"><span>🌳</span>Struttura</button>
     <button data-p="imp"><span>⚙️</span>Altro</button>
   </div>
 </div>
@@ -227,6 +264,7 @@
 <footer class="fine" id="footLogin">Versione <span class="vers"></span> · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
 
 <script src="vendor/supabase.js"></script>
+<script src="vendor/sortable.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 </body>
