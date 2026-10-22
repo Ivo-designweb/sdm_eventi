@@ -16,10 +16,10 @@
      <h2 style="margin:0 0 8px;color:#1d4ed8">SDM Eventi</h2>
      <p style="font-size:16px;margin:0 0 16px">Il tuo codice di accesso è:</p>
      <p style="font-size:38px;font-weight:bold;letter-spacing:8px;color:#1d4ed8;background:#eef2ff;border-radius:10px;padding:16px;text-align:center;margin:0 0 16px">{{ .Token }}</p>
-     <p style="font-size:14px;color:#5b6578;margin:0">Digitalo nell'app entro un'ora. Se non hai chiesto tu l'accesso, ignora questa mail.</p>
+     <p style="font-size:14px;color:#5b6578;margin:0">Digitalo nell'app entro 5 minuti. Se non hai chiesto tu l'accesso, ignora questa mail.</p>
    </div>
    ```
-   **Authentication > Providers > Email**: *Email OTP Length* può essere 6 (predefinito) fino a 10 cifre.
+   **Authentication > Providers > Email** (in alcune versioni *Sign In / Providers*): *Email OTP Length* da 6 a 10 cifre e *Email OTP Expiration* in secondi (predefinito 3600; per 5 minuti imposta 300). Lo stesso valore va in `OTP_MINUTI` di `js/config.js`.
 5. **Authentication > SMTP Settings**: configura un servizio di posta (Resend, Brevo, ecc.).
    Il mittente predefinito di Supabase invia pochissime mail all'ora ed è solo per prove.
 6. Il primo amministratore è `ivotaffarel@gmail.com` (inserito dallo script).

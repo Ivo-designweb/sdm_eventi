@@ -25,7 +25,7 @@
   function mostraLogin() {
     mostra('login');
     const att = LS.get('sdm_mail_attesa');
-    if (att && att.mail && Date.now() - att.t < 3600 * 1000) mostraCodice(att.mail);
+    if (att && att.mail && Date.now() - att.t < (cfg.OTP_MINUTI || 5) * 60 * 1000) mostraCodice(att.mail);
     else { $('#loginForm').classList.remove('hidden'); $('#loginOk').classList.add('hidden'); }
   }
 
@@ -73,7 +73,7 @@
   }
 
   // ---------- accesso ----------
-  const MAIL_ATTESA = 'sdm_mail_attesa';   // mail a cui è stato inviato il codice (resta valida 1 ora)
+  const MAIL_ATTESA = 'sdm_mail_attesa';   // mail a cui è stato inviato il codice (resta valida quanto il codice)
   let ultimoInvio = 0;
 
   function mostraCodice(mail) {
@@ -615,6 +615,7 @@
     $('#cambiaEv').onclick = () => vai('eventi');
     $('#lgFile').addEventListener('change', caricaLogo); $('#lgDel').onclick = ripristinaLogo;
     $$('.ver').forEach(e => { e.textContent = 'v' + VERSIONE; });
+    $('#otpMin').textContent = cfg.OTP_MINUTI || 5;
     $('#fAnnulla').onclick = chiudiPersona;
     $('#perNuova').onclick = () => apriPersona(null);
     $('#fIsc').onchange = () => $('#fNumW').classList.toggle('hidden', !$('#fIsc').checked);
