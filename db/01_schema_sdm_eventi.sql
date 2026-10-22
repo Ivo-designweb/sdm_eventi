@@ -647,8 +647,8 @@ insert into sdm_eventi.parametri (chiave, valore, descrizione) values
   ('responsabile_crea_rami',   'false',         'Se true i responsabili possono creare sottorami nel proprio ramo (altrimenti solo l''admin)')
 on conflict (chiave) do nothing;
 
--- Primo amministratore: modificare cognome/nome dopo il primo accesso.
+-- Primo amministratore.
 -- Al primo login con questa mail l'utente viene collegato (rpc collega_utente).
 insert into sdm_eventi.persone (cognome, nome, email, ruolo)
-values ('Amministratore', 'Primo', 'ivotaffarel@gmail.com', 'admin')
+values ('Taffarel', 'Ivo', 'ivotaffarel@gmail.com', 'admin')
 on conflict ((lower(email))) do nothing;
