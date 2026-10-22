@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 0.2
+-- Versione script: 0.3
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -9,6 +9,12 @@
 -- DOPO l'esecuzione, in Supabase:
 --   Project Settings > API > "Exposed schemas": aggiungere  sdm_eventi
 --   (altrimenti il client JS non può usare .schema('sdm_eventi'))
+--
+-- Offline-first: l'app lavora su una copia locale. Offline si modificano solo
+--   lo stato di una foglia (nodi.stato) e la nota dell'incarico (incarichi.nota);
+--   la funzione applica_modifiche() riceve la coda e risolve i conflitti
+--   "vince la modifica più recente, campo per campo" (colonne stato_il / nota_il).
+--   La struttura (eventi, rami, incarichi, persone) si modifica solo online.
 --
 -- Ruoli applicativi:
 --   admin       -> persone.ruolo = 'admin' (gestisce tutto)
@@ -128,6 +134,11 @@ create index if not exists movimenti_evento_idx on sdm_eventi.movimenti (evento_
 create index if not exists movimenti_nodo_idx   on sdm_eventi.movimenti (nodo_id, data_ora desc);
 create index if not exists movimenti_record_idx on sdm_eventi.movimenti (tabella, record_id, data_ora desc);
 
+-- Colonne per la sincronizzazione offline (aggiunte anche a installazioni precedenti)
+alter table sdm_eventi.nodi      add column if not exists stato_il timestamptz not null default now();
+alter table sdm_eventi.incarichi add column if not exists nota_il  timestamptz not null default now();
+alter table sdm_eventi.movimenti add column if not exists data_ora_dispositivo timestamptz;
+
 -- ---------------------------------------------------------------------
 -- FUNZIONI DI SUPPORTO (security definer: evitano ricorsioni nelle RLS)
 -- ---------------------------------------------------------------------
@@ -229,6 +240,27 @@ begin
   end loop;
 end $$;
 
+-- Momento dell'ultima modifica dei due campi modificabili offline
+create or replace function sdm_eventi.trg_nodi_stato_il() returns trigger
+language plpgsql as $$
+begin
+  if new.stato is distinct from old.stato then new.stato_il := now(); end if;
+  return new;
+end $$;
+drop trigger if exists b_stato_il on sdm_eventi.nodi;
+create trigger b_stato_il before update on sdm_eventi.nodi
+  for each row execute function sdm_eventi.trg_nodi_stato_il();
+
+create or replace function sdm_eventi.trg_incarichi_nota_il() returns trigger
+language plpgsql as $$
+begin
+  if new.nota is distinct from old.nota then new.nota_il := now(); end if;
+  return new;
+end $$;
+drop trigger if exists b_nota_il on sdm_eventi.incarichi;
+create trigger b_nota_il before update on sdm_eventi.incarichi
+  for each row execute function sdm_eventi.trg_incarichi_nota_il();
+
 -- NODI: calcolo livello/percorso, profondità massima, anti-cicli, coerenza evento
 create or replace function sdm_eventi.trg_nodi_prepara() returns trigger
 language plpgsql security definer set search_path = sdm_eventi, public, pg_temp as $$
@@ -328,7 +360,7 @@ begin
   end if;
 
   if sdm_eventi.is_incaricato_in(old.id) then
-    if (to_jsonb(new) - 'stato' - 'aggiornato_il') is distinct from (to_jsonb(old) - 'stato' - 'aggiornato_il') then
+    if (to_jsonb(new) - 'stato' - 'stato_il' - 'aggiornato_il') is distinct from (to_jsonb(old) - 'stato' - 'stato_il' - 'aggiornato_il') then
       raise exception 'Gli incaricati possono modificare solo lo stato';
     end if;
     if new.stato = 'finito' or old.stato = 'finito' then
@@ -441,7 +473,7 @@ begin
       from jsonb_each(r) n
       join jsonb_each(o) o2 using (key)
      where n.value is distinct from o2.value
-       and n.key not in ('aggiornato_il','livello','percorso','auth_user_id');
+       and n.key not in ('aggiornato_il','livello','percorso','auth_user_id','stato_il','nota_il');
     if v_det is null then return null; end if;     -- nessuna variazione significativa
     if tg_table_name = 'nodi' and (o ->> 'parent_id') is distinct from (r ->> 'parent_id') then
       v_det := v_det || jsonb_build_object('ramo_precedente',
@@ -451,15 +483,16 @@ begin
                     join sdm_eventi.nodi a on a.id = x.id));
     end if;
   else
-    v_det := r - 'aggiornato_il' - 'creato_il' - 'auth_user_id';
+    v_det := r - 'aggiornato_il' - 'creato_il' - 'auth_user_id' - 'stato_il' - 'nota_il';
   end if;
 
   insert into sdm_eventi.movimenti
     (utente_id, persona_id, operatore, tabella, record_id, azione,
-     evento_id, evento, nodo_id, ramo, descrizione, dettaglio)
+     evento_id, evento, nodo_id, ramo, data_ora_dispositivo, descrizione, dettaglio)
   values
     (auth.uid(), v_pers, v_oper, tg_table_name, v_id, tg_op,
      v_ev, v_evt, v_nodo, v_ramo,
+     nullif(current_setting('sdm_eventi.ts_dispositivo', true), '')::timestamptz,
      case tg_op when 'INSERT' then 'Inserito '
                 when 'UPDATE' then 'Modificato '
                 else 'Eliminato ' end
@@ -482,6 +515,81 @@ begin
 end $$;
 drop function if exists sdm_eventi.trg_log();
 drop table if exists sdm_eventi.log_modifiche;
+
+-- SINCRONIZZAZIONE OFFLINE
+-- Riceve la coda delle modifiche fatte offline:
+--   [{"op_id":"...","tipo":"nodo_stato","id":"<uuid>","valore":"fatto","ts":"<ora sul dispositivo>"},
+--    {"op_id":"...","tipo":"incarico_nota","id":"<uuid>","valore":"testo","ts":"..."}]
+-- Gira con i diritti di chi la chiama (RLS e trigger valgono come online).
+-- Per ogni operazione restituisce {op_id, esito, motivo}:
+--   ok         applicata
+--   superata   un altro ha modificato lo stesso campo dopo l'ora indicata (vince il più recente)
+--   rifiutata  non permessa o record non più esistente/accessibile
+create or replace function sdm_eventi.applica_modifiche(_ops jsonb) returns jsonb
+language plpgsql set search_path = sdm_eventi, public, pg_temp as $$
+declare
+  op      jsonb;
+  res     jsonb := '[]'::jsonb;
+  v_ts    timestamptz;
+  v_cur   timestamptz;
+  v_n     int;
+  v_esito text;
+  v_mot   text;
+begin
+  for op in select value from jsonb_array_elements(_ops) with ordinality as t(value, n)
+            order by (value ->> 'ts')::timestamptz nulls last, n
+  loop
+    v_esito := 'ok'; v_mot := null;
+    begin
+      v_ts := least(coalesce((op ->> 'ts')::timestamptz, now()), now());
+      perform set_config('sdm_eventi.ts_dispositivo', v_ts::text, true);
+      if op ->> 'tipo' = 'nodo_stato' then
+        select stato_il into v_cur from sdm_eventi.nodi where id = (op ->> 'id')::uuid;
+        if not found then
+          v_esito := 'rifiutata'; v_mot := 'Attività non trovata, eliminata o non più accessibile';
+        elsif v_cur > v_ts then
+          v_esito := 'superata'; v_mot := 'Lo stato è stato modificato da altri dopo la tua modifica';
+        else
+          update sdm_eventi.nodi set stato = op ->> 'valore' where id = (op ->> 'id')::uuid;
+          get diagnostics v_n = row_count;
+          if v_n = 0 then v_esito := 'rifiutata'; v_mot := 'Modifica non permessa'; end if;
+        end if;
+      elsif op ->> 'tipo' = 'incarico_nota' then
+        select nota_il into v_cur from sdm_eventi.incarichi where id = (op ->> 'id')::uuid;
+        if not found then
+          v_esito := 'rifiutata'; v_mot := 'Incarico non trovato, rimosso o non più accessibile';
+        elsif v_cur > v_ts then
+          v_esito := 'superata'; v_mot := 'La nota è stata modificata da altri dopo la tua modifica';
+        else
+          update sdm_eventi.incarichi set nota = op ->> 'valore' where id = (op ->> 'id')::uuid;
+          get diagnostics v_n = row_count;
+          if v_n = 0 then v_esito := 'rifiutata'; v_mot := 'Modifica non permessa'; end if;
+        end if;
+      else
+        v_esito := 'rifiutata'; v_mot := 'Tipo di modifica non ammesso offline';
+      end if;
+    exception when others then
+      v_esito := 'rifiutata'; v_mot := sqlerrm;
+    end;
+    res := res || jsonb_build_object('op_id', op ->> 'op_id', 'esito', v_esito, 'motivo', v_mot);
+  end loop;
+  perform set_config('sdm_eventi.ts_dispositivo', '', true);
+  return res;
+end $$;
+
+-- Aggiornamenti in tempo reale (Supabase Realtime), se la publication esiste
+do $$
+declare t text;
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    foreach t in array array['eventi','nodi','incarichi','parametri'] loop
+      if not exists (select 1 from pg_publication_tables
+                     where pubname = 'supabase_realtime' and schemaname = 'sdm_eventi' and tablename = t) then
+        execute format('alter publication supabase_realtime add table sdm_eventi.%I', t);
+      end if;
+    end loop;
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------------
 -- ROW LEVEL SECURITY
@@ -591,7 +699,7 @@ create or replace view sdm_eventi.v_movimenti with (security_invoker = true) as
          (data_ora at time zone 'Europe/Rome')::date as data,
          (data_ora at time zone 'Europe/Rome')::time(0) as ora,
          operatore, evento, ramo, azione, tabella, descrizione, dettaglio,
-         evento_id, nodo_id, persona_id, data_ora
+         evento_id, nodo_id, persona_id, data_ora, data_ora_dispositivo
   from sdm_eventi.movimenti
   order by data_ora desc, id desc;
 

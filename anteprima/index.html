@@ -61,6 +61,21 @@ main{padding:24px;max-width:900px;width:100%}
 footer.fine{color:var(--sec);font-size:13px;text-align:center;padding:24px 16px}
 footer.fine a{color:var(--primario)}
 
+/* sincronizzazione */
+.sync{display:flex;align-items:center;gap:8px;font-size:13px;border-radius:8px;padding:8px 12px;margin-bottom:16px;border:1px solid}
+.sync.on{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+.sync.off{background:#fffbeb;border-color:#fde68a;color:#92400e}
+.sync.run{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
+.sync .sp{flex:1}
+.sync a{color:inherit;font-weight:600;cursor:pointer;text-decoration:underline}
+.pend{font-size:12px;color:var(--warn);margin-left:6px}
+select.st{padding:6px 8px;border:1px solid var(--bordo);border-radius:8px;background:var(--card);color:var(--testo)}
+textarea.nt{width:100%;margin-top:8px;padding:8px 10px;border:1px solid var(--bordo);border-radius:8px;font:inherit;background:var(--card);color:var(--testo)}
+.cnt{display:inline-block;min-width:20px;text-align:center;background:var(--err);color:#fff;border-radius:99px;font-size:11px;padding:0 6px;margin-left:auto}
+.off-only{display:none}
+body.offline .off-only{display:block}
+body.offline .need-net{opacity:.5;pointer-events:none}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
 /* telefono */
 .bottom{display:none}
 @media (max-width:760px){
@@ -78,7 +93,7 @@ footer.fine a{color:var(--primario)}
 <body>
 
 <div class="demo">
-  <b>ANTEPRIMA</b> step 0-1 (grafica non definitiva, dati finti)
+  <b>ANTEPRIMA</b> step 0-1 + offline (grafica non definitiva, dati finti)
   <span>Vedi l'app come:
     <select id="ruolo">
       <option value="admin">Amministratore (Ivo Taffarel)</option>
@@ -86,7 +101,8 @@ footer.fine a{color:var(--primario)}
       <option value="utente">Operatore (Marco Bianchi)</option>
     </select>
   </span>
-  <span class="sec" style="color:#9ca3af">Ridimensiona la finestra per vedere la versione smartphone</span>
+  <span>Rete: <button id="rete" style="background:#15803d;color:#fff;border:0;border-radius:6px;padding:3px 10px;cursor:pointer">Online</button></span>
+  <span style="color:#9ca3af">Ridimensiona la finestra per vedere lo smartphone</span>
 </div>
 
 <!-- LOGIN -->
@@ -116,6 +132,7 @@ footer.fine a{color:var(--primario)}
     <button class="nv on" data-p="home">🏠 Home</button>
     <button class="nv" data-p="persone">👥 Persone</button>
     <button class="nv" data-p="eventi">📅 Eventi</button>
+    <button class="nv" data-p="rev">🔔 Da rivedere <span class="cnt" id="cntRev">2</span></button>
     <button class="nv" data-p="imp">⚙️ Impostazioni</button>
     <button class="nv lock adminOnly" data-p="par">🎛️ Parametri</button>
     <div class="spacer"></div>
@@ -123,6 +140,7 @@ footer.fine a{color:var(--primario)}
   </nav>
 
   <main>
+    <div class="sync on" id="sync"><span id="syncIc">●</span> <span id="syncTxt">Online · aggiornato</span><span class="sp"></span><a id="syncOra">Sincronizza ora</a></div>
     <!-- HOME -->
     <div id="p-home" class="pg">
       <div class="top">
@@ -134,16 +152,37 @@ footer.fine a{color:var(--primario)}
       </div>
       <div class="card">
         <h2>Le mie attività</h2>
-        <div class="row"><div><b>Sedie</b><div class="sec">Gara Sociale 2027 › Logistica</div></div><div><span class="badge w">scade 30/10</span> <span class="badge">in corso</span></div></div>
-        <div class="row"><div><b>Premi</b><div class="sec">Gara Sociale 2027 › Premiazioni</div></div><div><span class="badge e">scaduta</span> <span class="badge">da fare</span></div></div>
-        <div class="row"><div><b>Volantini</b><div class="sec">Festa dello Sport › Comunicazione</div></div><div><span class="badge ok">finito</span></div></div>
+        <div id="attivita"></div>
+        <p class="note">Anche senza rete puoi cambiare lo stato e scrivere la tua nota: le modifiche partono da sole appena c'è copertura. "Finito" lo imposta solo il responsabile.</p>
       </div>
       <div class="todo">Segnaposto: l'elenco reale delle attività e l'avanzamento arrivano allo step 6.<br>Negli step 0-1 la home mostra solo accesso e ruolo.</div>
     </div>
 
     <!-- placeholder per le sezioni future -->
-    <div id="p-persone" class="pg hidden"><h1>Persone</h1><div class="todo">Anagrafica persone: step 2</div></div>
-    <div id="p-eventi" class="pg hidden"><h1>Eventi</h1><div class="todo">Anagrafica eventi e albero: step 3-5</div></div>
+    <div id="p-persone" class="pg hidden"><h1>Persone</h1>
+      <div class="avviso off-only">Sei offline: stai consultando la copia salvata sul dispositivo. Per modificare serve la connessione.</div>
+      <div class="card"><div class="row"><span>Rossi Anna</span><span class="badge">responsabile</span></div><div class="row"><span>Bianchi Marco</span><span class="badge">utente</span></div></div>
+      <button class="btn need-net">+ Nuova persona</button>
+      <div class="todo" style="margin-top:16px">Anagrafica persone completa: step 2 (sempre online per le modifiche)</div></div>
+    <div id="p-eventi" class="pg hidden"><h1>Eventi</h1>
+      <div class="avviso off-only">Sei offline: puoi consultare gli eventi ma non modificarli. La struttura si modifica solo con la connessione.</div>
+      <div class="card"><div class="row"><span>Gara Sociale 2027</span><span class="badge">attivo</span></div><div class="row"><span>Festa dello Sport</span><span class="badge">in preparazione</span></div></div>
+      <button class="btn need-net">+ Nuovo evento</button> <button class="btn sec need-net">Modifica albero</button>
+      <div class="todo" style="margin-top:16px">Eventi e albero: step 3-5 (modifica solo online)</div></div>
+
+    <!-- DA RIVEDERE -->
+    <div id="p-rev" class="pg hidden">
+      <h1>Da rivedere</h1>
+      <p class="sec">Modifiche fatte offline che il server non ha potuto applicare. (Esempi dell'anteprima)</p>
+      <div class="card" id="rev1">
+        <div class="row" style="align-items:flex-start"><div><b>Premi</b> · stato "fatto"<div class="sec">Gara Sociale 2027 › Premiazioni · modificato il 21/10 alle 18:42</div><div class="badge w" style="margin-top:6px">Superata: lo stato è stato cambiato da altri dopo la tua modifica</div></div>
+        <button class="btn sec" onclick="this.closest('.card').remove();rev(-1)">Ho capito</button></div>
+      </div>
+      <div class="card" id="rev2">
+        <div class="row" style="align-items:flex-start"><div><b>Allestimento palco</b> · nota<div class="sec">Festa dello Sport › Palco · modificato il 21/10 alle 17:10</div><div class="badge e" style="margin-top:6px">Rifiutata: attività eliminata o non più assegnata a te</div></div>
+        <button class="btn sec" onclick="this.closest('.card').remove();rev(-1)">Ho capito</button></div>
+      </div>
+    </div>
 
     <!-- IMPOSTAZIONI -->
     <div id="p-imp" class="pg hidden">
@@ -156,7 +195,9 @@ footer.fine a{color:var(--primario)}
       </div>
       <div class="card">
         <h2>Applicazione</h2>
-        <div class="row"><span>Versione</span><b>0.1</b></div>
+        <div class="row"><span>Versione</span><b>0.2</b></div>
+        <div class="row"><span>Ultima sincronizzazione</span><b id="ultSync">oggi</b></div>
+        <div class="row"><span>Modifiche in attesa di invio</span><b id="nPend">0</b></div>
         <div class="row"><span>Installa sul dispositivo</span><button class="btn sec" id="installa">Installa app</button></div>
         <div class="row"><span>Tema</span><b class="tema-val">Chiaro</b></div>
         <div class="row"><span>Esci dall'account</span><button class="btn sec" id="esci2">Esci</button></div>
@@ -191,7 +232,7 @@ footer.fine a{color:var(--primario)}
     </div>
 
     <footer class="fine">
-      Versione 0.1 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a>
+      Versione 0.2 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a>
     </footer>
   </main>
 
@@ -203,7 +244,7 @@ footer.fine a{color:var(--primario)}
   </div>
 </div>
 
-<footer class="fine" id="footLogin">Versione 0.1 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
+<footer class="fine" id="footLogin">Versione 0.2 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
 
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -221,16 +262,44 @@ function applicaRuolo(){
   if(!admin && !$('#p-par').classList.contains('hidden')) vai('home');
   // sullo smartphone la voce Parametri compare dentro "Altro" solo per l'admin (vedi sotto)
 }
+const att=[
+ {t:'Sedie',p:'Gara Sociale 2027 › Logistica',sc:'scade 30/10',sk:'w',st:'in_corso',n:''},
+ {t:'Premi',p:'Gara Sociale 2027 › Premiazioni',sc:'scaduta',sk:'e',st:'da_fare',n:''},
+ {t:'Volantini',p:'Festa dello Sport › Comunicazione',sc:'',sk:'',st:'fatto',n:'Stampati 200 pezzi'}];
+let offline=false, pend=new Set(), nRev=2;
+const lab={da_fare:'Da fare',in_corso:'In corso',fatto:'Fatto',finito:'Finito'};
+function renderAtt(){
+  const puoFinito=$('#ruolo').value!=='utente';
+  $('#attivita').innerHTML=att.map((a,i)=>`<div class="row" style="flex-wrap:wrap"><div style="flex:1;min-width:180px"><b>${a.t}</b><div class="sec">${a.p}</div></div>
+   <div>${a.sc?`<span class="badge ${a.sk}">${a.sc}</span> `:''}<select class="st" onchange="cambia(${i},this.value)">${Object.keys(lab).filter(k=>k!=='finito'||puoFinito).map(k=>`<option value="${k}" ${a.st===k?'selected':''}>${lab[k]}</option>`).join('')}</select>${pend.has(i)?'<span class="pend">⏳ in attesa</span>':''}</div>
+   <textarea class="nt" rows="1" placeholder="La mia nota…" onchange="nota(${i},this.value)">${a.n}</textarea></div>`).join('');
+}
+function cambia(i,v){att[i].st=v; segna(i)}
+function nota(i,v){att[i].n=v; segna(i)}
+function segna(i){ if(offline){pend.add(i)} else {toast('Salvato')} aggiornaSync(); renderAtt(); }
+function toast(m){const t=document.createElement('div');t.textContent='✔ '+m;t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:8px 16px;border-radius:99px;font-size:14px;z-index:9';document.body.appendChild(t);setTimeout(()=>t.remove(),1500)}
+function ora(){return new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}
+function aggiornaSync(stato){
+  const b=$('#sync'); $('#nPend').textContent=pend.size;
+  if(stato==='run'){b.className='sync run';$('#syncIc').textContent='⟳';$('#syncTxt').textContent='Sincronizzazione in corso…';return}
+  if(offline){b.className='sync off';$('#syncIc').textContent='●';$('#syncTxt').textContent='Offline'+(pend.size?` · ${pend.size} modifiche in attesa di invio`:' · stai usando la copia salvata sul dispositivo')}
+  else{b.className='sync on';$('#syncIc').textContent='●';$('#syncTxt').textContent='Online · aggiornato alle '+ora(); $('#ultSync').textContent='oggi alle '+ora()}
+}
+function sincronizza(){ if(offline)return; aggiornaSync('run'); setTimeout(()=>{ if(pend.size){ toast(pend.size+' modifiche inviate'); pend.clear(); } renderAtt(); aggiornaSync();},1200) }
+function setRete(off){ offline=off; document.body.classList.toggle('offline',off); const r=$('#rete'); r.textContent=off?'Offline':'Online'; r.style.background=off?'#b45309':'#15803d'; if(off){aggiornaSync()} else sincronizza(); }
+$('#rete').onclick=()=>setRete(!offline);
+$('#syncOra').onclick=sincronizza;
+function rev(d){nRev+=d; $('#cntRev').textContent=nRev; $('#cntRev').style.display=nRev?'':'none'}
 function vai(p){
   $$('.pg').forEach(e=>e.classList.add('hidden')); $('#p-'+p).classList.remove('hidden');
   $$('.nv,.bottom button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
   window.scrollTo(0,0);
 }
 $$('.nv,.bottom button').forEach(b=>b.onclick=()=>vai(b.dataset.p));
-$('#ruolo').onchange=applicaRuolo;
+$('#ruolo').onchange=()=>{applicaRuolo();renderAtt()};
 $('#invia').onclick=()=>{ $('#mailInv').textContent=$('#mail').value||'(email)'; $('#loginForm').classList.add('hidden'); $('#loginOk').classList.remove('hidden'); };
 $('#indietro').onclick=()=>{ $('#loginForm').classList.remove('hidden'); $('#loginOk').classList.add('hidden'); };
-$('#simula').onclick=()=>{ $('#login').classList.add('hidden'); $('#footLogin').classList.add('hidden'); $('#app').classList.remove('hidden'); applicaRuolo(); vai('home'); };
+$('#simula').onclick=()=>{ $('#login').classList.add('hidden'); $('#footLogin').classList.add('hidden'); $('#app').classList.remove('hidden'); applicaRuolo(); renderAtt(); aggiornaSync(); vai('home'); };
 function esci(e){ e&&e.preventDefault(); $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); $('#footLogin').classList.remove('hidden'); $('#indietro').click(); }
 $('#esci').onclick=esci; $('#esci2').onclick=esci;
 $('#installa').onclick=()=>alert('Sul dispositivo apparirà la richiesta di installazione del browser (su iPhone: Condividi → Aggiungi a Home).');
@@ -248,6 +317,7 @@ $('#pTema').onchange=tema; $('#pCol').oninput=tema;
 $('#pNome').oninput=()=>$$('.nome-app').forEach(e=>e.textContent=$('#pNome').value||'SDM Eventi');
 $('#salva').onclick=()=>{ $('#salvato').classList.remove('hidden'); setTimeout(()=>$('#salvato').classList.add('hidden'),2500); };
 // su smartphone l'admin raggiunge Parametri da Impostazioni
+const rv=document.createElement('div'); rv.className='row'; rv.innerHTML='<span>Da rivedere</span><button class="btn sec" onclick="vai(\'rev\')">Apri</button>'; document.querySelector('#p-imp .card:last-child').appendChild(rv);
 const l=document.createElement('div'); l.className='row adminOnly'; l.innerHTML='<span>Parametri (solo admin)</span><button class="btn sec" id="vaiPar">Apri</button>';
 document.querySelector('#p-imp .card:last-child').appendChild(l); $('#vaiPar').onclick=()=>vai('par');
 </script>
