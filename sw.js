@@ -1,10 +1,10 @@
 // Service worker: l'app si apre anche senza rete.
 // Ad ogni nuova versione dell'app cambiare VERSIONE (stesso numero di index.html).
-const VERSIONE = '0.4';
+const VERSIONE = '0.5';
 const CACHE = 'sdm-eventi-' + VERSIONE;
 const SHELL = [
   './', 'index.html', 'assets/app.css', 'js/config.js', 'js/app.js', 'vendor/supabase.js',
-  'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'
+  'assets/logo.png', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', e => {

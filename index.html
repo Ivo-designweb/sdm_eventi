@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="0.4">
+<meta name="app-version" content="0.5">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -17,18 +17,19 @@
 <body>
 
 <!-- avvio -->
-<section id="boot" class="login"><div class="box"><div class="logo">SDM</div><p class="sec">Caricamento…</p></div></section>
+<section id="boot" class="login"><div class="box"><img class="brandimg" alt="SDM Eventi" src="assets/logo.png"><p class="sec">Caricamento…</p></div></section>
 
 <!-- configurazione mancante -->
 <section id="setup" class="login hidden"><div class="box">
-  <div class="logo">SDM</div><h1>Configurazione mancante</h1>
+  <img class="brandimg" alt="SDM Eventi" src="assets/logo.png"><h1>Configurazione mancante</h1>
   <p class="sec">Mancano l'URL e la chiave pubblica di Supabase. Compila il file <code>js/config.js</code> seguendo <code>docs/SETUP.md</code>, poi ricarica la pagina.</p>
 </div></section>
 
 <!-- login -->
 <section id="login" class="login hidden"><div class="box">
-  <div class="logo">SDM</div>
-  <h1 class="nome-app">SDM Eventi</h1>
+  <img class="brandimg" alt="SDM Eventi" src="assets/logo.png">
+  <h1 class="sr-only"><span class="nome-app">SDM Eventi</span></h1>
+  <p style="text-align:center;margin:0 0 8px"><span class="ver"></span></p>
   <p class="sec">Gestione eventi sportivi. Inserisci la tua email: ti invieremo un codice per accedere, senza password.</p>
   <form id="loginForm" novalidate>
     <label for="mail">Email</label>
@@ -53,7 +54,7 @@
 
 <!-- email non in anagrafica -->
 <section id="noaccess" class="login hidden"><div class="box">
-  <div class="logo">SDM</div><h1>Accesso non abilitato</h1>
+  <img class="brandimg" alt="SDM Eventi" src="assets/logo.png"><h1>Accesso non abilitato</h1>
   <p class="sec">La email <b id="naMail"></b> non risulta nell'anagrafica o non è attiva. Contatta l'amministratore dell'evento.</p>
   <button class="btn full" id="naEsci" type="button">Esci</button>
 </div></section>
@@ -61,7 +62,7 @@
 <!-- app -->
 <div id="app" class="app hidden">
   <nav class="side">
-    <div class="brand"><div class="logo">SDM</div><span class="nome-app">SDM Eventi</span></div>
+    <div class="brand"><img class="brandimg" alt="SDM Eventi" src="assets/logo.png"><span class="ver"></span></div>
     <button class="nv on" data-p="home">🏠 Home</button>
     <button class="nv" data-p="persone">👥 Persone</button>
     <button class="nv" data-p="eventi">📅 Eventi</button>
@@ -72,9 +73,12 @@
   </nav>
 
   <main>
+    <div class="topbar"><img class="brandimg" alt="SDM Eventi" src="assets/logo.png"><span class="ver"></span></div>
     <div class="evbar">
-      <div class="tt nessuno"><span>EVENTO</span><b>Nessun evento selezionato</b><span>La scelta dell'evento arriva con lo step 3</span></div>
+      <div class="tt" id="evTit"></div>
+      <div id="evProg" style="min-width:110px"></div>
       <button class="chip on" id="rete" type="button">● Online</button>
+      <button class="btn sec hidden" id="cambiaEv" type="button" style="padding:6px 12px">Cambia evento</button>
     </div>
 
     <div id="p-home" class="pg">
@@ -128,7 +132,29 @@
         </div>
       </form>
     </div>
-    <div id="p-eventi" class="pg hidden"><h1>Eventi</h1><div class="todo">Anagrafica eventi: step 3</div></div>
+    <div id="p-eventi" class="pg hidden">
+      <div class="top"><div><h1>Eventi</h1><p class="sec" id="evInfo" style="margin:4px 0 0"></p></div>
+        <button class="btn need-net adminOnly" id="evNuovo" type="button">+ Nuovo evento</button></div>
+      <div id="evLista"></div>
+      <div class="avviso off-only" style="margin-top:12px">Sei offline: puoi scegliere l'evento e consultare i dati, ma gli eventi si modificano solo con la connessione.</div>
+      <div class="todo" style="margin-top:16px">I rami e le attività dell'evento scelto arrivano negli step 4-5</div>
+    </div>
+
+    <div id="modEv" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
+      <form class="card" id="evForm" style="max-width:520px;margin:0 auto" novalidate>
+        <h2 id="evModTit">Evento</h2>
+        <label for="eTit">Titolo *</label><input type="text" id="eTit" maxlength="120" placeholder="Es. Gara Sociale 2027">
+        <div class="grid2">
+          <div><label for="eIni">Data (inizio) *</label><input type="date" id="eIni"></div>
+          <div><label for="eFin">Data fine (se più giorni)</label><input type="date" id="eFin"></div>
+        </div>
+        <div id="eErr" class="avviso hidden" style="margin-top:12px"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:space-between;flex-wrap:wrap">
+          <button class="btn sec need-net" id="eDel" type="button" style="color:var(--err);border-color:var(--err)">Elimina evento</button>
+          <span style="display:flex;gap:10px"><button class="btn sec" id="eAnnulla" type="button">Annulla</button><button class="btn need-net" id="eSalva" type="submit">Salva</button></span>
+        </div>
+      </form>
+    </div>
 
     <div id="p-imp" class="pg hidden">
       <h1>Impostazioni</h1>
@@ -153,6 +179,17 @@
       <h1>Parametri</h1>
       <div class="avviso">Pagina riservata all'amministratore. Le modifiche valgono per tutti gli utenti.</div>
       <form id="parForm" novalidate>
+        <div class="card">
+          <h2>Logo</h2>
+          <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+            <div class="lgprev"><img id="lgPrev" alt="Logo attuale" src="assets/logo.png"></div>
+            <div style="flex:1;min-width:200px">
+              <input type="file" id="lgFile" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+              <p class="note">PNG, JPG, SVG o WebP, meglio con sfondo trasparente. Viene ridimensionato automaticamente (max 512 px di larghezza) e sostituisce il logo nel menu e nella pagina di accesso.</p>
+              <button class="btn sec" id="lgDel" type="button">Ripristina logo predefinito</button> <span id="lgMsg" class="sec"></span>
+            </div>
+          </div>
+        </div>
         <div class="card">
           <h2>Aspetto</h2>
           <div class="grid2">

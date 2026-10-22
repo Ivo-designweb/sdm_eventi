@@ -15,11 +15,11 @@
 
   const PARAM_DEFAULT = {
     nome_app: 'SDM Eventi', tema: 'chiaro', colore_primario: '#1d4ed8',
-    max_livelli: 10, giorni_preavviso_scadenza: 7, responsabile_crea_rami: false
+    max_livelli: 10, giorni_preavviso_scadenza: 7, responsabile_crea_rami: false, logo: null
   };
   const RUOLI = { admin: 'Amministratore', utente: 'Utente' };
 
-  const stato = { sb: null, persona: null, evento: null, parametri: { ...PARAM_DEFAULT }, avviata: false };
+  const stato = { sb: null, persona: null, evento: null, eventi: [], avanz: {}, parametri: { ...PARAM_DEFAULT }, avviata: false };
 
   // ---------- schermate ----------
   function mostraLogin() {
@@ -57,6 +57,9 @@
     document.title = par.nome_app;
     $$('.nome-app').forEach(e => { e.textContent = par.nome_app; });
     $('#iTema').textContent = scuro ? 'Scuro' : 'Chiaro';
+    const logo = par.logo || 'assets/logo.png';
+    $$('.brandimg').forEach(i => { if (i.getAttribute('src') !== logo) i.setAttribute('src', logo); });
+    $('#lgPrev').setAttribute('src', logo);
   }
 
   async function caricaParametri() {
@@ -137,7 +140,7 @@
   async function esci(ev) {
     if (ev) ev.preventDefault();
     try { await stato.sb.auth.signOut(); } catch (e) { /* offline: pulisco comunque */ }
-    LS.del('sdm_profilo'); LS.del('sdm_persone'); LS.del(MAIL_ATTESA);
+    LS.del('sdm_profilo'); LS.del('sdm_persone'); LS.del('sdm_eventi'); LS.del('sdm_evento'); LS.del(MAIL_ATTESA);
     stato.persona = null;
     stato.avviata = false;
     $('#loginForm').classList.remove('hidden');
@@ -199,11 +202,13 @@
     $('#stUtente').textContent = nome + ' (' + (RUOLI[p.ruolo] || p.ruolo) + ')';
     $('#stPar').textContent = parErr ? 'Non aggiornati' : (nPar + ' parametri');
     mostra('app');
-    vai(admin && location.hash === '#par' ? 'par' : 'home');
+    vai('eventi');
     aggiornaRete();
+    caricaEventi().then(() => vai(stato.evento !== null ? 'home' : 'eventi'));
   }
 
   function vai(p) {
+    if (p === 'home' && stato.evento === null && stato.persona) p = 'eventi';
     if (p === 'par' && !(stato.persona && stato.persona.ruolo === 'admin')) p = 'home';
     $$('.pg').forEach(e => e.classList.add('hidden'));
     $('#p-' + p).classList.remove('hidden');
@@ -363,6 +368,175 @@
     if (sono && (rec.email !== P.corrente.email.toLowerCase() || rec.ruolo !== 'admin' || !rec.attivo)) location.reload();
   }
 
+
+  // ---------- eventi ----------
+  const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+  function fmtData(iso) { const [y, m, d] = iso.split('-').map(Number); return d + ' ' + MESI[m - 1] + ' ' + y; }
+  function fmtRange(e) {
+    if (!e.data_inizio) return 'Data da definire';
+    if (!e.data_fine || e.data_fine === e.data_inizio) return fmtData(e.data_inizio);
+    const [y1, m1, d1] = e.data_inizio.split('-').map(Number), [y2, m2] = e.data_fine.split('-').map(Number);
+    return (y1 === y2 && m1 === m2) ? d1 + '-' + e.data_fine.split('-')[2].replace(/^0/, '') + ' ' + MESI[m1 - 1] + ' ' + y1 : fmtData(e.data_inizio) + ' – ' + fmtData(e.data_fine);
+  }
+  const oggi = () => new Date().toISOString().slice(0, 10);
+  const concluso = e => (e.data_fine || e.data_inizio || '9999') < oggi();
+  const eventoCorrente = () => stato.eventi.find(e => e.id === stato.evento) || null;
+
+  async function caricaEventi() {
+    const cache = LS.get('sdm_eventi');
+    let ok = false;
+    if (navigator.onLine) {
+      const { data, error } = await stato.sb.from('eventi').select('id, titolo, data_inizio, data_fine')
+        .order('data_inizio', { ascending: false, nullsFirst: false }).order('titolo');
+      if (!error) {
+        stato.eventi = data; ok = true;
+        stato.avanz = {};
+        const r = await stato.sb.from('v_avanzamento_eventi').select('evento_id, foglie_totali, percentuale');
+        if (!r.error) (r.data || []).forEach(x => { stato.avanz[x.evento_id] = x; });
+        LS.set('sdm_eventi', { d: data, a: stato.avanz });
+      }
+    }
+    if (!ok && cache) { stato.eventi = cache.d; stato.avanz = cache.a || {}; }
+    // evento scelto: ricordato per utente; se è l'unico disponibile lo seleziono io
+    const mem = LS.get('sdm_evento');
+    if (stato.evento === null && mem && stato.persona && mem.uid === stato.persona.uid) stato.evento = mem.id;
+    if (stato.evento !== null && !eventoCorrente()) stato.evento = null;
+    if (stato.evento === null && stato.eventi.length === 1) selezionaEvento(stato.eventi[0].id, false);
+    renderEvBar(); renderEventi();
+  }
+
+  function selezionaEvento(id, vaiHome) {
+    stato.evento = id;
+    LS.set('sdm_evento', { uid: stato.persona.uid, id });
+    renderEvBar(); renderEventi();
+    if (vaiHome) vai('home');
+  }
+
+  function barraAvanz(e) {
+    const a = stato.avanz[e.id];
+    if (!a || !a.foglie_totali || (stato.persona && stato.persona.ruolo === 'utente')) return null;
+    return h('div', { style: 'min-width:110px' }, h('div', { class: 'sec', style: 'font-size:12px' }, 'Avanzamento ' + a.percentuale + '%'),
+      h('div', { class: 'prog' }, h('i', { style: 'width:' + a.percentuale + '%' })));
+  }
+
+  function renderEvBar() {
+    const e = eventoCorrente();
+    $('#evTit').className = 'tt' + (e ? '' : ' nessuno');
+    $('#evTit').replaceChildren(...(e
+      ? [h('span', {}, 'EVENTO'), h('b', {}, e.titolo), h('span', {}, fmtRange(e))]
+      : [h('b', {}, 'Nessun evento selezionato'), h('span', {}, 'Scegli un evento per iniziare')]));
+    const av = e ? barraAvanz(e) : null;
+    $('#evProg').replaceChildren(...(av ? [av] : []));
+    $('#cambiaEv').classList.toggle('hidden', !e);
+  }
+
+  function renderEventi() {
+    const adm = isAdmin(), l = stato.eventi;
+    $('#evInfo').textContent = stato.evento !== null ? 'L\'evento di lavoro è evidenziato. Per cambiarlo, selezionane un altro.'
+      : (l.length ? 'Scegli l\'evento su cui lavorare: resterà selezionato in tutte le pagine.'
+        : (adm ? 'Nessun evento: creane uno con "+ Nuovo evento".' : 'Nessun evento disponibile: quando ti verranno assegnate delle attività compariranno qui.'));
+    $('#evLista').replaceChildren(...l.map(e => {
+      const sel = e.id === stato.evento, av = barraAvanz(e);
+      const card = h('div', { class: 'evc' + (sel ? ' sel' : '') },
+        h('div', { class: 'inf' }, h('b', {}, e.titolo), ' ', concluso(e) ? h('span', { class: 'badge' }, 'concluso') : '', h('div', { class: 'sec' }, fmtRange(e))),
+        av || '');
+      if (sel) card.append(h('span', { class: 'badge ok' }, '● Selezionato'));
+      else { const b = h('button', { class: 'btn', type: 'button' }, 'Seleziona'); b.addEventListener('click', () => selezionaEvento(e.id, true)); card.append(b); }
+      if (adm) { const m = h('button', { class: 'btn sec need-net', type: 'button' }, 'Modifica'); m.addEventListener('click', () => apriEvento(e.id)); card.append(m); }
+      return card;
+    }));
+  }
+
+  let evCorr = null;
+  function apriEvento(id) {
+    evCorr = stato.eventi.find(x => x.id === id) || null;
+    const e = evCorr || { titolo: '', data_inizio: '', data_fine: '' };
+    $('#evModTit').textContent = evCorr ? 'Modifica evento' : 'Nuovo evento';
+    $('#eTit').value = e.titolo; $('#eIni').value = e.data_inizio || ''; $('#eFin').value = e.data_fine || '';
+    $('#eDel').classList.toggle('hidden', !evCorr);
+    $('#eErr').classList.add('hidden');
+    $('#modEv').classList.remove('hidden'); $('#eTit').focus();
+  }
+  const chiudiEvento = () => $('#modEv').classList.add('hidden');
+  function erroreEv(m) { $('#eErr').textContent = m; $('#eErr').classList.remove('hidden'); }
+
+  async function salvaEvento(ev) {
+    ev.preventDefault();
+    const rec = { titolo: $('#eTit').value.trim(), data_inizio: $('#eIni').value || null, data_fine: $('#eFin').value || null };
+    if (!rec.titolo) { erroreEv('Il titolo è obbligatorio.'); return; }
+    if (!rec.data_inizio) { erroreEv('La data è obbligatoria.'); return; }
+    if (rec.data_fine && rec.data_fine < rec.data_inizio) { erroreEv('La data fine non può precedere la data di inizio.'); return; }
+    if (!navigator.onLine) { erroreEv('Serve la connessione per salvare.'); return; }
+    const b = $('#eSalva'); b.disabled = true;
+    const q = stato.sb.from('eventi');
+    const { error } = evCorr ? await q.update(rec).eq('id', evCorr.id) : await q.insert({ ...rec, creato_da: stato.persona.id });
+    b.disabled = false;
+    if (error) { erroreEv('Salvataggio non riuscito: ' + error.message); return; }
+    chiudiEvento(); await caricaEventi();
+  }
+
+  async function eliminaEvento() {
+    if (!evCorr) return;
+    if (!navigator.onLine) { erroreEv('Serve la connessione per eliminare.'); return; }
+    if (!confirm('Eliminare definitivamente l\'evento "' + evCorr.titolo + '" con tutti i suoi rami, attività e incarichi? L\'operazione non si può annullare.')) return;
+    const { error } = await stato.sb.from('eventi').delete().eq('id', evCorr.id);
+    if (error) { erroreEv('Eliminazione non riuscita: ' + error.message); return; }
+    if (stato.evento === evCorr.id) stato.evento = null;
+    chiudiEvento(); await caricaEventi();
+  }
+
+  // ---------- logo (admin) ----------
+  function leggiLogo(file) {
+    return new Promise((ok, ko) => {
+      const rd = new FileReader();
+      rd.onerror = () => ko(new Error('file non leggibile'));
+      rd.onload = () => {
+        const im = new Image();
+        im.onerror = () => ko(new Error('il file non è un\'immagine valida'));
+        im.onload = () => {
+          let max = 512, url;
+          do {
+            const k = Math.min(1, max / Math.max(im.naturalWidth || max, im.naturalHeight || max));
+            const c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round((im.naturalWidth || max) * k)); c.height = Math.max(1, Math.round((im.naturalHeight || max) * k));
+            c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+            url = c.toDataURL('image/png'); max = Math.round(max * 0.75);
+          } while (url.length > 400000 && max > 128);
+          ok(url);
+        };
+        im.src = rd.result;
+      };
+      rd.readAsDataURL(file);
+    });
+  }
+
+  async function caricaLogo(ev) {
+    const f = ev.target.files[0], msg = $('#lgMsg');
+    if (!f) return;
+    msg.textContent = '';
+    if (f.size > 5 * 1024 * 1024) { msg.textContent = 'Immagine troppo grande (max 5 MB).'; return; }
+    if (!navigator.onLine) { msg.textContent = 'Serve la connessione per salvare il logo.'; return; }
+    try {
+      const url = await leggiLogo(f);
+      const { error } = await stato.sb.from('parametri').upsert({ chiave: 'logo', valore: url }, { onConflict: 'chiave' });
+      if (error) throw error;
+      const nuovi = { ...stato.parametri, logo: url };
+      LS.set('sdm_parametri', nuovi); applicaParametri(nuovi);
+      msg.textContent = '✔ Logo salvato';
+    } catch (e) { msg.textContent = 'Logo non salvato: ' + e.message; }
+    ev.target.value = '';
+  }
+
+  async function ripristinaLogo() {
+    const msg = $('#lgMsg');
+    if (!navigator.onLine) { msg.textContent = 'Serve la connessione.'; return; }
+    const { error } = await stato.sb.from('parametri').delete().eq('chiave', 'logo');
+    if (error) { msg.textContent = 'Operazione non riuscita: ' + error.message; return; }
+    const nuovi = { ...stato.parametri, logo: null };
+    LS.set('sdm_parametri', nuovi); applicaParametri(nuovi);
+    msg.textContent = '✔ Logo predefinito ripristinato';
+  }
+
   // ---------- parametri (admin) ----------
   function riempiParametri() {
     const p = stato.parametri;
@@ -382,6 +556,7 @@
     if (!(gg >= 0 && gg <= 60)) { msg.textContent = 'I giorni di preavviso devono essere da 0 a 60.'; return; }
     if (!navigator.onLine) { msg.textContent = 'Serve la connessione per salvare i parametri.'; return; }
     const nuovi = {
+      ...stato.parametri,
       nome_app: nome, tema: $('#pTema').value, colore_primario: $('#pCol').value,
       max_livelli: liv, giorni_preavviso_scadenza: gg, responsabile_crea_rami: $('#pResp').checked
     };
@@ -434,11 +609,17 @@
     $('#esci').onclick = esci; $('#esci2').onclick = esci; $('#naEsci').onclick = esci;
     $('#parForm').addEventListener('submit', salvaParametri);
     $('#perForm').addEventListener('submit', salvaPersona);
+    $('#evForm').addEventListener('submit', salvaEvento);
+    $('#eAnnulla').onclick = chiudiEvento; $('#eDel').onclick = eliminaEvento;
+    $('#evNuovo').onclick = () => apriEvento(null);
+    $('#cambiaEv').onclick = () => vai('eventi');
+    $('#lgFile').addEventListener('change', caricaLogo); $('#lgDel').onclick = ripristinaLogo;
+    $$('.ver').forEach(e => { e.textContent = 'v' + VERSIONE; });
     $('#fAnnulla').onclick = chiudiPersona;
     $('#perNuova').onclick = () => apriPersona(null);
     $('#fIsc').onchange = () => $('#fNumW').classList.toggle('hidden', !$('#fIsc').checked);
     ['#perCerca', '#perFiltro', '#perNonAttivi'].forEach(id => $(id).addEventListener('input', renderPersone));
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') chiudiPersona(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { chiudiPersona(); chiudiEvento(); } });
     $('#installa').onclick = installa;
     $('#vaiPar').onclick = () => vai('par');
     $$('.nv, .bottom button').forEach(b => { b.onclick = () => vai(b.dataset.p); });
