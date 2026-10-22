@@ -97,6 +97,21 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 .brand{flex-wrap:wrap}
 .lgprev{width:96px;height:96px;border:1px dashed var(--bordo);border-radius:14px;display:grid;place-items:center;overflow:hidden}
 .lgprev .logo{margin:0;width:100%;height:100%;border-radius:14px}
+/* albero */
+.tn{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--bordo);border-radius:10px;margin-bottom:6px;background:var(--card)}
+.tn.br{background:color-mix(in srgb,var(--primario) 5%,var(--card))}
+.tn .tg{width:26px;height:26px;border:0;background:none;cursor:pointer;font-size:13px;color:var(--sec);flex:none}
+.tn .tt2{flex:1;min-width:150px}
+.tn .meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.hd{cursor:grab;color:var(--sec);user-select:none;padding:0 4px;font-size:18px}
+.tn.dropb{box-shadow:0 -4px 0 var(--primario)} .tn.dropa{box-shadow:0 4px 0 var(--primario)} .tn.dropi{outline:2px dashed var(--primario)}
+.tn.drg{opacity:.35}
+.ib{border:1px solid var(--bordo);background:var(--card);color:var(--testo);border-radius:8px;padding:3px 9px;cursor:pointer;font-size:14px}
+.ib.dn{color:var(--err);border-color:var(--err)}
+.mini{display:inline-block;width:60px;height:6px;background:var(--bordo);border-radius:99px;overflow:hidden;vertical-align:middle}
+.mini i{display:block;height:100%;background:var(--ok)}
+.mv{display:flex;gap:8px;align-items:center;padding:6px 4px;border-radius:8px}
+.mv.no{opacity:.45}
 /* telefono */
 .bottom{display:none}
 @media (max-width:760px){
@@ -114,7 +129,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 <body>
 
 <div class="demo">
-  <b>ANTEPRIMA</b> step 0-3: logo, versione, eventi (dati finti)
+  <b>ANTEPRIMA</b> step 0-4: rami dell'evento (dati finti)
   <span>Vedi l'app come:
     <select id="ruolo">
       <option value="admin">Amministratore (Ivo Taffarel)</option>
@@ -131,7 +146,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 <section id="login" class="login">
   <div class="box">
     <div class="logo">SDM</div>
-    <h1><span class="nome-app">SDM Eventi</span> <span class="ver">v0.5</span></h1>
+    <h1><span class="nome-app">SDM Eventi</span> <span class="ver">v0.6</span></h1>
     <p class="sec">Gestione eventi sportivi. Inserisci la tua email: ti invieremo un link per accedere, senza password.</p>
     <div id="loginForm">
       <label for="mail">Email</label>
@@ -150,10 +165,11 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 <!-- APP -->
 <div id="app" class="app hidden">
   <nav class="side">
-    <div class="brand"><div class="logo">SDM</div><span class="nome-app">SDM Eventi</span><span class="ver">v0.5</span></div>
+    <div class="brand"><div class="logo">SDM</div><span class="nome-app">SDM Eventi</span><span class="ver">v0.6</span></div>
     <button class="nv on" data-p="home">🏠 Home</button>
     <button class="nv" data-p="persone">👥 Persone</button>
     <button class="nv" data-p="eventi">📅 Eventi</button>
+    <button class="nv" data-p="str">🌳 Struttura</button>
     <button class="nv" data-p="rev">🔔 Da rivedere <span class="cnt" id="cntRev">2</span></button>
     <button class="nv" data-p="imp">⚙️ Impostazioni</button>
     <button class="nv lock adminOnly" data-p="par">🎛️ Parametri</button>
@@ -246,6 +262,42 @@ body.offline .need-net{opacity:.5;pointer-events:none}
       </div>
     </div>
 
+    <!-- STRUTTURA -->
+    <div id="p-str" class="pg hidden">
+      <div class="top"><div><h1>Struttura</h1><p class="sec" id="strInfo" style="margin:4px 0 0"></p></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn sec" onclick="strTutti(true)">Espandi tutto</button>
+          <button class="btn sec" onclick="strTutti(false)">Comprimi tutto</button>
+          <button class="btn need-net" id="strModBtn" onclick="strToggleMod()">✎ Modifica struttura</button>
+        </div></div>
+      <div class="avviso off-only">Sei offline: puoi consultare la struttura ma non modificarla.</div>
+      <div class="avviso hidden" id="strModAvv">Modalità modifica: trascina ☰ per riordinare o spostare (rilascia sopra/sotto un elemento per riordinare, al centro per metterlo dentro). Su smartphone usa "⇄ Sposta in…".</div>
+      <div id="strLista"></div>
+      <div class="todo" style="margin-top:12px">Foglie (scadenza, stato, incaricati e note per persona) si completano nello step 5.</div>
+    </div>
+
+    <div id="modNodo" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
+      <div class="card" style="max-width:560px;margin:0 auto">
+        <h2 id="nTitM">Ramo</h2>
+        <p class="sec" id="nPercorso" style="margin-top:-6px"></p>
+        <label>Titolo *</label><input type="text" id="nTit" maxlength="120">
+        <label>Descrizione</label><input type="text" id="nDes" maxlength="500">
+        <label>Responsabile del ramo</label><select class="f" id="nResp"></select>
+        <p class="note">Se vuoto, vale il responsabile del ramo sopra. Il responsabile gestisce tutto ciò che sta sotto.</p>
+        <label>Note</label><input type="text" id="nNot" maxlength="1000">
+        <div id="nErr" class="avviso hidden" style="margin-top:12px"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end"><button class="btn sec" onclick="$('#modNodo').classList.add('hidden')">Annulla</button><button class="btn" onclick="salvaNodo()">Salva</button></div>
+      </div>
+    </div>
+
+    <div id="modMove" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
+      <div class="card" style="max-width:560px;margin:0 auto">
+        <h2>Sposta in…</h2><p class="sec" id="mvDa"></p>
+        <div id="mvLista"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end"><button class="btn sec" onclick="$('#modMove').classList.add('hidden')">Annulla</button></div>
+      </div>
+    </div>
+
     <!-- DA RIVEDERE -->
     <div id="p-rev" class="pg hidden">
       <h1>Da rivedere</h1>
@@ -272,7 +324,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
       </div>
       <div class="card">
         <h2>Applicazione</h2>
-        <div class="row"><span>Versione</span><b>0.5</b></div>
+        <div class="row"><span>Versione</span><b>0.6</b></div>
         <div class="row"><span>Ultima sincronizzazione</span><b id="ultSync">oggi</b></div>
         <div class="row"><span>Modifiche in attesa di invio</span><b id="nPend">0</b></div>
         <div class="row"><span>Installa sul dispositivo</span><button class="btn sec" id="installa">Installa app</button></div>
@@ -320,7 +372,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
     </div>
 
     <footer class="fine">
-      Versione 0.5 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a>
+      Versione 0.6 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a>
     </footer>
   </main>
 
@@ -328,11 +380,12 @@ body.offline .need-net{opacity:.5;pointer-events:none}
     <button class="on" data-p="home"><span>🏠</span>Home</button>
     <button data-p="persone"><span>👥</span>Persone</button>
     <button data-p="eventi"><span>📅</span>Eventi</button>
+    <button data-p="str"><span>🌳</span>Struttura</button>
     <button data-p="imp"><span>⚙️</span>Altro</button>
   </div>
 </div>
 
-<footer class="fine" id="footLogin">Versione 0.5 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
+<footer class="fine" id="footLogin">Versione 0.6 · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
 
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -474,15 +527,151 @@ function salvaPersona(){
   if(err.length){$('#fErr').innerHTML=err.join('<br>');$('#fErr').classList.remove('hidden');return}
   $('#modPer').classList.add('hidden'); toast('Persona salvata (simulato)');
 }
+
+// ===== Struttura (rami) =====
+const MAXL=10, RESP_CREA=false;
+const ME={admin:1,resp:2,utente:3};
+let NODI=[
+ {id:1,ev:1,p:null,t:'Logistica',d:'Tutto ciò che serve per allestire',r:2},
+ {id:2,ev:1,p:1,t:'Sedie',L:{st:'in_corso',sc:'2026-10-30',inc:[3]}},
+ {id:3,ev:1,p:1,t:'Tavoli',L:{st:'da_fare',sc:'2026-11-15',inc:[4]}},
+ {id:4,ev:1,p:1,t:'Trasporti'},
+ {id:5,ev:1,p:4,t:'Furgone',L:{st:'da_fare',sc:'',inc:[5]}},
+ {id:6,ev:1,p:4,t:'Autisti',L:{st:'fatto',sc:'',inc:[3,5]}},
+ {id:7,ev:1,p:null,t:'Premiazioni',r:4},
+ {id:8,ev:1,p:7,t:'Premi',L:{st:'da_fare',sc:'2026-10-10',inc:[4]}},
+ {id:9,ev:1,p:7,t:'Coppe',L:{st:'finito',sc:'',inc:[3]}},
+ {id:10,ev:1,p:null,t:'Comunicazione'},
+ {id:11,ev:1,p:10,t:'Volantini',L:{st:'fatto',sc:'',inc:[5]}},
+ {id:12,ev:1,p:10,t:'Social',L:{st:'in_corso',sc:'',inc:[]}},
+ {id:13,ev:2,p:null,t:'Palco',L:{st:'da_fare',sc:'2027-06-10',inc:[3]}}];
+let nextId=100, collassati=new Set(), strMod=false, nodoCorr=null, nodoPadre=null, dragId=null;
+const nomeP=id=>{const p=PERS.find(x=>x.id===id);return p?p.c+' '+p.n:'?'};
+const kids=id=>NODI.filter(n=>n.ev===ev&&n.p===id);
+const nodo=id=>NODI.find(n=>n.id===id);
+const isLeaf=n=>!kids(n.id).length;
+const level=n=>{let l=1;while(n.p!==null){n=nodo(n.p);l++}return l};
+const height=n=>1+Math.max(0,...kids(n.id).map(height));
+const desc=(a,b)=>{let x=nodo(b.p);while(x){if(x.id===a.id)return true;x=x.p===null?null:nodo(x.p)}return false};
+const anc=n=>{const r=[];let x=n.p===null?null:nodo(n.p);while(x){r.push(x);x=x.p===null?null:nodo(x.p)}return r};
+const respDi=(n,incl)=>{const me=ME[ruolo()];if(incl&&n.r===me)return true;return anc(n).some(a=>a.r===me)};
+const canEdit=n=>ruolo()==='admin'||respDi(n,true);
+const canDel=n=>ruolo()==='admin'||respDi(n,false);
+const canAdd=n=>ruolo()==='admin'||(RESP_CREA&&respDi(n,true));
+const leaves=n=>isLeaf(n)?[n]:kids(n.id).flatMap(leaves);
+function visibile(n){const r=ruolo(),me=ME[r]; if(r==='admin')return true;
+  if(respDi(n,true))return true;
+  const sott=[n,...NODI.filter(x=>x.ev===ev&&desc(n,x))];
+  return sott.some(x=>(x.r===me)||(isLeaf(x)&&x.L&&x.L.inc.includes(me)&&(x.id===n.id||true)));}
+const fmtD=iso=>iso.split('-').reverse().slice(0,2).join('/');
+function badgeStato(st){return {da_fare:'<span class="badge">da fare</span>',in_corso:'<span class="badge w">in corso</span>',fatto:'<span class="badge ok">fatto</span>',finito:'<span class="badge ok">✔ finito</span>'}[st]}
+function badgeScad(L){ if(!L.sc)return ''; const oggi=new Date().toISOString().slice(0,10), chiuso=L.st==='finito'||L.st==='fatto';
+  if(!chiuso&&L.sc<oggi)return '<span class="badge e">scaduta '+fmtD(L.sc)+'</span>';
+  const gg=(new Date(L.sc)-new Date(oggi))/864e5; if(!chiuso&&gg<=7)return '<span class="badge w">scade '+fmtD(L.sc)+'</span>';
+  return '<span class="badge">scad. '+fmtD(L.sc)+'</span>'; }
+function strTutti(apri){collassati=apri?new Set():new Set(NODI.filter(n=>n.ev===ev&&!isLeaf(n)).map(n=>n.id));renderStr()}
+function strToggleMod(){strMod=!strMod;renderStr()}
+function renderStr(){
+  const e=EVENTI.find(x=>x.id===ev), r=ruolo(), adm=r==='admin';
+  if(offline&&strMod)strMod=false;
+  const puoMod=adm||NODI.some(n=>n.ev===ev&&n.r===ME[r]);
+  $('#strModBtn').classList.toggle('hidden',!puoMod); $('#strModBtn').textContent=strMod?'✔ Fine modifica':'✎ Modifica struttura';
+  $('#strModAvv').classList.toggle('hidden',!strMod);
+  $('#strInfo').textContent=e?(adm?'Albero completo dell\'evento · max '+MAXL+' livelli':(r==='resp'?'I rami di cui sei responsabile':'Le attività in cui sei incaricato')):'';
+  const out=[];
+  if(adm&&strMod)out.push(`<div style="margin-bottom:10px"><button class="btn need-net" onclick="apriNodo(null,null)">+ Nuovo ramo di primo livello</button></div>`);
+  const rows=(pid)=>kids(pid).filter(visibile).forEach(n=>{
+    const lf=isLeaf(n), lv=level(n), aperto=!collassati.has(n.id), L=lf?(n.L||{st:'da_fare',sc:'',inc:[]}):null;
+    let meta='';
+    if(n.r)meta+=`<span class="badge">👤 ${nomeP(n.r)}</span>`;
+    if(lf){meta+=badgeStato(L.st)+badgeScad(L)+`<span class="badge">👥 ${L.inc.length}</span>`}
+    else{const ls=leaves(n).filter(x=>ruolo()==='admin'||visibile(x)),f=ls.filter(x=>(x.L||{}).st==='finito').length,p=ls.length?Math.round(100*f/ls.length):0;
+      meta+=`<span class="sec" style="font-size:12px">${f}/${ls.length} <span class="mini"><i style="width:${p}%"></i></span> ${p}%</span>`}
+    let act='';
+    if(strMod){
+      if(canEdit(n))act+=`<span class="hd" title="Trascina" draggable="true" data-drag="${n.id}">☰</span>`;
+    }
+    let btns='';
+    if(strMod){
+      if(canAdd(n)&&lv<MAXL)btns+=`<button class="ib" title="Aggiungi sottoramo" onclick="apriNodo(null,${n.id})">＋</button>`;
+      if(canEdit(n))btns+=`<button class="ib" title="Modifica" onclick="apriNodo(${n.id},null)">✎</button><button class="ib" title="Sposta in…" onclick="apriSposta(${n.id})">⇄</button>`;
+      if(canDel(n))btns+=`<button class="ib dn" title="Elimina" onclick="eliminaNodo(${n.id})">🗑</button>`;
+    }
+    out.push(`<div class="tn ${lf?'':'br'}" data-id="${n.id}" style="margin-left:${(lv-1)*20}px">
+      ${act}${lf?'<span style="width:26px;display:inline-block"></span>':`<button class="tg" onclick="strTog(${n.id})">${aperto?'▼':'▶'}</button>`}
+      <div class="tt2"><b>${n.t}</b>${n.d?`<div class="sec" style="font-size:13px">${n.d}</div>`:''}</div>
+      <div class="meta">${meta}</div><div style="display:flex;gap:6px">${btns}</div></div>`);
+    if(!lf&&aperto)rows(n.id);
+  });
+  rows(null);
+  $('#strLista').innerHTML=out.length?out.join(''):'<p class="sec">Nessun ramo visibile per questo evento.</p>';
+  if(strMod)agganciaDrag();
+}
+function strTog(id){collassati.has(id)?collassati.delete(id):collassati.add(id);renderStr()}
+// --- modifica ---
+function percorsoTxt(n){return [...anc(n).reverse(),n].map(x=>x.t).join(' › ')}
+function apriNodo(id,padre){
+  nodoCorr=id?nodo(id):null; nodoPadre=padre;
+  if(!nodoCorr&&padre){const p=nodo(padre); if(p.L&&p.L.inc.length){alert('"'+p.t+'" ha persone incaricate: rimuovile prima di aggiungere dei sottorami.');return}}
+  const n=nodoCorr||{t:'',d:'',r:null,note:''};
+  $('#nTitM').textContent=nodoCorr?'Modifica':(padre?'Nuovo sottoramo':'Nuovo ramo');
+  $('#nPercorso').textContent=nodoCorr?percorsoTxt(nodoCorr):(padre?'Dentro: '+percorsoTxt(nodo(padre)):'Primo livello');
+  $('#nTit').value=n.t;$('#nDes').value=n.d||'';$('#nNot').value=n.note||'';
+  $('#nResp').innerHTML='<option value="">— (nessuno)</option>'+PERS.filter(p=>p.att).map(p=>`<option value="${p.id}" ${p.id===n.r?'selected':''}>${p.c} ${p.n}</option>`).join('');
+  $('#nErr').classList.add('hidden');$('#modNodo').classList.remove('hidden');$('#nTit').focus();
+}
+function salvaNodo(){const t=$('#nTit').value.trim(); if(!t){$('#nErr').textContent='Il titolo è obbligatorio.';$('#nErr').classList.remove('hidden');return}
+  const r=$('#nResp').value?+$('#nResp').value:null;
+  if(nodoCorr){Object.assign(nodoCorr,{t,d:$('#nDes').value.trim(),note:$('#nNot').value.trim(),r})}
+  else{const pid=nodoPadre; if(pid){const p=nodo(pid);if(level(p)>=MAXL){$('#nErr').textContent='Livello massimo raggiunto ('+MAXL+').';$('#nErr').classList.remove('hidden');return}delete p.L}
+    NODI.push({id:nextId++,ev,p:pid,t,d:$('#nDes').value.trim(),note:$('#nNot').value.trim(),r});
+    if(pid)collassati.delete(pid)}
+  $('#modNodo').classList.add('hidden');renderStr();toast('Salvato (simulato)');}
+function eliminaNodo(id){const n=nodo(id),ds=NODI.filter(x=>x.ev===ev&&desc(n,x)),inc=[n,...ds].reduce((a,x)=>a+((x.L&&isLeaf(x))?x.L.inc.length:0),0);
+  if(!confirm('Eliminare "'+n.t+'"'+(ds.length?' e i '+ds.length+' elementi sottostanti':'')+(inc?' ('+inc+' incarichi)':'')+'? L\'operazione non si può annullare.'))return;
+  NODI=NODI.filter(x=>x!==n&&!ds.includes(x));renderStr();toast('Eliminato (simulato)');}
+// --- sposta ---
+function motivoNo(n,dest){ // dest = nodo oppure null (radice)
+  if(dest){ if(dest.id===n.id||desc(n,dest))return 'dentro sé stesso'; if(dest.L&&dest.L.inc.length&&isLeaf(dest))return 'ha persone incaricate';
+    if(level(dest)+height(n)>MAXL)return 'supera '+MAXL+' livelli';
+    if(ruolo()!=='admin'&&!respDi(dest,true))return 'fuori dal tuo ramo'; }
+  else { if(ruolo()!=='admin')return 'solo l\'amministratore'; if(height(n)>MAXL)return 'supera '+MAXL+' livelli'; }
+  return ''; }
+function apriSposta(id){const n=nodo(id);$('#mvDa').textContent='Elemento: '+percorsoTxt(n);
+  const out=[];const add=(dest,lab,lv)=>{const m=motivoNo(n,dest);out.push(`<div class="mv ${m?'no':''}" style="margin-left:${lv*18}px"><button class="btn sec" style="padding:4px 12px" ${m?'disabled':''} onclick="muovi(${id},${dest?dest.id:'null'})">Qui</button><span>${lab}${m?` <span class="sec">· ${m}</span>`:''}</span></div>`)};
+  add(null,'<b>Primo livello</b>',0);
+  const walk=(pid,lv)=>kids(pid).forEach(x=>{add(x,x.t,lv);walk(x.id,lv+1)});walk(null,1);
+  $('#mvLista').innerHTML=out.join('');$('#modMove').classList.remove('hidden')}
+function muovi(id,dest,pos){const n=nodo(id),d=dest===null?null:nodo(dest),m=motivoNo(n,d); if(m){toast('Non possibile: '+m);return}
+  n.p=d?d.id:null; if(d&&d.L){delete d.L}
+  if(pos&&pos.rif){NODI=NODI.filter(x=>x!==n);const i=NODI.indexOf(pos.rif);NODI.splice(pos.dopo?i+1:i,0,n)}
+  else {NODI=NODI.filter(x=>x!==n);NODI.push(n)}
+  if(d)collassati.delete(d.id); $('#modMove').classList.add('hidden');renderStr();toast('Spostato (simulato)');}
+// --- trascinamento (desktop; su touch nell'app vera con libreria dedicata) ---
+function agganciaDrag(){
+  $$('#strLista [data-drag]').forEach(h=>{h.addEventListener('dragstart',e=>{dragId=+h.dataset.drag;e.dataTransfer.setData('text/plain',String(dragId));e.dataTransfer.effectAllowed='move';
+    const row=h.closest('.tn');setTimeout(()=>row.classList.add('drg'),0)});
+    h.addEventListener('dragend',()=>{$$('.tn').forEach(r=>r.classList.remove('drg','dropb','dropa','dropi'));dragId=null})});
+  $$('#strLista .tn').forEach(r=>{
+    r.addEventListener('dragover',e=>{if(dragId===null)return;e.preventDefault();const rc=r.getBoundingClientRect(),y=(e.clientY-rc.top)/rc.height;
+      r.classList.remove('dropb','dropa','dropi');r.classList.add(y<.25?'dropb':y>.75?'dropa':'dropi')});
+    r.addEventListener('dragleave',()=>r.classList.remove('dropb','dropa','dropi'));
+    r.addEventListener('drop',e=>{e.preventDefault();if(dragId===null)return;const t=nodo(+r.dataset.id),z=r.classList.contains('dropb')?'b':r.classList.contains('dropa')?'a':'i';
+      r.classList.remove('dropb','dropa','dropi'); const id=dragId; dragId=null; if(id===t.id)return;
+      if(z==='i')muovi(id,t.id); else muovi(id,t.p,{rif:t,dopo:z==='a'});});
+  });
+}
+
 function vai(p){
   if(p==='persone') renderPersone();
-  if(!ev && (p==='home'||p==='rev')) p='eventi';
+  if(!ev && (p==='home'||p==='rev'||p==='str')) p='eventi';
+  if(p==='str') renderStr();
   $$('.pg').forEach(e=>e.classList.add('hidden')); $('#p-'+p).classList.remove('hidden');
   $$('.nv,.bottom button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
   window.scrollTo(0,0);
 }
 $$('.nv,.bottom button').forEach(b=>b.onclick=()=>vai(b.dataset.p));
-$('#ruolo').onchange=()=>{applicaRuolo();verificaEv();renderEvBar();renderEventi();renderAtt();vai(ev?'home':'eventi')};
+$('#ruolo').onchange=()=>{strMod=false;applicaRuolo();verificaEv();renderEvBar();renderEventi();renderAtt();vai(ev?'home':'eventi')};
 $('#invia').onclick=()=>{ $('#mailInv').textContent=$('#mail').value||'(email)'; $('#loginForm').classList.add('hidden'); $('#loginOk').classList.remove('hidden'); };
 $('#indietro').onclick=()=>{ $('#loginForm').classList.remove('hidden'); $('#loginOk').classList.add('hidden'); };
 $('#simula').onclick=()=>{ $('#login').classList.add('hidden'); $('#footLogin').classList.add('hidden'); $('#app').classList.remove('hidden'); applicaRuolo(); verificaEv(); renderEvBar(); renderEventi(); renderAtt(); aggiornaSync(); vai(ev?'home':'eventi'); };
