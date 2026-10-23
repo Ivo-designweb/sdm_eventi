@@ -442,7 +442,8 @@
         av || '');
       if (sel) card.append(h('span', { class: 'badge ok' }, '● Selezionato'));
       else { const b = h('button', { class: 'btn', type: 'button' }, 'Seleziona'); b.addEventListener('click', () => selezionaEvento(e.id, true)); card.append(b); }
-      if (adm) { const m = h('button', { class: 'btn sec need-net', type: 'button' }, 'Modifica'); m.addEventListener('click', () => apriEvento(e.id)); card.append(m); }
+      if (adm) { const m = h('button', { class: 'btn sec need-net', type: 'button' }, 'Modifica'); m.addEventListener('click', () => apriEvento(e.id)); card.append(m);
+        const d = h('button', { class: 'btn sec need-net', type: 'button' }, 'Duplica'); d.addEventListener('click', () => apriDuplica(e.id)); card.append(d); }
       return card;
     }));
   }
@@ -1013,6 +1014,268 @@
     box.replaceChildren(...out);
   }
 
+
+  // ---------- Excel: esporta, importa, duplica ----------
+  const norm = s => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const siNo = v => { const t = norm(v); if (['si', 's', 'true', '1', 'x', 'yes', 'y', 'vero'].includes(t)) return true; if (['no', 'n', 'false', '0', '', 'falso'].includes(t)) return false; return null; };
+  const ddmmyyyy = iso => (iso ? iso.split('-').reverse().join('/') : '');
+  function dataISO(v) {
+    const t = String(v == null ? '' : v).trim(); if (!t) return '';
+    let y, m, d, x;
+    if ((x = t.match(/^(\d{4})-(\d{2})-(\d{2})/))) { y = +x[1]; m = +x[2]; d = +x[3]; }
+    else if ((x = t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/))) { d = +x[1]; m = +x[2]; y = +x[3]; if (y < 100) y += 2000; }
+    else return null;
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+    return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  }
+
+  function scaricaFile(nome, fogli) {
+    const wb = XLSX.utils.book_new();
+    fogli.forEach(fg => {
+      const ws = XLSX.utils.aoa_to_sheet(fg.righe);
+      ws['!cols'] = (fg.larghezze || fg.righe[0].map(() => 18)).map(w => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, ws, fg.nome);
+    });
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const a = h('a', { href: url, download: nome }); document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  }
+
+  async function leggiFile(file) {
+    let wb;
+    if (/\.csv$/i.test(file.name)) {
+      const t = await file.text(), prima = t.split(/\r?\n/)[0] || '';
+      wb = XLSX.read(t, { type: 'string', FS: (prima.split(';').length > prima.split(',').length) ? ';' : ',' });
+    } else wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    return XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, dateNF: 'yyyy-mm-dd', defval: '' });
+  }
+  const mappaColonne = (intest, alias) => {
+    const out = {}; intest.forEach((c, i) => { const n = norm(c); Object.entries(alias).forEach(([k, lista]) => { if (out[k] === undefined && lista.includes(n)) out[k] = i; }); }); return out;
+  };
+
+  async function personeDB() {
+    const { data, error } = await stato.sb.from('persone').select('id, cognome, nome, email, numero_iscritto, ruolo, attivo');
+    if (error) throw error; return data;
+  }
+
+  // --- dialogo di importazione generico ---
+  const IMP = { esegui: null };
+  function apriImport(titolo, aiuto, opzioni, analizza) {
+    $('#impTit').textContent = titolo; $('#impAiuto').textContent = aiuto;
+    $('#impOpz').replaceChildren(...(opzioni || [])); $('#impRis').replaceChildren(); $('#impTab').replaceChildren(); $('#impErr').classList.add('hidden');
+    $('#impFile').value = ''; $('#impOk').disabled = true; IMP.esegui = null; IMP.analizza = analizza;
+    $('#modImp').classList.remove('hidden');
+  }
+  const chiudiImport = () => $('#modImp').classList.add('hidden');
+  function impErrore(m) { $('#impErr').textContent = m; $('#impErr').classList.remove('hidden'); }
+  async function impAnalizza() {
+    const file = $('#impFile').files[0]; if (!file) return;
+    $('#impErr').classList.add('hidden'); $('#impOk').disabled = true; IMP.esegui = null;
+    try {
+      const r = await IMP.analizza(file);
+      $('#impRis').replaceChildren(...r.sommario.map(t => h('div', {}, t)));
+      const colore = { ok: 'ok', agg: '', err: 'e', avv: 'w' };
+      $('#impTab').replaceChildren(h('table', { style: 'width:100%;border-collapse:collapse;font-size:13px' },
+        h('thead', {}, h('tr', {}, ...r.colonne.map(c => h('th', { style: 'text-align:left;padding:4px 6px;border-bottom:1px solid var(--bordo)' }, c)))),
+        h('tbody', {}, ...r.righe.slice(0, 80).map(x => h('tr', {}, ...x.celle.map((c, i) => h('td', { style: 'padding:4px 6px;border-bottom:1px solid var(--bordo);vertical-align:top' },
+          i === x.celle.length - 1 ? h('span', { class: 'badge ' + (colore[x.tipo] || '') }, c) : c)))))),
+        r.righe.length > 80 ? h('p', { class: 'note' }, 'Mostrate le prime 80 righe su ' + r.righe.length + '.') : '');
+      IMP.esegui = r.esegui; $('#impOk').disabled = !(r.nOk > 0); $('#impOk').textContent = r.nOk > 0 ? 'Importa (' + r.nOk + ')' : 'Importa';
+    } catch (e) { impErrore('File non leggibile: ' + (e && e.message ? e.message : e)); }
+  }
+  async function impEsegui() {
+    if (!IMP.esegui) return;
+    if (!navigator.onLine) { impErrore('Serve la connessione per importare.'); return; }
+    $('#impOk').disabled = true;
+    try { const m = await IMP.esegui(); chiudiImport(); toast(m); }
+    catch (e) { impErrore('Importazione non riuscita (non è stato importato nulla): ' + (e && e.message ? e.message : e)); $('#impOk').disabled = false; }
+  }
+
+  // --- PERSONE ---
+  const COL_PERS = ['Cognome', 'Nome', 'Email', 'Cellulare', 'Iscritto', 'Numero iscritto', 'Data di nascita', 'Ruolo', 'Attivo', 'Note'];
+  function esportaPersone() {
+    const righe = [COL_PERS, ...P.elenco.map(p => [p.cognome, p.nome, p.email, p.cellulare || '', p.iscritto ? 'Sì' : 'No', p.numero_iscritto || '', ddmmyyyy(p.data_nascita), p.ruolo === 'admin' ? 'Amministratore' : 'Operatore', p.attivo ? 'Sì' : 'No', p.note || ''])];
+    scaricaFile('persone.xlsx', [{ nome: 'Persone', righe, larghezze: [18, 16, 30, 16, 9, 14, 15, 15, 8, 30] }]);
+  }
+  function modelloPersone() {
+    scaricaFile('modello_persone.xlsx', [
+      { nome: 'Persone', righe: [COL_PERS, ['Rossi', 'Anna', 'anna.rossi@esempio.it', '333 1234567', 'Sì', '0102', '05/09/1982', 'Operatore', 'Sì', 'Esempio: cancella questa riga']], larghezze: [18, 16, 30, 16, 9, 14, 15, 15, 8, 30] },
+      { nome: 'Istruzioni', righe: [['Colonne obbligatorie: Cognome, Nome, Email.'], ['Iscritto: Sì / No. Se Sì, il Numero iscritto è obbligatorio e deve essere univoco.'], ['Data di nascita: gg/mm/aaaa.'], ['Ruolo: Operatore (predefinito) o Amministratore. Attivo: Sì (predefinito) / No.'], ['Una persona con la stessa email già presente viene aggiornata (se lo scegli all\'importazione).']], larghezze: [100] }]);
+  }
+  function importaPersone() {
+    const opt = h('label', { style: 'display:flex;gap:8px;align-items:center;font-weight:400' }, h('input', { type: 'checkbox', id: 'impAgg' }), ' Aggiorna le persone già presenti con la stessa email');
+    opt.querySelector('input').checked = true;
+    apriImport('Importa persone', 'Il file deve avere una riga di intestazione con Cognome, Nome ed Email (altre colonne: Cellulare, Iscritto, Numero iscritto, Data di nascita, Ruolo, Attivo, Note). Scarica il modello vuoto se ti serve un esempio.', [opt], async file => {
+      const rows = await leggiFile(file);
+      if (rows.length < 2) throw new Error('il file non contiene righe di dati');
+      const col = mappaColonne(rows[0], { cognome: ['cognome'], nome: ['nome'], email: ['email', 'mail', 'emailaddress', 'posta', 'indirizzoemail'], cellulare: ['cellulare', 'telefono', 'tel', 'cell'], iscritto: ['iscritto', 'socio', 'iscrizione'], numero: ['numeroiscritto', 'numiscritto', 'nriscritto', 'numerosocio', 'matricola', 'nsocio', 'numero'], nascita: ['datanascita', 'nascita', 'datadinascita'], ruolo: ['ruolo'], attivo: ['attivo'], note: ['note'] });
+      const manca = ['cognome', 'nome', 'email'].filter(k => col[k] === undefined);
+      if (manca.length) throw new Error('mancano le colonne: ' + manca.join(', '));
+      const db = await personeDB(), perMail = new Map(db.map(p => [p.email.toLowerCase(), p]));
+      const aggiorna = $('#impAgg').checked, viste = new Set(), numeri = new Map();
+      const val = (r, k) => (col[k] === undefined ? '' : String(r[col[k]] == null ? '' : r[col[k]]).trim());
+      const righe = [], ok = [];
+      rows.slice(1).forEach((r, i) => {
+        if (r.every(c => String(c).trim() === '')) return;
+        const e = [], o = { cognome: val(r, 'cognome'), nome: val(r, 'nome'), email: val(r, 'email').toLowerCase() };
+        if (!o.cognome) e.push('cognome mancante'); if (!o.nome) e.push('nome mancante');
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(o.email)) e.push('email non valida'); else if (viste.has(o.email)) e.push('email ripetuta nel file'); else viste.add(o.email);
+        const cel = val(r, 'cellulare'); if (cel) o.cellulare = cel;
+        if (col.iscritto !== undefined) { const b = siNo(val(r, 'iscritto')); if (b === null) e.push('"Iscritto" non riconosciuto'); else o.iscritto = b; }
+        const num = val(r, 'numero'); if (num) o.numero_iscritto = num;
+        if (o.iscritto === undefined && num) o.iscritto = true;
+        if (o.iscritto && !num && !(perMail.get(o.email) || {}).numero_iscritto) e.push('iscritto senza numero');
+        if (num) {
+          if (numeri.has(num)) e.push('numero iscritto ripetuto nel file'); else numeri.set(num, 1);
+          const altro = db.find(p => p.numero_iscritto === num && p.email.toLowerCase() !== o.email); if (altro) e.push('numero iscritto già assegnato a ' + altro.cognome + ' ' + altro.nome);
+        }
+        const nas = dataISO(val(r, 'nascita')); if (nas === null) e.push('data di nascita non valida'); else if (nas) o.data_nascita = nas;
+        const ru = norm(val(r, 'ruolo')); if (ru) { if (['amministratore', 'admin'].includes(ru)) o.ruolo = 'admin'; else if (['operatore', 'utente'].includes(ru)) o.ruolo = 'utente'; else e.push('ruolo non riconosciuto'); }
+        if (col.attivo !== undefined && val(r, 'attivo') !== '') { const b = siNo(val(r, 'attivo')); if (b === null) e.push('"Attivo" non riconosciuto'); else o.attivo = b; }
+        const nt = val(r, 'note'); if (nt) o.note = nt;
+        const esiste = perMail.has(o.email);
+        const tipo = e.length ? 'err' : (esiste ? (aggiorna ? 'agg' : 'avv') : 'ok');
+        const testo = e.length ? e.join('; ') : (esiste ? (aggiorna ? 'Aggiorna' : 'Già presente: saltata') : 'Nuova');
+        righe.push({ tipo, celle: [String(i + 2), (o.cognome + ' ' + o.nome).trim() + ' · ' + o.email, testo] });
+        if (!e.length && (!esiste || aggiorna)) ok.push(o);
+      });
+      const n = { err: righe.filter(x => x.tipo === 'err').length, ok: righe.filter(x => x.tipo === 'ok').length, agg: righe.filter(x => x.tipo === 'agg').length };
+      return {
+        colonne: ['Riga', 'Persona', 'Esito'], righe, nOk: ok.length,
+        sommario: [`Nuove: ${n.ok} · Da aggiornare: ${n.agg} · Righe con errori (saltate): ${n.err}`, ...(n.err ? ['Correggi gli errori nel file e ricarica, oppure importa solo le righe valide.'] : [])].map(t => t),
+        esegui: async () => {
+          const { data, error } = await stato.sb.rpc('importa_persone', { _righe: ok, _aggiorna: aggiorna });
+          if (error) throw error;
+          await caricaPersone();
+          return 'Persone importate: ' + data.nuove + ' nuove, ' + data.aggiornate + ' aggiornate';
+        }
+      };
+    });
+  }
+
+  // --- STRUTTURA ---
+  const COL_STR = [...Array.from({ length: 10 }, (_, i) => 'Livello ' + (i + 1)), 'Descrizione', 'Note', 'Responsabile (email)', 'Scadenza', 'Stato', 'Incaricati (email)'];
+  const LAB_STATO = { da_fare: 'Da fare', in_corso: 'In corso', fatto: 'Fatto', finito: 'Finito' };
+  async function esportaStruttura() {
+    if (stato.evento === null) return;
+    let pers = []; try { pers = await personeDB(); } catch (e) { /* senza rete: niente email */ }
+    const mail = new Map(pers.map(p => [p.id, p.email]));
+    ordina();
+    const righe = [COL_STR];
+    const giu = (pid, path) => figli(pid).forEach(n => {
+      const p = [...path, n.titolo], lv = Array.from({ length: 10 }, (_, i) => p[i] || '');
+      righe.push([...lv, n.descrizione || '', n.note || '', mail.get(n.responsabile_id) || '', ddmmyyyy(n.scadenza), isLeaf(n) ? LAB_STATO[n.stato] : '', (S.inc[n.id] || []).map(x => mail.get(x.persona_id) || nomeP(x.persona_id)).join('; ')]);
+      giu(n.id, p);
+    });
+    giu(null, []);
+    scaricaFile('struttura_' + (eventoCorrente() ? eventoCorrente().titolo.replace(/[^\w\-]+/g, '_') : 'evento') + '.xlsx', [{ nome: 'Struttura', righe, larghezze: [...Array(10).fill(16), 30, 30, 26, 12, 10, 40] }]);
+  }
+  function modelloStruttura() {
+    scaricaFile('modello_struttura.xlsx', [
+      { nome: 'Struttura', righe: [COL_STR,
+        ['Logistica', '', '', '', '', '', '', '', '', '', 'Tutto l\'allestimento', '', 'anna.rossi@esempio.it', '', '', ''],
+        ['Logistica', 'Sedie', '', '', '', '', '', '', '', '', 'Sedie per il pubblico', 'Ne servono 300', '', '30/10/2027', 'Da fare', 'marco.bianchi@esempio.it; luca.verdi@esempio.it'],
+        ['Logistica', 'Trasporti', 'Furgone', '', '', '', '', '', '', '', '', '', '', '01/11/2027', '', 'marco.bianchi@esempio.it']], larghezze: [...Array(10).fill(16), 30, 30, 26, 12, 10, 40] },
+      { nome: 'Istruzioni', righe: [['Una riga per ogni ramo o attività. I livelli (Livello 1 … Livello 10) descrivono il percorso: nell\'ultima cella riempita c\'è il nome dell\'elemento.'], ['Le righe dei rami sono facoltative: se manca, il ramo viene creato dal percorso delle sue attività.'], ['Elementi già esistenti con lo stesso percorso vengono riconosciuti: si aggiornano solo i campi compilati, non si cancella nulla.'], ['Incaricati e Responsabile: email di persone già presenti in anagrafica (più incaricati separati da ;). Gli incaricati valgono solo per le attività (ultimo livello).'], ['Scadenza: gg/mm/aaaa. Stato (solo per elementi nuovi): Da fare, In corso, Fatto, Finito.']], larghezze: [120] }]);
+  }
+  function importaStruttura() {
+    if (stato.evento === null) return;
+    apriImport('Importa la struttura dell\'evento', 'Aggiunge rami e attività all\'evento "' + (eventoCorrente() ? eventoCorrente().titolo : '') + '". Non cancella e non sposta nulla di quello che c\'è già. Scarica il modello vuoto per vedere il formato.', [], async file => {
+      const rows = await leggiFile(file);
+      if (rows.length < 2) throw new Error('il file non contiene righe di dati');
+      const intest = rows[0].map(norm), liv = [];
+      intest.forEach((c, i) => { const m = c.match(/^livello(\d+)$/); if (m && +m[1] >= 1 && +m[1] <= 10) liv[+m[1] - 1] = i; });
+      if (liv[0] === undefined) throw new Error('manca la colonna "Livello 1"');
+      const col = mappaColonne(rows[0], { descrizione: ['descrizione'], note: ['note'], resp: ['responsabileemail', 'responsabile', 'emailresponsabile'], scad: ['scadenza', 'datascadenza'], stato: ['stato'], inc: ['incaricatiemail', 'incaricati', 'emailincaricati'] });
+      const pers = await personeDB(), perMail = new Map(pers.map(p => [p.email.toLowerCase(), p.id]));
+      ordina();
+      const maxL = maxLivelli(), chiave = path => path.map(norm).join('\u0001');
+      const esist = new Map(); const reg = (pid, path) => figli(pid).forEach(n => { const p = [...path, n.titolo]; esist.set(chiave(p), n); reg(n.id, p); }); reg(null, []);
+      const piano = new Map();   // chiave -> {path, esistente, dati, incaricati[], riga}
+      const nodoPiano = (path, i) => { const k = chiave(path); if (!piano.has(k)) piano.set(k, { k, path, esistente: esist.get(k) || null, dati: {}, inc: new Set(), ordine: piano.size, riga: i }); return piano.get(k); };
+      const righe = []; let nErr = 0, nAvv = 0;
+      rows.slice(1).forEach((r, i) => {
+        if (r.every(c => String(c).trim() === '')) return;
+        const livelli = liv.map(ix => (ix === undefined ? '' : String(r[ix] == null ? '' : r[ix]).trim()));
+        let ult = -1; livelli.forEach((t, x) => { if (t) ult = x; });
+        const e = [], avv = [];
+        if (ult < 0) { e.push('nessun livello compilato'); }
+        else { for (let x = 0; x <= ult; x++) if (!livelli[x]) { e.push('livelli non contigui'); break; } }
+        if (ult + 1 > maxL) e.push('supera ' + maxL + ' livelli');
+        if (livelli.some(t => t.length > 120)) e.push('titolo oltre 120 caratteri');
+        const v = k => (col[k] === undefined ? '' : String(r[col[k]] == null ? '' : r[col[k]]).trim());
+        const dati = {}; if (v('descrizione')) dati.descrizione = v('descrizione'); if (v('note')) dati.note = v('note');
+        const sc = dataISO(v('scad')); if (sc === null) e.push('scadenza non valida'); else if (sc) dati.scadenza = sc;
+        if (v('stato')) { const s2 = { dafare: 'da_fare', incorso: 'in_corso', fatto: 'fatto', finito: 'finito' }[norm(v('stato'))]; if (s2) dati.stato = s2; else avv.push('stato non riconosciuto (uso "Da fare")'); }
+        if (v('resp')) { const id = perMail.get(v('resp').toLowerCase()); if (id) dati.responsabile_id = id; else avv.push('responsabile non in anagrafica'); }
+        const incs = []; v('inc').split(/[;,\n]+/).map(t => t.trim().toLowerCase()).filter(Boolean).forEach(m => { const id = perMail.get(m); if (id) incs.push(id); else avv.push('incaricato non in anagrafica: ' + m); });
+        const percorso = livelli.slice(0, ult + 1).join(' › ');
+        if (e.length) { nErr++; righe.push({ tipo: 'err', celle: [String(i + 2), percorso || '—', e.join('; ')] }); return; }
+        const path = livelli.slice(0, ult + 1);
+        for (let x = 1; x < path.length; x++) nodoPiano(path.slice(0, x), i);   // rami intermedi
+        const np = nodoPiano(path, i); Object.assign(np.dati, dati); incs.forEach(id => np.inc.add(id)); np.conRiga = true;
+        const nuovo = !np.esistente;
+        if (avv.length) nAvv++;
+        righe.push({ tipo: avv.length ? 'avv' : (nuovo ? 'ok' : 'agg'), celle: [String(i + 2), percorso, (nuovo ? 'Nuovo' : 'Esistente: aggiorna i campi compilati') + (avv.length ? ' · ' + avv.join('; ') : '')] });
+      });
+      // calcolo del piano
+      const haFigli = new Set(); piano.forEach(n => { if (n.path.length > 1) haFigli.add(chiave(n.path.slice(0, -1))); });
+      esist.forEach((n, k) => { if (figli(n.id).length) haFigli.add(k); });
+      const creazioni = [], agg = [], incs = [], posiz = new Map();
+      const prossimaPos = (pk, pid) => { if (!posiz.has(pk)) posiz.set(pk, figli(pid).length ? Math.max(...figli(pid).map(x => x.posizione)) + 1 : 0); const v = posiz.get(pk); posiz.set(pk, v + 1); return v; };
+      let nInc = 0, scartati = 0;
+      [...piano.values()].sort((a, b) => a.path.length - b.path.length || a.ordine - b.ordine).forEach(n => {
+        const padreK = n.path.length > 1 ? chiave(n.path.slice(0, -1)) : '';
+        const padre = n.path.length > 1 ? (esist.get(padreK) || null) : null;
+        let incIds = [...n.inc];
+        const foglia = !haFigli.has(n.k);
+        if (incIds.length && !foglia) { incIds = []; scartati++; }
+        if (n.esistente) {
+          if (Object.keys(n.dati).filter(k => k !== 'stato').length) agg.push({ id: n.esistente.id, ...n.dati });
+          incIds.forEach(pid => { if (!(S.inc[n.esistente.id] || []).some(x => x.persona_id === pid)) { incs.push({ nodo_id: n.esistente.id, persona_id: pid }); nInc++; } });
+        } else {
+          if (padre && isLeaf(padre) && nIncarichi(padre)) { scartati++; return; }
+          creazioni.push({ k: n.k, parent_id: padre ? padre.id : null, parent_k: (n.path.length > 1 && !padre) ? padreK : null, titolo: n.path[n.path.length - 1], ...n.dati, posizione: prossimaPos(padreK, padre ? padre.id : null) });
+          incIds.forEach(pid => { incs.push({ nodo_k: n.k, persona_id: pid }); nInc++; });
+        }
+      });
+      const sommario = [`Nuovi elementi: ${creazioni.length} · Esistenti da aggiornare: ${agg.length} · Incaricati da aggiungere: ${nInc}`, `Righe con errori (saltate): ${nErr} · Righe con avvisi: ${nAvv}` + (scartati ? ` · Elementi/incarichi scartati (non attività): ${scartati}` : '')];
+      return {
+        colonne: ['Riga', 'Percorso', 'Esito'], righe, nOk: creazioni.length + agg.length + incs.length, sommario,
+        esegui: async () => {
+          const { data, error } = await stato.sb.rpc('importa_struttura', { _evento: stato.evento, _piano: { creazioni, aggiornamenti: agg, incarichi: incs } });
+          if (error) throw error;
+          await aggiornaTutto();
+          return 'Struttura importata: ' + data.creati + ' nuovi, ' + data.aggiornati + ' aggiornati, ' + data.incarichi + ' incarichi';
+        }
+      };
+    });
+  }
+
+  // --- DUPLICA EVENTO ---
+  let dupDa = null;
+  function apriDuplica(id) {
+    dupDa = stato.eventi.find(e => e.id === id); if (!dupDa) return;
+    $('#dupDa').textContent = 'Da: ' + dupDa.titolo + ' (' + fmtRange(dupDa) + ')';
+    $('#dTit').value = dupDa.titolo + ' (copia)'; $('#dIni').value = ''; $('#dFin').value = '';
+    $('#dScad').checked = true; $('#dResp').checked = true; $('#dInc').checked = false;
+    $('#dErr').classList.add('hidden'); $('#modDup').classList.remove('hidden'); $('#dTit').focus();
+  }
+  async function eseguiDuplica(ev) {
+    ev.preventDefault();
+    const t = $('#dTit').value.trim(), i = $('#dIni').value, f = $('#dFin').value, er = m => { $('#dErr').textContent = m; $('#dErr').classList.remove('hidden'); };
+    if (!t) return er('Il titolo è obbligatorio.'); if (!i) return er('La data è obbligatoria.'); if (f && f < i) return er('La data fine non può precedere la data di inizio.');
+    if (!navigator.onLine) return er('Serve la connessione per duplicare.');
+    $('#dOk').disabled = true;
+    const { error } = await stato.sb.rpc('duplica_evento', { _evento: dupDa.id, _titolo: t, _data_inizio: i, _data_fine: f || null, _copia_incaricati: $('#dInc').checked, _sposta_scadenze: $('#dScad').checked, _copia_responsabili: $('#dResp').checked });
+    $('#dOk').disabled = false;
+    if (error) return er('Duplicazione non riuscita: ' + error.message);
+    $('#modDup').classList.add('hidden'); await caricaEventi(); toast('Evento duplicato');
+  }
+
   // ---------- logo (admin) ----------
   function leggiLogo(file) {
     return new Promise((ok, ko) => {
@@ -1141,6 +1404,10 @@
     $('#eAnnulla').onclick = chiudiEvento; $('#eDel').onclick = eliminaEvento;
     $('#evNuovo').onclick = () => apriEvento(null);
     $('#cambiaEv').onclick = () => vai('eventi');
+    $('#perEsporta').onclick = esportaPersone; $('#perImporta').onclick = importaPersone; $('#perModello').onclick = modelloPersone;
+    $('#strEsporta').onclick = esportaStruttura; $('#strImporta').onclick = importaStruttura; $('#strModello').onclick = modelloStruttura;
+    $('#impFile').addEventListener('change', impAnalizza); $('#impOk').onclick = impEsegui; $('#impAnnulla').onclick = chiudiImport;
+    $('#dupForm').addEventListener('submit', eseguiDuplica); $('#dAnnulla').onclick = () => $('#modDup').classList.add('hidden');
     $('#nodoForm').addEventListener('submit', salvaNodo);
     $('#attForm').addEventListener('submit', salvaScheda); $('#aChiudi').onclick = chiudiScheda;
     $('#nAnnulla').onclick = chiudiNodo; $('#mvAnnulla').onclick = () => $('#modMove').classList.add('hidden');
@@ -1154,7 +1421,7 @@
     $('#perNuova').onclick = () => apriPersona(null);
     $('#fIsc').onchange = () => $('#fNumW').classList.toggle('hidden', !$('#fIsc').checked);
     ['#perCerca', '#perFiltro', '#perNonAttivi'].forEach(id => $(id).addEventListener('input', renderPersone));
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') { chiudiPersona(); chiudiEvento(); chiudiNodo(); chiudiScheda(); } });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { chiudiPersona(); chiudiEvento(); chiudiNodo(); chiudiScheda(); chiudiImport(); $('#modDup').classList.add('hidden'); } });
     $('#installa').onclick = installa;
     $('#vaiPar').onclick = () => vai('par');
     $('#rete').onclick = () => sincronizza(true); $('#iSync').onclick = () => sincronizza(true); $('#iRev').onclick = () => vai('rev');

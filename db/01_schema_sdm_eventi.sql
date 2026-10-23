@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 0.8
+-- Versione script: 0.9
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -629,6 +629,129 @@ begin
     i := i + 1;
   end loop;
   if not messo then update sdm_eventi.nodi set posizione = i where id = _nodo; end if;
+end $$;
+
+-- DUPLICA EVENTO (solo admin): copia titolo/date nuovi, rami, descrizioni, note, scadenze
+-- (spostate in base alla nuova data di inizio se richiesto). Gli stati ripartono da "da fare".
+-- Responsabili e incaricati si copiano solo su richiesta; le note degli incaricati non si copiano.
+create or replace function sdm_eventi.duplica_evento(
+  _evento uuid, _titolo text, _data_inizio date, _data_fine date,
+  _copia_incaricati boolean default false, _sposta_scadenze boolean default true, _copia_responsabili boolean default true)
+returns uuid
+language plpgsql set search_path = sdm_eventi, public, pg_temp as $$
+declare
+  v_old   sdm_eventi.eventi%rowtype;
+  v_new   uuid;
+  v_nid   uuid;
+  v_delta integer := 0;
+  r       record;
+begin
+  if not sdm_eventi.is_admin() then raise exception 'Solo l''amministratore può duplicare un evento'; end if;
+  select * into v_old from sdm_eventi.eventi where id = _evento;
+  if not found then raise exception 'Evento non trovato'; end if;
+  if coalesce(trim(_titolo), '') = '' then raise exception 'Il titolo è obbligatorio'; end if;
+  if v_old.data_inizio is not null and _data_inizio is not null then v_delta := _data_inizio - v_old.data_inizio; end if;
+  insert into sdm_eventi.eventi (titolo, descrizione, luogo, data_inizio, data_fine, creato_da)
+  values (trim(_titolo), v_old.descrizione, v_old.luogo, _data_inizio, _data_fine, sdm_eventi.persona_corrente())
+  returning id into v_new;
+  drop table if exists pg_temp._dup_map;
+  create temp table _dup_map (old_id uuid primary key, new_id uuid) on commit drop;
+  for r in select * from sdm_eventi.nodi where evento_id = _evento order by livello, posizione, creato_il loop
+    insert into sdm_eventi.nodi (evento_id, parent_id, titolo, descrizione, note, scadenza, stato, posizione, responsabile_id)
+    values (v_new, (select new_id from _dup_map where old_id = r.parent_id), r.titolo, r.descrizione, r.note,
+            case when r.scadenza is null then null when _sposta_scadenze then r.scadenza + v_delta else r.scadenza end,
+            'da_fare', r.posizione, case when _copia_responsabili then r.responsabile_id end)
+    returning id into v_nid;
+    insert into _dup_map values (r.id, v_nid);
+  end loop;
+  if _copia_incaricati then
+    insert into sdm_eventi.incarichi (nodo_id, persona_id)
+    select m.new_id, i.persona_id from sdm_eventi.incarichi i join _dup_map m on m.old_id = i.nodo_id;
+  end if;
+  return v_new;
+end $$;
+
+-- IMPORTA PERSONE da Excel (solo admin): inserisce le nuove e, su richiesta, aggiorna quelle con la
+-- stessa email. Tutto in un'unica transazione: se una riga non è valida non viene importato nulla.
+create or replace function sdm_eventi.importa_persone(_righe jsonb, _aggiorna boolean default true)
+returns jsonb
+language plpgsql set search_path = sdm_eventi, public, pg_temp as $$
+declare
+  r jsonb; v_id uuid; v_isc boolean;
+  n_nuove integer := 0; n_agg integer := 0; n_salt integer := 0;
+begin
+  if not sdm_eventi.is_admin() then raise exception 'Solo l''amministratore può importare persone'; end if;
+  for r in select value from jsonb_array_elements(_righe) loop
+    select id into v_id from sdm_eventi.persone where lower(email) = lower(r ->> 'email');
+    v_isc := coalesce((r ->> 'iscritto')::boolean, false);
+    if v_id is null then
+      insert into sdm_eventi.persone (cognome, nome, email, cellulare, iscritto, numero_iscritto, data_nascita, note, ruolo, attivo)
+      values (r ->> 'cognome', r ->> 'nome', lower(r ->> 'email'), nullif(r ->> 'cellulare', ''), v_isc,
+              case when v_isc then nullif(r ->> 'numero_iscritto', '') end, nullif(r ->> 'data_nascita', '')::date,
+              nullif(r ->> 'note', ''), coalesce(nullif(r ->> 'ruolo', ''), 'utente'), coalesce((r ->> 'attivo')::boolean, true));
+      n_nuove := n_nuove + 1;
+    elsif _aggiorna then
+      update sdm_eventi.persone set
+        cognome = r ->> 'cognome', nome = r ->> 'nome',
+        cellulare = coalesce(nullif(r ->> 'cellulare', ''), cellulare),
+        iscritto = case when r ? 'iscritto' then v_isc else iscritto end,
+        numero_iscritto = case when (case when r ? 'iscritto' then v_isc else iscritto end)
+                               then coalesce(nullif(r ->> 'numero_iscritto', ''), numero_iscritto) end,
+        data_nascita = coalesce(nullif(r ->> 'data_nascita', '')::date, data_nascita),
+        note = coalesce(nullif(r ->> 'note', ''), note),
+        ruolo = coalesce(nullif(r ->> 'ruolo', ''), ruolo),
+        attivo = case when r ? 'attivo' then (r ->> 'attivo')::boolean else attivo end
+      where id = v_id;
+      n_agg := n_agg + 1;
+    else
+      n_salt := n_salt + 1;
+    end if;
+  end loop;
+  return jsonb_build_object('nuove', n_nuove, 'aggiornate', n_agg, 'saltate', n_salt);
+end $$;
+
+-- IMPORTA STRUTTURA da Excel (solo admin) in un evento: il piano è calcolato dall'app dopo
+-- l'anteprima. {"creazioni":[{k,parent_id,parent_k,titolo,descrizione,note,scadenza,stato,
+-- responsabile_id,posizione}], "aggiornamenti":[{id,descrizione,note,scadenza,responsabile_id}],
+-- "incarichi":[{nodo_id,nodo_k,persona_id}]}. Un'unica transazione: tutto o niente.
+create or replace function sdm_eventi.importa_struttura(_evento uuid, _piano jsonb)
+returns jsonb
+language plpgsql set search_path = sdm_eventi, public, pg_temp as $$
+declare
+  c jsonb; v_id uuid; v_nodo uuid;
+  n_cre integer := 0; n_agg integer := 0; n_inc integer := 0;
+begin
+  if not sdm_eventi.is_admin() then raise exception 'Solo l''amministratore può importare la struttura'; end if;
+  if not exists (select 1 from sdm_eventi.eventi where id = _evento) then raise exception 'Evento non trovato'; end if;
+  drop table if exists pg_temp._imp_map;
+  create temp table _imp_map (k text primary key, id uuid) on commit drop;
+  for c in select value from jsonb_array_elements(coalesce(_piano -> 'creazioni', '[]'::jsonb)) loop
+    insert into sdm_eventi.nodi (evento_id, parent_id, titolo, descrizione, note, scadenza, stato, responsabile_id, posizione)
+    values (_evento,
+            coalesce(nullif(c ->> 'parent_id', '')::uuid, (select m.id from _imp_map m where m.k = c ->> 'parent_k')),
+            c ->> 'titolo', nullif(c ->> 'descrizione', ''), nullif(c ->> 'note', ''), nullif(c ->> 'scadenza', '')::date,
+            coalesce(nullif(c ->> 'stato', ''), 'da_fare'), nullif(c ->> 'responsabile_id', '')::uuid,
+            coalesce((c ->> 'posizione')::integer, 0))
+    returning id into v_id;
+    insert into _imp_map values (c ->> 'k', v_id);
+    n_cre := n_cre + 1;
+  end loop;
+  for c in select value from jsonb_array_elements(coalesce(_piano -> 'aggiornamenti', '[]'::jsonb)) loop
+    update sdm_eventi.nodi set
+      descrizione = coalesce(nullif(c ->> 'descrizione', ''), descrizione),
+      note = coalesce(nullif(c ->> 'note', ''), note),
+      scadenza = coalesce(nullif(c ->> 'scadenza', '')::date, scadenza),
+      responsabile_id = coalesce(nullif(c ->> 'responsabile_id', '')::uuid, responsabile_id)
+    where id = (c ->> 'id')::uuid and evento_id = _evento;
+    n_agg := n_agg + 1;
+  end loop;
+  for c in select value from jsonb_array_elements(coalesce(_piano -> 'incarichi', '[]'::jsonb)) loop
+    v_nodo := coalesce(nullif(c ->> 'nodo_id', '')::uuid, (select m.id from _imp_map m where m.k = c ->> 'nodo_k'));
+    insert into sdm_eventi.incarichi (nodo_id, persona_id) values (v_nodo, (c ->> 'persona_id')::uuid)
+    on conflict (nodo_id, persona_id) do nothing;
+    n_inc := n_inc + 1;
+  end loop;
+  return jsonb_build_object('creati', n_cre, 'aggiornati', n_agg, 'incarichi', n_inc);
 end $$;
 
 -- Ora del server: l'app la usa per correggere lo scarto dell'orologio del dispositivo
