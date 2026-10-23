@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 0.9
+-- Versione script: 1.0
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -138,6 +138,8 @@ create index if not exists movimenti_record_idx on sdm_eventi.movimenti (tabella
 alter table sdm_eventi.nodi      add column if not exists stato_il timestamptz not null default now();
 alter table sdm_eventi.incarichi add column if not exists nota_il  timestamptz not null default now();
 alter table sdm_eventi.movimenti add column if not exists data_ora_dispositivo timestamptz;
+alter table sdm_eventi.persone   add column if not exists informativa_ver integer not null default 0;
+alter table sdm_eventi.persone   add column if not exists informativa_il  timestamptz;
 
 -- ---------------------------------------------------------------------
 -- FUNZIONI DI SUPPORTO (security definer: evitano ricorsioni nelle RLS)
@@ -754,6 +756,103 @@ begin
   return jsonb_build_object('creati', n_cre, 'aggiornati', n_agg, 'incarichi', n_inc);
 end $$;
 
+-- =====================================================================
+-- PRIVACY / GDPR
+-- =====================================================================
+
+-- Informativa pubblica (leggibile anche prima dell'accesso, per il link nella pagina di login)
+create or replace function sdm_eventi.informativa_pubblica() returns jsonb
+language sql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
+  select jsonb_build_object(
+    'url',      coalesce((select valore #>> '{}' from sdm_eventi.parametri where chiave = 'privacy_url'), ''),
+    'testo',    coalesce((select valore #>> '{}' from sdm_eventi.parametri where chiave = 'privacy_testo'), ''),
+    'versione', coalesce((select (valore #>> '{}')::int from sdm_eventi.parametri where chiave = 'informativa_versione'), 1))
+$$;
+
+-- Presa visione dell'informativa da parte dell'utente collegato
+create or replace function sdm_eventi.registra_presa_visione(_versione integer) returns void
+language plpgsql security definer set search_path = sdm_eventi, public, pg_temp as $$
+declare v_id uuid := sdm_eventi.persona_corrente();
+begin
+  if v_id is null then raise exception 'Utente non collegato all''anagrafica'; end if;
+  update sdm_eventi.persone set informativa_ver = greatest(informativa_ver, _versione), informativa_il = now() where id = v_id;
+end $$;
+
+-- Diritto di accesso/portabilità: tutti i dati di una persona (admin: chiunque; gli altri: solo i propri)
+create or replace function sdm_eventi.dati_persona(_id uuid default null) returns jsonb
+language plpgsql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
+declare v_id uuid := coalesce(_id, sdm_eventi.persona_corrente());
+begin
+  if v_id is null then raise exception 'Persona non indicata'; end if;
+  if not (sdm_eventi.is_admin() or v_id = sdm_eventi.persona_corrente()) then raise exception 'Permessi insufficienti'; end if;
+  return jsonb_build_object(
+    'anagrafica', (select to_jsonb(p) - 'auth_user_id' - 'id' from sdm_eventi.persone p where p.id = v_id),
+    'incarichi', coalesce((select jsonb_agg(jsonb_build_object('evento', e.titolo, 'percorso', sdm_eventi.percorso_testo(n.id),
+                  'stato', n.stato, 'scadenza', n.scadenza, 'nota', i.nota) order by e.titolo)
+                  from sdm_eventi.incarichi i join sdm_eventi.nodi n on n.id = i.nodo_id join sdm_eventi.eventi e on e.id = n.evento_id
+                  where i.persona_id = v_id), '[]'::jsonb),
+    'responsabile_di', coalesce((select jsonb_agg(jsonb_build_object('evento', e.titolo, 'percorso', sdm_eventi.percorso_testo(n.id)) order by e.titolo)
+                  from sdm_eventi.nodi n join sdm_eventi.eventi e on e.id = n.evento_id where n.responsabile_id = v_id), '[]'::jsonb),
+    'movimenti', coalesce((select jsonb_agg(jsonb_build_object('data', m.data_ora, 'tabella', m.tabella, 'azione', m.azione,
+                  'evento', m.evento, 'ramo', m.ramo, 'descrizione', m.descrizione) order by m.data_ora desc)
+                  from (select * from sdm_eventi.movimenti where persona_id = v_id order by data_ora desc limit 1000) m), '[]'::jsonb));
+end $$;
+
+-- Diritto alla cancellazione (solo admin): elimina la persona, il suo utente di accesso e rende
+-- anonimi i movimenti che la riguardano. Non si può eliminare sé stessi né l'ultimo admin.
+create or replace function sdm_eventi.elimina_persona(_id uuid) returns jsonb
+language plpgsql security definer set search_path = sdm_eventi, public, pg_temp as $$
+declare
+  v_p    sdm_eventi.persone%rowtype;
+  v_inc  uuid[];
+  n_mov  integer := 0;
+  n_x    integer;
+begin
+  if not sdm_eventi.is_admin() then raise exception 'Solo l''amministratore può eliminare una persona'; end if;
+  select * into v_p from sdm_eventi.persone where id = _id;
+  if not found then raise exception 'Persona non trovata'; end if;
+  if _id = sdm_eventi.persona_corrente() then raise exception 'Non puoi eliminare te stesso'; end if;
+  select coalesce(array_agg(x), '{}') into v_inc from (
+    select id as x from sdm_eventi.incarichi where persona_id = _id
+    union
+    select record_id from sdm_eventi.movimenti where tabella = 'incarichi' and dettaglio ->> 'persona_id' = _id::text) t;
+  delete from sdm_eventi.persone where id = _id;       -- (il trigger impedisce di togliere l'ultimo admin)
+  -- anonimizza il registro dei movimenti
+  update sdm_eventi.movimenti set operatore = 'Utente eliminato', persona_id = null, utente_id = null
+   where persona_id = _id or (v_p.auth_user_id is not null and utente_id = v_p.auth_user_id);
+  get diagnostics n_x = row_count; n_mov := n_mov + n_x;
+  update sdm_eventi.movimenti set descrizione = 'Persona eliminata', dettaglio = null
+   where tabella = 'persone' and record_id = _id;
+  get diagnostics n_x = row_count; n_mov := n_mov + n_x;
+  update sdm_eventi.movimenti set
+      descrizione = case azione when 'INSERT' then 'Inserito incarico: (persona eliminata)'
+                                when 'UPDATE' then 'Modificato incarico: (persona eliminata)'
+                                else 'Eliminato incarico: (persona eliminata)' end,
+      dettaglio = case when jsonb_typeof(dettaglio) = 'object' then dettaglio - 'persona_id' - 'nota' else null end
+   where tabella = 'incarichi' and record_id = any(v_inc);
+  get diagnostics n_x = row_count; n_mov := n_mov + n_x;
+  -- elimina l'utente di accesso (se il database lo consente) e le richieste di accesso con quella email
+  begin
+    delete from auth.users where id = v_p.auth_user_id or lower(email) = lower(v_p.email);
+  exception when others then
+    raise warning 'Utente di accesso non eliminato: %', sqlerrm;
+  end;
+  return jsonb_build_object('movimenti_anonimizzati', n_mov);
+end $$;
+
+-- Conservazione: elimina i movimenti più vecchi di N mesi (parametro conservazione_movimenti_mesi, 0 = mai)
+create or replace function sdm_eventi.pulisci_movimenti() returns integer
+language plpgsql security definer set search_path = sdm_eventi, public, pg_temp as $$
+declare v_mesi integer; n integer;
+begin
+  if auth.uid() is not null and not sdm_eventi.is_admin() then raise exception 'Solo l''amministratore'; end if;
+  select coalesce((valore #>> '{}')::int, 0) into v_mesi from sdm_eventi.parametri where chiave = 'conservazione_movimenti_mesi';
+  if coalesce(v_mesi, 0) <= 0 then return 0; end if;
+  delete from sdm_eventi.movimenti where data_ora < now() - make_interval(months => v_mesi);
+  get diagnostics n = row_count;
+  return n;
+end $$;
+
 -- Ora del server: l'app la usa per correggere lo scarto dell'orologio del dispositivo
 create or replace function sdm_eventi.ora_server() returns timestamptz
 language sql stable as $$ select now() $$;
@@ -952,7 +1051,10 @@ grant select on sdm_eventi.v_movimenti, sdm_eventi.v_avanzamento_nodi,
       sdm_eventi.v_avanzamento_eventi to authenticated;
 grant all on all tables in schema sdm_eventi to service_role;
 grant usage, select on all sequences in schema sdm_eventi to authenticated, service_role;
+revoke execute on all functions in schema sdm_eventi from public, anon;
 grant execute on all functions in schema sdm_eventi to authenticated, service_role;
+grant usage on schema sdm_eventi to anon;
+grant execute on function sdm_eventi.informativa_pubblica() to anon;
 
 -- ---------------------------------------------------------------------
 -- DATI INIZIALI
@@ -964,7 +1066,12 @@ insert into sdm_eventi.parametri (chiave, valore, descrizione) values
   ('colore_primario',          '"#1d4ed8"',     'Colore principale dell''interfaccia'),
   ('max_livelli',              '10',            'Livelli massimi dell''albero (da 1 a 10)'),
   ('giorni_preavviso_scadenza','7',             'Giorni prima della scadenza per evidenziare una foglia'),
-  ('responsabile_crea_rami',   'false',         'Se true i responsabili possono creare sottorami nel proprio ramo (altrimenti solo l''admin)')
+  ('responsabile_crea_rami',   'false',         'Se true i responsabili possono creare sottorami nel proprio ramo (altrimenti solo l''admin)'),
+  ('privacy_url',              '""',            'Indirizzo dell''informativa privacy (facoltativo)'),
+  ('privacy_testo',            '""',            'Testo dell''informativa privacy mostrato nell''app'),
+  ('informativa_versione',     '1',             'Versione dell''informativa: cambiandola gli utenti devono rileggerla'),
+  ('informativa_obbligatoria', 'false',         'Se true chiede la presa visione dell''informativa al primo accesso'),
+  ('conservazione_movimenti_mesi', '24',        'Mesi di conservazione del registro dei movimenti (0 = senza limite)')
 on conflict (chiave) do nothing;
 
 -- Primo amministratore.

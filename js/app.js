@@ -15,7 +15,8 @@
 
   const PARAM_DEFAULT = {
     nome_app: 'SDM Eventi', tema: 'chiaro', colore_primario: '#1d4ed8',
-    max_livelli: 10, giorni_preavviso_scadenza: 7, responsabile_crea_rami: false, logo: null
+    max_livelli: 10, giorni_preavviso_scadenza: 7, responsabile_crea_rami: false, logo: null,
+    privacy_url: '', privacy_testo: '', informativa_versione: 1, informativa_obbligatoria: false, conservazione_movimenti_mesi: 24
   };
   const RUOLI = { admin: 'Amministratore', utente: 'Operatore' };
 
@@ -60,6 +61,7 @@
     const logo = par.logo || 'assets/logo.png';
     $$('.brandimg').forEach(i => { if (i.getAttribute('src') !== logo) i.setAttribute('src', logo); });
     $('#lgPrev').setAttribute('src', logo);
+    aggiornaPrivacy();
   }
 
   async function caricaParametri() {
@@ -68,6 +70,7 @@
     const p = {};
     (data || []).forEach(r => { p[r.chiave] = r.valore; });
     LS.set('sdm_parametri', p);
+    LS.set('sdm_privacy', { url: p.privacy_url || '', testo: p.privacy_testo || '' });
     applicaParametri(p);
     return Object.keys(p).length;
   }
@@ -142,7 +145,7 @@
     const inAttesa = stato.persona ? codaMia().length : 0;
     if (inAttesa && !confirm('Hai ' + inAttesa + ' modifiche non ancora inviate. Se esci ora restano salvate su questo dispositivo e partiranno al prossimo accesso con lo stesso utente. Uscire?')) return;
     try { await stato.sb.auth.signOut(); } catch (e) { /* offline: pulisco comunque */ }
-    LS.del('sdm_profilo'); LS.del('sdm_persone'); LS.del('sdm_eventi'); LS.del('sdm_evento'); Object.keys(localStorage).filter(k => k.startsWith('sdm_struttura_')).forEach(k => LS.del(k)); LS.del(MAIL_ATTESA);
+    LS.del('sdm_profilo'); LS.del('sdm_persone'); LS.del('sdm_pulizia'); LS.del('sdm_eventi'); LS.del('sdm_evento'); Object.keys(localStorage).filter(k => k.startsWith('sdm_struttura_')).forEach(k => LS.del(k)); LS.del(MAIL_ATTESA);
     stato.persona = null;
     stato.avviata = false;
     $('#loginForm').classList.remove('hidden');
@@ -167,7 +170,8 @@
       const { data, error: e2 } = await stato.sb.from('persone')
         .select('id, cognome, nome, email, ruolo').eq('id', pid).single();
       if (e2) throw e2;
-      persona = { ...data, uid };
+      persona = { ...data, uid, informativa_ver: 0 };
+      try { const iv = await stato.sb.from('persone').select('informativa_ver').eq('id', pid).single(); if (!iv.error) persona.informativa_ver = iv.data.informativa_ver || 0; } catch (e) { /* colonna non ancora presente */ }
       LS.set('sdm_profilo', persona);
       stato.persona = persona;
       let nPar = 0, parErr = false;
@@ -205,6 +209,7 @@
     aggiornaRete();
     caricaEventi().then(() => vai(stato.evento !== null ? 'home' : 'eventi'));
     avviaSincronizzazione();
+    verificaInformativa(); pulizieAutomatiche();
   }
 
   function vai(p) {
@@ -314,6 +319,8 @@
     $('#fNumW').classList.toggle('hidden', !v.iscritto);
     $('#fNot').value = v.note || ''; $('#fAtt').checked = v.attivo;
     $('#fErr').classList.add('hidden');
+    $('#fGdpr').classList.toggle('hidden', !p);
+    $('#fElimina').classList.toggle('hidden', !p || p.id === stato.persona.id);
     $('#modPer').classList.remove('hidden');
     $('#fCog').focus();
   }
@@ -1276,6 +1283,101 @@
     $('#modDup').classList.add('hidden'); await caricaEventi(); toast('Evento duplicato');
   }
 
+
+  // ---------- privacy / GDPR ----------
+  const infoPrivacy = () => {
+    const p = stato.parametri;
+    if (p.privacy_url || p.privacy_testo) return { url: p.privacy_url || '', testo: p.privacy_testo || '' };
+    return LS.get('sdm_privacy') || { url: '', testo: '' };
+  };
+  function aggiornaPrivacy() {
+    const i = infoPrivacy(), on = !!(i.url || i.testo);
+    $$('.lnkPriv').forEach(e => e.classList.toggle('hidden', !on));
+    $$('.lnkPrivSep').forEach(e => e.classList.toggle('hidden', !on));
+  }
+  function apriInformativa(ev) {
+    if (ev) ev.preventDefault();
+    const i = infoPrivacy();
+    if (i.url && !i.testo) { window.open(i.url, '_blank', 'noopener'); return; }
+    $('#privTesto').textContent = i.testo || 'L\'informativa non è ancora disponibile.';
+    $('#modPriv').classList.remove('hidden');
+  }
+  function verificaInformativa() {
+    const p = stato.parametri, pers = stato.persona, i = infoPrivacy();
+    if (!p.informativa_obbligatoria || !(i.url || i.testo) || !navigator.onLine) return;
+    const ver = parseInt(p.informativa_versione, 10) || 1;
+    if ((pers.informativa_ver || 0) >= ver) return;
+    $('#infoTesto').textContent = i.testo || '';
+    $('#infoLink').classList.toggle('hidden', !i.url); if (i.url) $('#infoUrl').setAttribute('href', i.url);
+    $('#infoErr').classList.add('hidden'); $('#modInfo').classList.remove('hidden');
+  }
+  async function confermaInformativa() {
+    const ver = parseInt(stato.parametri.informativa_versione, 10) || 1;
+    if (!navigator.onLine) { $('#infoErr').textContent = 'Serve la connessione per confermare.'; $('#infoErr').classList.remove('hidden'); return; }
+    const { error } = await stato.sb.rpc('registra_presa_visione', { _versione: ver });
+    if (error) { $('#infoErr').textContent = 'Operazione non riuscita: ' + error.message; $('#infoErr').classList.remove('hidden'); return; }
+    stato.persona.informativa_ver = ver; LS.set('sdm_profilo', stato.persona);
+    $('#modInfo').classList.add('hidden');
+  }
+
+  // diritto di accesso/portabilità: scarica tutti i dati di una persona (admin: chiunque; altri: i propri)
+  async function scaricaDatiPersona(id) {
+    if (!navigator.onLine) { alert('Serve la connessione.'); return; }
+    const { data, error } = await stato.sb.rpc('dati_persona', { _id: id });
+    if (error) { alert('Download non riuscito: ' + error.message); return; }
+    const a = data.anagrafica || {}, sn = v => (v ? 'Sì' : 'No');
+    const anag = [['Campo', 'Valore'], ['Cognome', a.cognome], ['Nome', a.nome], ['Email', a.email], ['Cellulare', a.cellulare || ''], ['Iscritto', sn(a.iscritto)], ['Numero iscritto', a.numero_iscritto || ''],
+      ['Data di nascita', ddmmyyyy(a.data_nascita)], ['Ruolo', a.ruolo === 'admin' ? 'Amministratore' : 'Operatore'], ['Attivo', sn(a.attivo)], ['Note', a.note || ''],
+      ['Registrato il', a.creato_il ? new Date(a.creato_il).toLocaleString('it-IT') : ''], ['Informativa letta (versione)', a.informativa_ver || ''], ['Informativa letta il', a.informativa_il ? new Date(a.informativa_il).toLocaleString('it-IT') : '']];
+    const fogli = [
+      { nome: 'Anagrafica', righe: anag, larghezze: [30, 50] },
+      { nome: 'Attività', righe: [['Evento', 'Percorso', 'Stato', 'Scadenza', 'Nota'], ...(data.incarichi || []).map(x => [x.evento, (x.percorso || '').replace(/ > /g, ' › '), LAB_STATO[x.stato] || x.stato, ddmmyyyy(x.scadenza), x.nota || ''])], larghezze: [24, 40, 12, 12, 40] },
+      { nome: 'Responsabile di', righe: [['Evento', 'Ramo'], ...(data.responsabile_di || []).map(x => [x.evento, (x.percorso || '').replace(/ > /g, ' › ')])], larghezze: [24, 50] },
+      { nome: 'Movimenti', righe: [['Data', 'Tabella', 'Azione', 'Evento', 'Ramo', 'Descrizione'], ...(data.movimenti || []).map(x => [new Date(x.data).toLocaleString('it-IT'), x.tabella, x.azione, x.evento || '', x.ramo || '', x.descrizione])], larghezze: [20, 12, 10, 24, 36, 60] }
+    ];
+    scaricaFile('dati_' + [a.cognome, a.nome].filter(Boolean).join('_').replace(/[^\w\-]+/g, '_') + '.xlsx', fogli);
+  }
+
+  // diritto alla cancellazione (admin)
+  async function eliminaPersonaDef() {
+    const p = P.corrente; if (!p) return;
+    if (!navigator.onLine) { erroreForm('Serve la connessione.'); return; }
+    if (!confirm('Eliminare DEFINITIVAMENTE ' + p.cognome + ' ' + p.nome + '?\n\nVerranno cancellati anagrafica, incarichi e utente di accesso, e i movimenti che la riguardano diventeranno anonimi. L\'operazione NON si può annullare.\n\nSe serve, scarica prima i suoi dati.')) return;
+    const t = prompt('Per confermare scrivi ELIMINA');
+    if (!t || t.trim().toUpperCase() !== 'ELIMINA') return;
+    const { error } = await stato.sb.rpc('elimina_persona', { _id: p.id });
+    if (error) { erroreForm('Eliminazione non riuscita: ' + error.message); return; }
+    chiudiPersona(); await caricaPersone(); toast('Persona eliminata definitivamente');
+  }
+
+  // conservazione dei movimenti
+  async function pulisciMovimenti(manuale) {
+    const { data, error } = await stato.sb.rpc('pulisci_movimenti');
+    if (!manuale) { if (!error) LS.set('sdm_pulizia', Date.now()); return; }
+    $('#pPulMsg').textContent = error ? 'Operazione non riuscita: ' + error.message : (data ? 'Eliminati ' + data + ' movimenti.' : 'Nessun movimento da eliminare.');
+  }
+  function pulizieAutomatiche() {
+    if (!isAdmin() || !navigator.onLine || !(parseInt(stato.parametri.conservazione_movimenti_mesi, 10) > 0)) return;
+    const u = LS.get('sdm_pulizia'); if (u && Date.now() - u < 20 * 3600 * 1000) return;
+    pulisciMovimenti(false).catch(() => {});
+  }
+
+  const MODELLO_INFORMATIVA = `INFORMATIVA SUL TRATTAMENTO DEI DATI PERSONALI (artt. 13-14 GDPR)
+
+Titolare del trattamento: [Nome associazione], [indirizzo], [email/PEC]. Contatto privacy: [email].
+
+Dati trattati: dati anagrafici e di contatto, data di nascita, dati di iscrizione, incarichi e attività svolte negli eventi, dati di accesso all'app (email) e registro delle operazioni svolte nell'app.
+
+Finalità e basi giuridiche: gestione del rapporto associativo/di collaborazione e organizzazione degli eventi sportivi (art. 6.1.b e 6.1.f GDPR); adempimenti di legge (6.1.c); sicurezza dell'app (6.1.f). Eventuali comunicazioni promozionali o la pubblicazione di immagini solo con il tuo consenso (6.1.a), revocabile in ogni momento.
+
+Destinatari: le persone autorizzate dell'associazione (amministratori e responsabili di ramo, con accesso limitato alle attività di loro competenza) e i fornitori tecnici nominati responsabili del trattamento: Supabase (database), Vercel (hosting), Resend (invio email). Trasferimenti extra UE: [indicare regione dei dati e garanzie].
+
+Conservazione: [indicare i tempi, es. durata del rapporto + X anni; registro delle operazioni per N mesi].
+
+Diritti: puoi chiedere accesso, rettifica, cancellazione, limitazione, portabilità e opporti al trattamento scrivendo a [email]; hai diritto di reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it).
+
+Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati per l'uso offline); non usa cookie di profilazione né strumenti di analisi.`;
+
   // ---------- logo (admin) ----------
   function leggiLogo(file) {
     return new Promise((ok, ko) => {
@@ -1334,6 +1436,8 @@
     $('#pNome').value = p.nome_app; $('#pTema').value = p.tema; $('#pCol').value = p.colore_primario;
     $('#pLiv').value = p.max_livelli; $('#pGg').value = p.giorni_preavviso_scadenza;
     $('#pResp').checked = !!p.responsabile_crea_rami;
+    $('#pPrivUrl').value = p.privacy_url || ''; $('#pPrivTesto').value = p.privacy_testo || ''; $('#pInfoObb').checked = !!p.informativa_obbligatoria;
+    $('#pInfoVer').value = p.informativa_versione || 1; $('#pMesi').value = p.conservazione_movimenti_mesi === undefined ? 24 : p.conservazione_movimenti_mesi; $('#pPulMsg').textContent = '';
     $('#parMsg').textContent = '';
   }
 
@@ -1345,11 +1449,16 @@
     if (!nome) { msg.textContent = 'Il nome applicazione è obbligatorio.'; return; }
     if (!(liv >= 1 && liv <= 10)) { msg.textContent = 'I livelli devono essere da 1 a 10.'; return; }
     if (!(gg >= 0 && gg <= 60)) { msg.textContent = 'I giorni di preavviso devono essere da 0 a 60.'; return; }
+    const mesi = parseInt($('#pMesi').value, 10), iver = parseInt($('#pInfoVer').value, 10), purl = $('#pPrivUrl').value.trim();
+    if (!(mesi >= 0 && mesi <= 120)) { msg.textContent = 'I mesi di conservazione devono essere da 0 a 120.'; return; }
+    if (!(iver >= 1)) { msg.textContent = 'La versione dell\'informativa deve essere almeno 1.'; return; }
+    if (purl && !/^https?:\/\//i.test(purl)) { msg.textContent = 'L\'indirizzo dell\'informativa deve iniziare con http:// o https://'; return; }
     if (!navigator.onLine) { msg.textContent = 'Serve la connessione per salvare i parametri.'; return; }
     const nuovi = {
       ...stato.parametri,
       nome_app: nome, tema: $('#pTema').value, colore_primario: $('#pCol').value,
-      max_livelli: liv, giorni_preavviso_scadenza: gg, responsabile_crea_rami: $('#pResp').checked
+      max_livelli: liv, giorni_preavviso_scadenza: gg, responsabile_crea_rami: $('#pResp').checked,
+      privacy_url: purl, privacy_testo: $('#pPrivTesto').value.trim(), informativa_obbligatoria: $('#pInfoObb').checked, informativa_versione: iver, conservazione_movimenti_mesi: mesi
     };
     const righe = Object.entries(nuovi).map(([chiave, valore]) => ({ chiave, valore }));
     $('#salva').disabled = true;
@@ -1404,6 +1513,11 @@
     $('#eAnnulla').onclick = chiudiEvento; $('#eDel').onclick = eliminaEvento;
     $('#evNuovo').onclick = () => apriEvento(null);
     $('#cambiaEv').onclick = () => vai('eventi');
+    $$('.lnkPriv').forEach(e => e.addEventListener('click', apriInformativa)); $('#privChiudi').onclick = () => $('#modPriv').classList.add('hidden');
+    $('#infoOk').onclick = confermaInformativa; $('#iDati').onclick = () => scaricaDatiPersona(null);
+    $('#fDati').onclick = () => P.corrente && scaricaDatiPersona(P.corrente.id); $('#fElimina').onclick = eliminaPersonaDef;
+    $('#pPulisci').onclick = () => { if (confirm('Eliminare definitivamente i movimenti più vecchi del periodo di conservazione impostato (e già salvato)?')) pulisciMovimenti(true); };
+    $('#pPrivModello').onclick = () => { if (!$('#pPrivTesto').value.trim() || confirm('Sostituire il testo attuale con il modello?')) $('#pPrivTesto').value = MODELLO_INFORMATIVA; };
     $('#perEsporta').onclick = esportaPersone; $('#perImporta').onclick = importaPersone; $('#perModello').onclick = modelloPersone;
     $('#strEsporta').onclick = esportaStruttura; $('#strImporta').onclick = importaStruttura; $('#strModello').onclick = modelloStruttura;
     $('#impFile').addEventListener('change', impAnalizza); $('#impOk').onclick = impEsegui; $('#impAnnulla').onclick = chiudiImport;
@@ -1421,7 +1535,7 @@
     $('#perNuova').onclick = () => apriPersona(null);
     $('#fIsc').onchange = () => $('#fNumW').classList.toggle('hidden', !$('#fIsc').checked);
     ['#perCerca', '#perFiltro', '#perNonAttivi'].forEach(id => $(id).addEventListener('input', renderPersone));
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') { chiudiPersona(); chiudiEvento(); chiudiNodo(); chiudiScheda(); chiudiImport(); $('#modDup').classList.add('hidden'); } });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { chiudiPersona(); chiudiEvento(); chiudiNodo(); chiudiScheda(); chiudiImport(); $('#modDup').classList.add('hidden'); $('#modPriv').classList.add('hidden'); } });
     $('#installa').onclick = installa;
     $('#vaiPar').onclick = () => vai('par');
     $('#rete').onclick = () => sincronizza(true); $('#iSync').onclick = () => sincronizza(true); $('#iRev').onclick = () => vai('rev');
@@ -1436,6 +1550,8 @@
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
 
+    aggiornaPrivacy();
+    stato.sb.rpc('informativa_pubblica').then(r => { if (r && r.data) { LS.set('sdm_privacy', { url: r.data.url || '', testo: r.data.testo || '' }); aggiornaPrivacy(); } }).catch(() => {});
     stato.sb.auth.onAuthStateChange((evento, session) => {
       if (evento === 'SIGNED_IN' && session) setTimeout(() => iniziaSessione(session), 0);
       if (evento === 'SIGNED_OUT') { stato.avviata = false; stato.persona = null; mostraLogin(); }

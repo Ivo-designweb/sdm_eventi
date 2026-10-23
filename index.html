@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="1.3">
+<meta name="app-version" content="1.4">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -126,6 +126,14 @@
         <div id="fNumW" class="hidden"><label for="fNum">Numero iscritto *</label><input type="text" id="fNum" maxlength="30"></div>
         <label for="fNot">Note</label><input type="text" id="fNot" maxlength="500">
         <div class="row"><div><b>Attivo</b><div class="sec">Se disattivato non può accedere e non compare negli elenchi.</div></div><input type="checkbox" class="sw" id="fAtt"></div>
+        <div id="fGdpr" class="hidden" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--bordo)">
+          <b>Privacy (GDPR)</b>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <button class="btn sec" id="fDati" type="button">⬇ Scarica i dati della persona (Excel)</button>
+            <button class="btn sec need-net" id="fElimina" type="button" style="color:var(--err);border-color:var(--err)">Elimina definitivamente…</button>
+          </div>
+          <p class="note">Elimina anagrafica, incarichi e utente di accesso e rende anonimi i movimenti che la riguardano. Non si può annullare.</p>
+        </div>
         <div id="fErr" class="avviso hidden" style="margin-top:12px"></div>
         <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
           <button class="btn sec" id="fAnnulla" type="button">Annulla</button>
@@ -228,6 +236,25 @@
       </form>
     </div>
 
+    <div id="modPriv" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:40;overflow:auto;padding:16px">
+      <div class="card" style="max-width:720px;margin:0 auto">
+        <h2>Informativa privacy</h2>
+        <div id="privTesto" style="white-space:pre-wrap;font-size:14px"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="btn sec" id="privChiudi" type="button">Chiudi</button></div>
+      </div>
+    </div>
+
+    <div id="modInfo" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.7);z-index:50;overflow:auto;padding:16px">
+      <div class="card" style="max-width:720px;margin:0 auto">
+        <h2>Informativa privacy</h2>
+        <p class="sec">Prima di continuare leggi l'informativa sul trattamento dei tuoi dati personali.</p>
+        <div id="infoTesto" style="white-space:pre-wrap;font-size:14px;max-height:50vh;overflow:auto"></div>
+        <p id="infoLink" class="hidden"><a href="#" target="_blank" rel="noopener" id="infoUrl">Apri l'informativa completa</a></p>
+        <div id="infoErr" class="avviso hidden" style="margin-top:12px"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="btn" id="infoOk" type="button">Ho letto e preso visione</button></div>
+      </div>
+    </div>
+
     <div id="modMove" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
       <div class="card" style="max-width:560px;margin:0 auto">
         <h2>Sposta in…</h2><p class="sec" id="mvDa"></p>
@@ -260,6 +287,8 @@
         <div class="row"><span>Tema</span><b id="iTema"></b></div>
         <div class="row"><span>Installa sul dispositivo</span><button class="btn sec" id="installa" type="button">Installa app</button></div>
         <p class="note hidden" id="iosHint">Su iPhone/iPad: tocca Condividi in Safari e scegli "Aggiungi a Home".</p>
+        <div class="row"><span>Informativa privacy</span><button class="btn sec lnkPriv hidden" type="button">Leggi</button></div>
+        <div class="row"><span>Scarica i miei dati (Excel)</span><button class="btn sec" id="iDati" type="button">Scarica</button></div>
         <div class="row"><span>Esci dall'account</span><button class="btn sec" id="esci2" type="button">Esci</button></div>
         <div class="row adminOnly"><span>Parametri (solo admin)</span><button class="btn sec" id="vaiPar" type="button">Apri</button></div>
       </div>
@@ -299,11 +328,24 @@
             <input type="checkbox" class="sw" id="pResp">
           </div>
         </div>
+        <div class="card">
+          <h2>Privacy (GDPR)</h2>
+          <label for="pPrivUrl">Indirizzo dell'informativa (facoltativo)</label><input type="text" id="pPrivUrl" maxlength="300" placeholder="https://…">
+          <label for="pPrivTesto">Testo dell'informativa (mostrato nell'app)</label>
+          <textarea id="pPrivTesto" rows="8" maxlength="20000" style="width:100%;padding:10px 12px;border:1px solid var(--bordo);border-radius:8px;background:var(--card);color:var(--testo);font:inherit"></textarea>
+          <button class="btn sec" id="pPrivModello" type="button" style="margin-top:8px">Inserisci un modello da completare</button>
+          <div class="row" style="margin-top:12px"><div><b>Richiedi la presa visione al primo accesso</b><div class="sec">Ogni utente deve confermare di aver letto l'informativa. Se cambi la versione, la rilegge.</div></div><input type="checkbox" class="sw" id="pInfoObb"></div>
+          <div class="grid2">
+            <div><label for="pInfoVer">Versione dell'informativa</label><input type="number" id="pInfoVer" min="1" max="999"></div>
+            <div><label for="pMesi">Conserva i movimenti per (mesi, 0 = sempre)</label><input type="number" id="pMesi" min="0" max="120"></div>
+          </div>
+          <div style="margin-top:10px"><button class="btn sec need-net" id="pPulisci" type="button">Elimina ora i movimenti scaduti</button> <span id="pPulMsg" class="sec"></span></div>
+        </div>
         <button class="btn" id="salva" type="submit">Salva parametri</button> <span id="parMsg" class="sec"></span>
       </form>
     </div>
 
-    <footer class="fine">Versione <span class="vers"></span> · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
+    <footer class="fine">Versione <span class="vers"></span> · <a href="#" class="lnkPriv hidden">Informativa privacy</a><span class="lnkPrivSep hidden"> · </span>Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
   </main>
 
   <div class="bottom">
@@ -315,7 +357,7 @@
   </div>
 </div>
 
-<footer class="fine" id="footLogin">Versione <span class="vers"></span> · Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
+<footer class="fine" id="footLogin">Versione <span class="vers"></span> · <a href="#" class="lnkPriv hidden">Informativa privacy</a><span class="lnkPrivSep hidden"> · </span>Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
 
 <script src="vendor/supabase.js"></script>
 <script src="vendor/sortable.min.js"></script>
