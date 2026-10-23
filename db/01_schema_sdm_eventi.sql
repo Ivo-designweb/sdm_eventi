@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 0.7
+-- Versione script: 0.8
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -630,6 +630,10 @@ begin
   end loop;
   if not messo then update sdm_eventi.nodi set posizione = i where id = _nodo; end if;
 end $$;
+
+-- Ora del server: l'app la usa per correggere lo scarto dell'orologio del dispositivo
+create or replace function sdm_eventi.ora_server() returns timestamptz
+language sql stable as $$ select now() $$;
 
 -- Aggiornamenti in tempo reale (Supabase Realtime), se la publication esiste
 do $$

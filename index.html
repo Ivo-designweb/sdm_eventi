@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="1.1">
+<meta name="app-version" content="1.2">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -67,6 +67,7 @@
     <button class="nv" data-p="persone">👥 Persone</button>
     <button class="nv" data-p="eventi">📅 Eventi</button>
     <button class="nv" data-p="str">🌳 Struttura</button>
+    <button class="nv" data-p="rev">🔔 Da rivedere <span class="cnt hidden" id="cntRev">0</span></button>
     <button class="nv" data-p="imp">⚙️ Impostazioni</button>
     <button class="nv lock adminOnly" data-p="par">🎛️ Parametri</button>
     <div class="spacer"></div>
@@ -181,10 +182,10 @@
       <form class="card" id="attForm" style="max-width:640px;margin:0 auto" novalidate>
         <h2 id="aTitH">Attività</h2>
         <p class="sec" id="aPerc" style="margin-top:-6px"></p>
-        <div class="avviso off-only" style="margin-bottom:12px">Sei offline: puoi solo consultare l'attività.</div>
+        <div class="avviso off-only" style="margin-bottom:12px">Sei offline: puoi cambiare lo stato e la tua nota, che partiranno appena torna la rete. Per le altre modifiche serve la connessione.</div>
         <div id="aCorpo"></div>
         <div id="aErr" class="avviso hidden" style="margin-top:12px"></div>
-        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end"><button class="btn sec" id="aChiudi" type="button">Chiudi</button><button class="btn need-net" id="aSalva" type="submit">Salva</button></div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end"><button class="btn sec" id="aChiudi" type="button">Chiudi</button><button class="btn" id="aSalva" type="submit">Salva</button></div>
       </form>
     </div>
 
@@ -194,6 +195,12 @@
         <div id="mvLista"></div>
         <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end"><button class="btn sec" id="mvAnnulla" type="button">Annulla</button></div>
       </div>
+    </div>
+
+    <div id="p-rev" class="pg hidden">
+      <h1>Da rivedere</h1>
+      <p class="sec">Modifiche fatte (anche senza rete) che il server non ha potuto applicare.</p>
+      <div id="revLista"></div>
     </div>
 
     <div id="p-imp" class="pg hidden">
@@ -207,6 +214,10 @@
       <div class="card">
         <h2>Applicazione</h2>
         <div class="row"><span>Versione</span><b id="iVers"></b></div>
+        <div class="row"><span>Ultima sincronizzazione</span><b id="iUlt">—</b></div>
+        <div class="row"><span>Modifiche in attesa di invio</span><b id="iCoda">0</b></div>
+        <div class="row"><span>Sincronizza ora</span><button class="btn sec" id="iSync" type="button">Sincronizza</button></div>
+        <div class="row"><span>Modifiche da rivedere</span><button class="btn sec" id="iRev" type="button">Apri (<span id="iRevN">0</span>)</button></div>
         <div class="row"><span>Tema</span><b id="iTema"></b></div>
         <div class="row"><span>Installa sul dispositivo</span><button class="btn sec" id="installa" type="button">Installa app</button></div>
         <p class="note hidden" id="iosHint">Su iPhone/iPad: tocca Condividi in Safari e scegli "Aggiungi a Home".</p>

@@ -139,6 +139,8 @@
 
   async function esci(ev) {
     if (ev) ev.preventDefault();
+    const inAttesa = stato.persona ? codaMia().length : 0;
+    if (inAttesa && !confirm('Hai ' + inAttesa + ' modifiche non ancora inviate. Se esci ora restano salvate su questo dispositivo e partiranno al prossimo accesso con lo stesso utente. Uscire?')) return;
     try { await stato.sb.auth.signOut(); } catch (e) { /* offline: pulisco comunque */ }
     LS.del('sdm_profilo'); LS.del('sdm_persone'); LS.del('sdm_eventi'); LS.del('sdm_evento'); Object.keys(localStorage).filter(k => k.startsWith('sdm_struttura_')).forEach(k => LS.del(k)); LS.del(MAIL_ATTESA);
     stato.persona = null;
@@ -202,6 +204,7 @@
     vai('eventi');
     aggiornaRete();
     caricaEventi().then(() => vai(stato.evento !== null ? 'home' : 'eventi'));
+    avviaSincronizzazione();
   }
 
   function vai(p) {
@@ -213,15 +216,11 @@
     if (p === 'par') riempiParametri();
     if (p === 'persone') caricaPersone();
     if (p === 'str' || p === 'home') caricaStruttura();
+    if (p === 'rev') renderRivedere();
     window.scrollTo(0, 0);
   }
 
-  function aggiornaRete() {
-    const on = navigator.onLine, c = $('#rete');
-    c.className = 'chip ' + (on ? 'on' : 'off');
-    c.textContent = on ? '● Online' : '● Offline';
-    document.body.classList.toggle('offline', !on);
-  }
+  function aggiornaRete() { aggiornaChip(); }
 
 
   // ---------- persone ----------
@@ -488,7 +487,7 @@
 
 
   // ---------- struttura (rami e attività) ----------
-  const S = { nodi: [], inc: {}, nomi: {}, assegnabili: [], byId: {}, byParent: {}, mod: false, collassati: new Set(), corr: null, padre: null, sort: [] };
+  const S = { pend: new Set(), nodi: [], inc: {}, nomi: {}, assegnabili: [], byId: {}, byParent: {}, mod: false, collassati: new Set(), corr: null, padre: null, sort: [] };
   const maxLivelli = () => Math.min(10, Math.max(1, parseInt(stato.parametri.max_livelli, 10) || 10));
   const nomeP = id => S.nomi[id] || '—';
   const figli = id => S.byParent[id || 'root'] || [];
@@ -530,10 +529,11 @@
         (i.data || []).filter(x => ids.has(x.nodo_id)).forEach(x => { (S.inc[x.nodo_id] = S.inc[x.nodo_id] || []).push({ id: x.id, persona_id: x.persona_id, nota: x.nota }); });
         S.nomi = {}; S.assegnabili = (pa.data || []);
         [...(pe.data || []), ...S.assegnabili].forEach(p => { S.nomi[p.id] = p.cognome + ' ' + p.nome; });
+        sovrapponiCoda();
         LS.set(chiave, { n: S.nodi, i: S.inc, m: S.nomi, a: S.assegnabili });
       }
     }
-    if (!ok) { const c = LS.get(chiave); if (c) { S.nodi = c.n; S.inc = c.i; S.nomi = c.m; S.assegnabili = c.a || []; } else S.nodi = []; }
+    if (!ok) { const c = LS.get(chiave); if (c) { S.nodi = c.n; S.inc = c.i; S.nomi = c.m; S.assegnabili = c.a || []; } else S.nodi = []; sovrapponiCoda(); }
     renderStruttura(); renderHome();
   }
 
@@ -553,6 +553,7 @@
   function rigaNodo(n) {
     const lf = isLeaf(n), aperto = !S.collassati.has(n.id), lv = n.livello;
     const meta = h('div', { class: 'meta' });
+    if (S.pend && S.pend.has(n.id)) meta.append(h('span', { class: 'badge w' }, '⏳ in attesa'));
     if (n.responsabile_id) meta.append(h('span', { class: 'badge' }, '👤 ' + nomeP(n.responsabile_id)));
     if (lf) meta.append(badgeStato(n.stato), badgeScad(n), h('span', { class: 'badge' }, '👥 ' + nIncarichi(n)));
     else {
@@ -582,7 +583,7 @@
 
   function renderStruttura() {
     if (!navigator.onLine) S.mod = false;
-    ordina();
+    ordina(); S.pend = nodiInAttesa();
     const adm = isAdmin();
     const puoMod = adm || S.nodi.some(n => n.responsabile_id === stato.persona.id);
     $('#strModBtn').classList.toggle('hidden', !puoMod);
@@ -728,6 +729,7 @@
       (() => { const b = h('button', { class: 'btn sec need-net', type: 'button' }, '+ Aggiungi'); b.addEventListener('click', aggiungiIncarico); return b; })()));
     $('#aTitH').textContent = n.titolo; $('#aPerc').textContent = percorsoTxt(n);
     $('#aCorpo').replaceChildren(...corpo); $('#aErr').classList.add('hidden');
+    if (!navigator.onLine) $('#aCorpo').querySelectorAll('#aTit,#aDes,#aNot,#aScad').forEach(i => { i.disabled = true; });
     $('#aSalva').classList.toggle('hidden', !(ed || puoStato || isInc));
     renderIncarichi();
     $('#modAtt').classList.remove('hidden');
@@ -742,7 +744,7 @@
       const riga = h('div', { class: 'row', style: 'align-items:flex-start;flex-wrap:wrap' },
         h('div', { style: 'min-width:150px' }, h('b', {}, nomeP(x.persona_id)), mia ? ' ' : '', mia ? h('span', { class: 'badge' }, 'tu') : ''),
         h('div', { style: 'flex:1;min-width:200px' }, modif
-          ? h('input', { type: 'text', 'data-pid': x.persona_id, maxlength: '500', value: x.nota || '', placeholder: 'Nota di ' + (mia ? 'tua' : nomeP(x.persona_id)) + '…' })
+          ? h('input', { type: 'text', 'data-pid': x.persona_id, maxlength: '500', value: x.nota || '', placeholder: 'Nota di ' + (mia ? 'tua' : nomeP(x.persona_id)) + '…', ...(!navigator.onLine && !mia ? { disabled: 'disabled' } : {}) })
           : h('span', { class: 'sec' }, x.nota || '—')));
       if (ed) { const b = h('button', { class: 'ib dn need-net', type: 'button', title: 'Togli dall\'attività' }, '✕'); b.addEventListener('click', () => { leggiNoteScheda(); S.attInc = S.attInc.filter(y => y.persona_id !== x.persona_id); renderIncarichi(); }); riga.append(b); }
       return riga;
@@ -765,7 +767,6 @@
   async function salvaScheda(ev) {
     ev.preventDefault();
     const n = S.att, ed = canEdit(n), me = stato.persona.id;
-    if (!navigator.onLine) { erroreScheda('Serve la connessione per salvare.'); return; }
     leggiNoteScheda();
     const rec = {};
     if (ed) {
@@ -774,30 +775,154 @@
       rec.descrizione = $('#aDes').value.trim() || null; rec.note = $('#aNot').value.trim() || null; rec.scadenza = $('#aScad').value || null;
     }
     const st = $('#aStato');
-    if (!st.disabled) rec.stato = st.value;
+    const statoNuovo = (!st.disabled && st.value !== n.stato) ? st.value : null;
     const diff = Object.fromEntries(Object.entries(rec).filter(([k, v]) => (v === undefined ? null : v) !== (n[k] === undefined ? null : n[k])));
     const orig = S.inc[n.id] || [];
-    let tolti = [], aggiunti = [], cambiati = [];
+    let tolti = [], aggiunti = [], cambiatiAltri = [], miaNota = null;
+    const mioW = S.attInc.find(w => w.persona_id === me), mioO = orig.find(o => o.persona_id === me);
+    if (mioW && mioO && (mioO.nota || '') !== (mioW.nota || '')) miaNota = mioW;
     if (ed) {
       tolti = orig.filter(o => !S.attInc.some(w => w.persona_id === o.persona_id));
       aggiunti = S.attInc.filter(w => !orig.some(o => o.persona_id === w.persona_id));
-      cambiati = S.attInc.filter(w => { const o = orig.find(o => o.persona_id === w.persona_id); return o && (o.nota || '') !== (w.nota || ''); });
-    } else {
-      const mio = S.attInc.find(w => w.persona_id === me), omio = orig.find(o => o.persona_id === me);
-      if (mio && omio && (omio.nota || '') !== (mio.nota || '')) cambiati = [mio];
+      cambiatiAltri = S.attInc.filter(w => { const o = orig.find(o => o.persona_id === w.persona_id); return w.persona_id !== me && o && (o.nota || '') !== (w.nota || ''); });
     }
+    const strutturale = Object.keys(diff).length || tolti.length || aggiunti.length || cambiatiAltri.length;
+    if (strutturale && !navigator.onLine) { erroreScheda('Senza connessione puoi cambiare solo lo stato e la tua nota. Per le altre modifiche serve la rete.'); return; }
     const b = $('#aSalva'); b.disabled = true;
     let errore = null;
     const esegui = async p => { if (errore) return; const r = await p; if (r.error) errore = r.error.message; };
     if (Object.keys(diff).length) await esegui(stato.sb.from('nodi').update(diff).eq('id', n.id));
     for (const o of tolti) await esegui(stato.sb.from('incarichi').delete().eq('id', o.id));
     if (aggiunti.length) await esegui(stato.sb.from('incarichi').insert(aggiunti.map(w => ({ nodo_id: n.id, persona_id: w.persona_id, nota: (w.nota || '').trim() || null }))));
-    for (const w of cambiati) await esegui(stato.sb.from('incarichi').update({ nota: (w.nota || '').trim() || null }).eq('id', w.id));
+    for (const w of cambiatiAltri) await esegui(stato.sb.from('incarichi').update({ nota: (w.nota || '').trim() || null }).eq('id', w.id));
     b.disabled = false;
-    if (errore) { erroreScheda('Salvataggio non riuscito: ' + errore); await caricaStruttura(); return; }
-    chiudiScheda(); await aggiornaTutto();
+    if (errore) { erroreScheda('Salvataggio non riuscito: ' + errore); await aggiornaTutto(); return; }
+    chiudiScheda();
+    if (strutturale) await aggiornaTutto();
+    // stato e propria nota passano dalla coda: funzionano anche offline
+    if (miaNota) accodaModifica('incarico_nota', miaNota.id, (miaNota.nota || '').trim() || null, { nodo: n.id, titolo: n.titolo, percorso: percorsoTxt(n), etichetta: 'Nota' });
+    if (statoNuovo) accodaStato(n, statoNuovo);
   }
 
+  // ---------- sincronizzazione offline ----------
+  // Offline-first: stato delle attività e nota dell'incarico si cambiano sempre in locale (coda) e
+  // partono da soli appena c'è rete. La struttura (eventi, rami, incaricati, scadenze) resta solo online.
+  const CODA = 'sdm_coda', RIVEDERE = 'sdm_rivedere';
+  let sincronizzando = false, erroreSync = '', sincAvviata = false;
+  const uuid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'op-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+  const codaMia = () => (LS.get(CODA) || []).filter(o => stato.persona && o.uid === stato.persona.uid);
+  const rivedereMio = () => (LS.get(RIVEDERE) || []).filter(o => stato.persona && o.uid === stato.persona.uid);
+  const nodiInAttesa = () => new Set(codaMia().map(o => o.nodo));
+
+  function aggiornaChip() {
+    const c = $('#rete'); if (!c) return;
+    const on = navigator.onLine, n = stato.persona ? codaMia().length : 0, r = stato.persona ? rivedereMio().length : 0;
+    c.className = 'chip ' + (sincronizzando ? 'run' : on ? 'on' : 'off');
+    c.textContent = sincronizzando ? '⟳ Sincronizzazione…' : (on ? '● Online' : '● Offline') + (n ? ' · ' + n + ' in attesa' : '');
+    document.body.classList.toggle('offline', !on);
+    const cr = $('#cntRev'); cr.textContent = r; cr.classList.toggle('hidden', !r);
+    $('#iCoda').textContent = n; $('#iRevN').textContent = r;
+    const u = LS.get('sdm_ultima_sync'); $('#iUlt').textContent = u ? new Date(u).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+  }
+
+  function applicaOpLocale(o) {
+    if (o.tipo === 'nodo_stato') { const n = S.nodi.find(x => x.id === o.id); if (n) n.stato = o.valore; }
+    else Object.values(S.inc).forEach(l => { const x = l.find(i => i.id === o.id); if (x) x.nota = o.valore; });
+  }
+  const sovrapponiCoda = () => codaMia().filter(o => o.ev === stato.evento).forEach(applicaOpLocale);
+  const salvaCacheStruttura = () => LS.set('sdm_struttura_' + stato.evento, { n: S.nodi, i: S.inc, m: S.nomi, a: S.assegnabili });
+
+  function accodaModifica(tipo, id, valore, extra) {
+    const coda = LS.get(CODA) || [], uid = stato.persona.uid;
+    const resto = coda.filter(o => !(o.uid === uid && o.tipo === tipo && o.id === id));
+    const op = { op_id: uuid(), uid, tipo, id, valore, ts: new Date().toISOString(), ev: stato.evento, ...extra };
+    resto.push(op); LS.set(CODA, resto);
+    applicaOpLocale(op); salvaCacheStruttura();
+    renderStruttura(); renderHome(); aggiornaChip();
+    sincronizza();
+  }
+
+  function accodaStato(n, v) {
+    accodaModifica('nodo_stato', n.id, v, { nodo: n.id, titolo: n.titolo, percorso: percorsoTxt(n), etichetta: 'Stato' });
+    toast(navigator.onLine ? 'Stato aggiornato' : 'Salvato sul dispositivo: partirà appena c\'è rete');
+  }
+
+  async function misuraOffset() {
+    try {
+      const t0 = Date.now();
+      const { data, error } = await stato.sb.rpc('ora_server');
+      if (error || !data) return;
+      LS.set('sdm_offset', Date.parse(data) - (t0 + Date.now()) / 2);
+    } catch (e) { /* uso l'ultimo valore noto */ }
+  }
+
+  async function sincronizza(manuale) {
+    if (sincronizzando || !stato.sb || !stato.persona) return;
+    if (!navigator.onLine) { aggiornaChip(); if (manuale) toast('Sei offline: la sincronizzazione parte appena c\'è rete'); return; }
+    sincronizzando = true; erroreSync = ''; aggiornaChip();
+    try {
+      const mie = codaMia();
+      if (mie.length) {
+        await misuraOffset();
+        const off = LS.get('sdm_offset') || 0;
+        const ops = mie.map(o => ({ op_id: o.op_id, tipo: o.tipo, id: o.id, valore: o.valore, ts: new Date(Date.parse(o.ts) + off).toISOString() }));
+        const { data, error } = await stato.sb.rpc('applica_modifiche', { _ops: ops });
+        if (error) throw error;
+        const esiti = new Map((data || []).map(r => [r.op_id, r]));
+        const inviati = new Set(mie.map(o => o.op_id));
+        const rev = LS.get(RIVEDERE) || [];
+        mie.forEach(o => {
+          const e = esiti.get(o.op_id);
+          if (e && e.esito !== 'ok') rev.push({ id: o.op_id, uid: o.uid, tipo: o.tipo, rif: o.id, nodo: o.nodo, ev: o.ev, titolo: o.titolo, percorso: o.percorso, etichetta: o.etichetta, valore: o.valore, t: o.ts, esito: e.esito, motivo: e.motivo });
+        });
+        LS.set(RIVEDERE, rev);
+        LS.set(CODA, (LS.get(CODA) || []).filter(o => !(inviati.has(o.op_id) && esiti.has(o.op_id))));
+      }
+      LS.set('sdm_ultima_sync', Date.now());
+      await aggiornaTutto();
+    } catch (e) {
+      erroreSync = /find the function|schema cache/i.test((e && e.message) || '') ? 'Database non aggiornato: riesegui lo script SQL.' : '';
+      if (erroreSync && manuale) alert(erroreSync);
+    } finally {
+      sincronizzando = false; aggiornaChip();
+      if (!$('#p-rev').classList.contains('hidden')) renderRivedere();
+    }
+  }
+
+  function dettaglioOp(o) {
+    return o.tipo === 'nodo_stato' ? (STATI[o.valore] || o.valore).replace(' (confermato dal responsabile)', '') : (o.valore ? '“' + String(o.valore).slice(0, 80) + '”' : '(nota vuota)');
+  }
+  function renderRivedere() {
+    const l = rivedereMio().sort((a, b) => Date.parse(b.t) - Date.parse(a.t));
+    const rimuovi = id => { LS.set(RIVEDERE, (LS.get(RIVEDERE) || []).filter(x => x.id !== id)); aggiornaChip(); renderRivedere(); };
+    $('#revLista').replaceChildren(...(l.length ? l.map(o => {
+      const bt = h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' });
+      if (o.esito === 'superata') {
+        const r = h('button', { class: 'btn sec', type: 'button' }, 'Riapplica la mia modifica');
+        r.addEventListener('click', () => { rimuovi(o.id); if (o.ev === stato.evento) accodaModifica(o.tipo, o.rif, o.valore, { nodo: o.nodo, titolo: o.titolo, percorso: o.percorso, etichetta: o.etichetta }); else toast('Apri l\'evento "' + o.percorso + '" per riapplicare'); });
+        bt.append(r);
+      }
+      const ok = h('button', { class: 'btn sec', type: 'button' }, 'Ho capito'); ok.addEventListener('click', () => rimuovi(o.id)); bt.append(ok);
+      return h('div', { class: 'card' }, h('div', { class: 'row', style: 'align-items:flex-start;flex-wrap:wrap' },
+        h('div', { style: 'flex:1;min-width:200px' }, h('b', {}, o.titolo || 'Attività'),
+          h('div', { class: 'sec', style: 'font-size:13px' }, (o.percorso || '') + ' · ' + o.etichetta + ': ' + dettaglioOp(o) + ' · ' + new Date(o.t).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })),
+          h('div', { class: 'badge ' + (o.esito === 'superata' ? 'w' : 'e'), style: 'margin-top:6px;white-space:normal' }, (o.esito === 'superata' ? 'Superata: ' : 'Rifiutata: ') + o.motivo)), bt));
+    }) : [h('p', { class: 'sec' }, 'Nessuna modifica da rivedere.')]));
+  }
+
+  function avviaSincronizzazione() {
+    if (sincAvviata) return; sincAvviata = true;
+    window.addEventListener('online', () => { aggiornaChip(); sincronizza(); });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && navigator.onLine) sincronizza(); });
+    setInterval(() => { if (navigator.onLine && document.visibilityState === 'visible' && stato.persona) sincronizza(); }, 60000);
+    try {   // aggiornamenti in tempo reale: quando altri cambiano i dati
+      let t; const rif = () => { clearTimeout(t); t = setTimeout(() => { if (navigator.onLine && !sincronizzando && stato.persona) aggiornaTutto(); }, 800); };
+      const ch = stato.sb.channel('sdm-aggiornamenti');
+      ['nodi', 'incarichi', 'eventi'].forEach(tb => ch.on('postgres_changes', { event: '*', schema: cfg.SCHEMA || 'sdm_eventi', table: tb }, rif));
+      ch.subscribe();
+    } catch (e) { /* senza realtime restano gli aggiornamenti periodici */ }
+    sincronizza();
+  }
 
   // ---------- home: avanzamento e le mie attività ----------
   let homeFinite = false;
@@ -823,18 +948,13 @@
   const card = (titolo, ...figli) => h('div', { class: 'card' }, titolo ? h('h2', {}, titolo) : '', ...figli);
   const tile = (n, etich, cl) => h('div', { class: 'tile ' + (n ? cl : '') }, h('b', {}, String(n)), h('span', { class: 'sec' }, etich));
 
-  async function statoRapido(n, v) {
-    if (!navigator.onLine) { alert('Serve la connessione per cambiare lo stato.'); renderHome(); return; }
-    const { error } = await stato.sb.from('nodi').update({ stato: v }).eq('id', n.id);
-    if (error) alert('Cambio di stato non riuscito: ' + error.message); else toast('Stato aggiornato');
-    await aggiornaTutto();
-  }
+  const statoRapido = (n, v) => accodaStato(n, v);
 
   function renderHome() {
     const box = $('#homeCorpo');
     if (!box) return;
     if (stato.evento === null || !stato.persona) { box.replaceChildren(); return; }
-    ordina();
+    ordina(); S.pend = nodiInAttesa();
     const adm = isAdmin(), me = stato.persona.id;
     const tutte = S.nodi.filter(isLeaf);
     const gestisco = adm ? tutte : tutte.filter(canEdit);
@@ -851,7 +971,7 @@
       out.push(h('div', { class: 'tiles' }, tile(scad, 'Scadute', 'e'), tile(prox, 'In scadenza (' + (parseInt(stato.parametri.giorni_preavviso_scadenza, 10) || 7) + ' giorni)', 'w'), tile(senza, 'Senza persone incaricate', 'w'), tile(c.fatto, 'Da confermare', '')));
       const dc = gestisco.filter(n => n.stato === 'fatto');
       out.push(card('Da confermare', ...(dc.length ? dc.map(n => {
-        const b = h('button', { class: 'btn need-net', type: 'button' }, '✔ Conferma finito');
+        const b = h('button', { class: 'btn', type: 'button' }, '✔ Conferma finito');
         b.addEventListener('click', () => statoRapido(n, 'finito'));
         return h('div', { class: 'row', style: 'flex-wrap:wrap' }, h('div', { style: 'flex:1;min-width:180px' }, h('b', {}, n.titolo),
           h('div', { class: 'sec', style: 'font-size:13px' }, percorsoTxt(n) + ' · ' + ((S.inc[n.id] || []).map(x => nomeP(x.persona_id)).join(', ') || 'nessun incaricato'))), b);
@@ -877,10 +997,10 @@
     }
     const righe = lista.map(n => {
       const chiuso = n.stato === 'finito', puoFin = canEdit(n), sc = scadClasse(n);
-      const sel = h('select', { class: 'st need-net' }, ...['da_fare', 'in_corso', 'fatto', ...(puoFin || chiuso ? ['finito'] : [])].map(k => { const o = h('option', { value: k }, STATI[k].replace(' (confermato dal responsabile)', '')); if (n.stato === k) o.selected = true; return o; }));
+      const sel = h('select', { class: 'st' }, ...['da_fare', 'in_corso', 'fatto', ...(puoFin || chiuso ? ['finito'] : [])].map(k => { const o = h('option', { value: k }, STATI[k].replace(' (confermato dal responsabile)', '')); if (n.stato === k) o.selected = true; return o; }));
       if (chiuso && !puoFin) sel.disabled = true;
       sel.addEventListener('change', () => statoRapido(n, sel.value));
-      const ctrl = h('div', { style: 'display:flex;gap:6px;align-items:center;flex-wrap:wrap' }, n.scadenza ? h('span', { class: 'badge ' + sc }, (sc === 'e' ? 'scaduta ' : sc === 'w' ? 'scade ' : 'scad. ') + n.scadenza.split('-').reverse().slice(0, 2).join('/')) : '', sel);
+      const ctrl = h('div', { style: 'display:flex;gap:6px;align-items:center;flex-wrap:wrap' }, S.pend.has(n.id) ? h('span', { class: 'badge w' }, '⏳ in attesa') : '', n.scadenza ? h('span', { class: 'badge ' + sc }, (sc === 'e' ? 'scaduta ' : sc === 'w' ? 'scade ' : 'scad. ') + n.scadenza.split('-').reverse().slice(0, 2).join('/')) : '', sel);
       ctrl.addEventListener('click', e => e.stopPropagation());
       const riga = h('div', { class: 'row', style: 'flex-wrap:wrap;cursor:pointer', tabindex: '0' }, h('div', { style: 'flex:1;min-width:170px' }, h('b', {}, n.titolo), h('div', { class: 'sec', style: 'font-size:13px' }, percorsoTxt(n))), ctrl);
       riga.addEventListener('click', () => apriScheda(n.id));
@@ -1035,6 +1155,7 @@
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { chiudiPersona(); chiudiEvento(); chiudiNodo(); chiudiScheda(); } });
     $('#installa').onclick = installa;
     $('#vaiPar').onclick = () => vai('par');
+    $('#rete').onclick = () => sincronizza(true); $('#iSync').onclick = () => sincronizza(true); $('#iRev').onclick = () => vai('rev');
     $$('.nv, .bottom button').forEach(b => { b.onclick = () => vai(b.dataset.p); });
     window.addEventListener('online', aggiornaRete);
     window.addEventListener('offline', aggiornaRete);
