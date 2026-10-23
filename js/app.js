@@ -808,7 +808,7 @@
   // Offline-first: stato delle attività e nota dell'incarico si cambiano sempre in locale (coda) e
   // partono da soli appena c'è rete. La struttura (eventi, rami, incaricati, scadenze) resta solo online.
   const CODA = 'sdm_coda', RIVEDERE = 'sdm_rivedere';
-  let sincronizzando = false, erroreSync = '', sincAvviata = false;
+  let sincronizzando = false, richiestaSync = false, erroreSync = '', sincAvviata = false;
   const uuid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'op-' + Date.now() + '-' + Math.random().toString(16).slice(2);
   const codaMia = () => (LS.get(CODA) || []).filter(o => stato.persona && o.uid === stato.persona.uid);
   const rivedereMio = () => (LS.get(RIVEDERE) || []).filter(o => stato.persona && o.uid === stato.persona.uid);
@@ -857,7 +857,8 @@
   }
 
   async function sincronizza(manuale) {
-    if (sincronizzando || !stato.sb || !stato.persona) return;
+    if (!stato.sb || !stato.persona) return;
+    if (sincronizzando) { richiestaSync = true; return; }   // nuove modifiche durante un invio: riparto appena finisce
     if (!navigator.onLine) { aggiornaChip(); if (manuale) toast('Sei offline: la sincronizzazione parte appena c\'è rete'); return; }
     sincronizzando = true; erroreSync = ''; aggiornaChip();
     try {
@@ -886,6 +887,7 @@
     } finally {
       sincronizzando = false; aggiornaChip();
       if (!$('#p-rev').classList.contains('hidden')) renderRivedere();
+      if (richiestaSync) { richiestaSync = false; sincronizza(); }
     }
   }
 
