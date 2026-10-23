@@ -56,10 +56,10 @@ Da fare tu (organizzative):
 ## 6. Diritti degli interessati (artt. 15-22) - risposta entro 1 mese
 | Diritto | Come lo gestisci oggi nell'app |
 |---|---|
-| Accesso / portabilità | *Persone → Esporta Excel* (filtra la riga della persona) e le sue attività da *Struttura → Esporta*. |
+| Accesso / portabilità | *Persone* → scheda → **Scarica i dati della persona (Excel)** (anagrafica, attività, responsabilità, movimenti). Ogni utente può scaricare i propri da *Impostazioni → Scarica i miei dati*. |
 | Rettifica | *Persone* → scheda → modifica. |
 | Limitazione / opposizione | Disattiva la persona (non compare più negli elenchi e non può accedere). |
-| **Cancellazione** | Oggi: disattivazione. La **cancellazione definitiva** (con eliminazione dell'utente di accesso e anonimizzazione dei movimenti) non è ancora automatica: vedi "Migliorie consigliate". |
+| **Cancellazione** | *Persone* → scheda → **Elimina definitivamente…** (serve scrivere ELIMINA): cancella anagrafica, incarichi e utente di accesso e rende **anonimi** i movimenti che la riguardano. Non si può eliminare sé stessi né l'ultimo amministratore. |
 
 Tieni un **registro delle richieste** ricevute (data, richiesta, risposta).
 
@@ -85,12 +85,15 @@ se il rischio è elevato informa anche gli interessati. Cambia subito le credenz
   precisa, non compilarli.
 - **Comunicazioni**: il codice di accesso è un messaggio di servizio. Per newsletter o promozioni serve il consenso.
 
-## 10. Migliorie consigliate all'app (da decidere)
-1. **Eliminazione definitiva di una persona** (admin): rimuove anagrafica e utente di accesso e anonimizza i movimenti.
-2. **Pulizia automatica dei movimenti** oltre N mesi (parametro configurabile).
-3. **Link all'informativa privacy** nella pagina di accesso e nelle Impostazioni.
-4. **Esportazione dei dati di una singola persona** con un solo pulsante (accesso/portabilità).
-5. Opzionale: registrazione dell'avvenuta presa visione dell'informativa al primo accesso.
+## 10. Funzioni privacy presenti nell'app
+- **Informativa**: in *Parametri → Privacy (GDPR)* inserisci l'indirizzo dell'informativa e/o il testo (c'è un modello da completare). Il link
+  "Informativa privacy" compare nella pagina di accesso, nelle Impostazioni e in fondo a ogni pagina.
+- **Presa visione**: attivando "Richiedi la presa visione al primo accesso" ogni utente deve confermare di aver letto l'informativa; se cambi
+  la *versione dell'informativa* la rilegge. La data è registrata sulla persona.
+- **Conservazione**: *Conserva i movimenti per (mesi)* (predefinito 24, 0 = sempre). La pulizia parte da sola ogni giorno quando un amministratore
+  apre l'app, oppure con **Elimina ora i movimenti scaduti**.
+- **Diritto di accesso/portabilità e cancellazione**: vedi il punto 6.
+- **Permessi**: le funzioni del database sono eseguibili solo dagli utenti autenticati; prima dell'accesso è leggibile solo l'informativa.
 
 ---
 
