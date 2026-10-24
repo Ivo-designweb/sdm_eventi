@@ -1315,7 +1315,13 @@
     const ver = parseInt(stato.parametri.informativa_versione, 10) || 1;
     if (!navigator.onLine) { $('#infoErr').textContent = 'Serve la connessione per confermare.'; $('#infoErr').classList.remove('hidden'); return; }
     const { error } = await stato.sb.rpc('registra_presa_visione', { _versione: ver });
-    if (error) { $('#infoErr').textContent = 'Operazione non riuscita: ' + error.message; $('#infoErr').classList.remove('hidden'); return; }
+    if (error) {
+      const manca = /find the function|schema cache/i.test(error.message || '');
+      $('#infoErr').textContent = manca ? 'Il database non è aggiornato: riesegui lo script SQL (db/01_schema_sdm_eventi.sql nell\'SQL Editor di Supabase) e riprova.' : 'Operazione non riuscita: ' + error.message;
+      $('#infoErr').classList.remove('hidden');
+      if (manca && isAdmin()) { alert($('#infoErr').textContent); $('#modInfo').classList.add('hidden'); }   // l'amministratore deve poter rimediare
+      return;
+    }
     stato.persona.informativa_ver = ver; LS.set('sdm_profilo', stato.persona);
     $('#modInfo').classList.add('hidden');
   }
