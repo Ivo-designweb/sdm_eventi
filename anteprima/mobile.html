@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="0.9">
+<meta name="app-version" content="1.0">
 <title>SDM Eventi - Anteprima smartphone</title>
 <style>
 :root{--primario:#1d4ed8;--bg:#f4f6fa;--card:#fff;--testo:#1c2333;--sec:#5b6578;--bordo:#dde2ec;--ok:#15803d;--warn:#b45309;--err:#b91c1c}
@@ -54,8 +54,13 @@ select.st{padding:6px 8px;border:1px solid var(--bordo);border-radius:8px;backgr
 .row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--bordo);align-items:center}.row:last-child{border:0}
 .btn{background:var(--primario);color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
 .btn.sec{background:transparent;color:var(--primario);border:1px solid var(--primario)}
-.evc{border:2px solid var(--bordo);border-radius:12px;padding:12px;margin-bottom:8px;background:var(--card);display:flex;gap:10px;align-items:center}
-.evc.sel{border-color:var(--primario);background:#f5f8ff}.evc .inf{flex:1;min-width:0}
+.evc{border:2px solid var(--bordo);border-radius:12px;padding:14px 12px;margin-bottom:8px;background:var(--card);display:flex;gap:10px;align-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.evc .inf{flex:1;min-width:0}.evc .ch{font-size:22px;color:var(--sec);line-height:1}
+.evc:active{background:#eef2ff}
+.evc.sel{background:#f97316;border-color:#ea580c;color:#fff;box-shadow:0 4px 14px rgba(249,115,22,.35)}
+.evc.sel .sec{color:rgba(255,255,255,.9)}
+.evc.sel .inf b{font-size:17px}
+.evc .uso{background:#fff;color:#c2410c;font-weight:700;font-size:12px;border-radius:99px;padding:3px 10px;white-space:nowrap}
 .altro{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--bordo);border-radius:12px;padding:12px;margin-bottom:8px;font:inherit;cursor:pointer}
 /* barra in basso */
 .bottom{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(430px,100%);display:flex;background:var(--card);border-top:1px solid var(--bordo);z-index:25}
@@ -67,6 +72,30 @@ select.st{padding:6px 8px;border:1px solid var(--bordo);border-radius:8px;backgr
 label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}
 textarea{width:100%;padding:8px 10px;border:1px solid var(--bordo);border-radius:8px;font:inherit}
 .note{font-size:12px;color:var(--sec)}
+/* home gestione compatta */
+.sum{padding:10px 12px}
+.sum .r1{display:flex;align-items:center;gap:12px}
+.sum .big{font-size:30px;font-weight:700;line-height:1}
+.cnts{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--sec)}
+.cnts span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;background:var(--c)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
+.ch2{border:1px solid var(--bordo);background:var(--card);border-radius:99px;padding:5px 11px;font-size:13px;font-weight:600;cursor:pointer}
+.ch2.e{color:var(--err);border-color:#fecaca;background:#fff5f5}.ch2.w{color:var(--warn);border-color:#fde68a;background:#fffbeb}.ch2.act{outline:2px solid var(--primario)}
+.conf{border-color:#86efac;background:#f0fdf4}
+.conf h2{color:var(--ok)}
+.seg{display:flex;background:#e8ecf4;border-radius:10px;padding:3px;margin-bottom:8px}
+.seg button{flex:1;border:0;background:transparent;padding:6px;border-radius:8px;font:inherit;font-size:13px;font-weight:600;color:var(--sec);cursor:pointer}
+.seg button.on{background:var(--card);color:var(--primario);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.gr{border-bottom:1px solid var(--bordo)}.gr:last-child{border:0}
+.gr .gh{display:flex;align-items:center;gap:8px;padding:9px 2px;cursor:pointer}
+.gr .gh .nm{flex:1.7;min-width:0;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gr .gh .bar{flex:1}
+.gr .gh .fr{font-size:12px;color:var(--sec);width:34px;text-align:right}
+.gr .gh .ar{color:var(--sec);width:12px;text-align:center}
+.gr .det{padding:0 2px 8px}
+.gr .det .ln{display:flex;align-items:center;gap:6px;padding:5px 0;font-size:13px;border-top:1px dashed var(--bordo)}
+.gr .det .ln .tt{flex:1;min-width:0}.gr .det .ln .tt small{display:block;color:var(--sec);font-size:11px}
+.bt2{background:var(--ok);color:#fff;border:0;border-radius:8px;padding:5px 10px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -104,7 +133,7 @@ const ruolo=()=>$('#ruolo').value, rete=()=>$('#rete').value;
 function intest(){
   const e=EVENTI.find(x=>x.id===ev); $('#evN').textContent=e.t; $('#evD').textContent=e.d;
   const aperte=att.filter(a=>a.st!=='finito'), tot=att.length, fin=att.filter(a=>a.st==='finito').length;
-  const p=ruolo()==='utente'?Math.round(100*fin/tot):e.perc; $('#evP').textContent=p+'%'; $('#evB').style.width=p+'%';
+  const p=ruolo()==='utente'?Math.round(100*fin/tot):(ev===1?cnt(lista()).perc:e.perc); $('#evP').textContent=p+'%'; $('#evB').style.width=p+'%';
   const r=rete(), n=$('#net'); n.className='net '+(r==='run'?'run':(r==='off'||r==='offp')?'off':'on'); n.innerHTML=ICONE[r==='run'?'run':(r==='off'||r==='offp')?'off':'on']+(r==='offp'?'<span class="n">2</span>':'');
   n.title={on:'Online',run:'Sincronizzazione in corso',off:'Offline',offp:'Offline: 2 modifiche in attesa'}[r];
 }
@@ -125,16 +154,42 @@ function homeOperatore(){
    (nFin?`<p class="sec" style="text-align:center"><a href="#" onclick="mostraFinite=!mostraFinite;disegna();return false">${mostraFinite?'Nascondi':'Mostra'} le attività finite (${nFin})</a></p>`:'')+
    `<p class="note" style="text-align:center">Tocca "Nota" per scrivere cosa hai fatto. Le modifiche partono da sole appena c'è rete.</p>`;
 }
+const TUTTE=[
+ {id:1,t:'Premi',ramo:'Premiazioni',p:'Premiazioni › Premi',st:'da_fare',sc:'scaduta 10/10',k:'e',inc:['Luca Verdi']},
+ {id:2,t:'Sedie',ramo:'Logistica',p:'Logistica › Sedie',st:'in_corso',sc:'scade 30/10',k:'w',inc:['Marco Bianchi','Giulia Neri']},
+ {id:3,t:'Autisti',ramo:'Logistica',p:'Logistica › Trasporti › Autisti',st:'fatto',sc:'',k:'',inc:['Marco Bianchi','Giulia Neri']},
+ {id:4,t:'Volantini',ramo:'Comunicazione',p:'Comunicazione › Volantini',st:'fatto',sc:'',k:'',inc:['Giulia Neri']},
+ {id:5,t:'Coppe',ramo:'Premiazioni',p:'Premiazioni › Coppe',st:'finito',sc:'',k:'',inc:['Marco Bianchi']},
+ {id:6,t:'Tavoli',ramo:'Logistica',p:'Logistica › Tavoli',st:'da_fare',sc:'scade 15/11',k:'w',inc:['Luca Verdi']},
+ {id:7,t:'Furgone',ramo:'Logistica',p:'Logistica › Trasporti › Furgone',st:'in_corso',sc:'',k:'',inc:['Luca Verdi']},
+ {id:8,t:'Social',ramo:'Comunicazione',p:'Comunicazione › Social',st:'in_corso',sc:'',k:'',inc:[]},
+ {id:9,t:'Palco',ramo:'Logistica',p:'Logistica › Palco',st:'finito',sc:'',k:'',inc:['Anna Rossi']}];
+let vista='persona', aperti=new Set(), avv='';
+const cnt=l=>{const c={da_fare:0,in_corso:0,fatto:0,finito:0};l.forEach(a=>c[a.st]++);c.tot=l.length;c.perc=c.tot?Math.round(100*c.finito/c.tot):0;return c};
+const stk=c=>`<div class="stk"><i style="width:${c.tot?100*c.finito/c.tot:0}%;background:#15803d"></i><i style="width:${c.tot?100*c.fatto/c.tot:0}%;background:#86efac"></i><i style="width:${c.tot?100*c.in_corso/c.tot:0}%;background:#60a5fa"></i></div>`;
+function lista(){return ruolo()==='admin'?TUTTE:TUTTE.filter(a=>a.ramo==='Logistica')}
+function conferma(id){TUTTE.find(a=>a.id===id).st='finito';disegna()}
+function toggle(k){aperti.has(k)?aperti.delete(k):aperti.add(k);disegna()}
+function filtro(k){avv=avv===k?'':k;disegna()}
+function riga(a){return `<div class="ln"><div class="tt"><b>${a.t}</b><small>${vista==='persona'?a.p:(a.inc.join(', ')||'nessun incaricato')}</small></div>${a.sc?`<span class="badge ${a.k}">${a.sc}</span>`:''}${a.st==='fatto'?`<button class="bt2" onclick="conferma(${a.id})">✔ Finito</button>`:`<span class="badge ${a.st==='finito'?'ok':a.st==='in_corso'?'w':''}">${LAB[a.st]}</span>`}</div>`}
 function homeGestione(){
-  const adm=ruolo()==='admin';
-  return `<div class="top"><h1>Ciao, ${adm?'Ivo':'Anna'}</h1></div>
-  <div class="card"><h2>${adm?"Avanzamento dell'evento":'Avanzamento dei tuoi rami'}</h2><div style="display:flex;gap:12px;align-items:center"><div style="font-size:30px;font-weight:700">42%</div><div style="flex:1"><div class="stk"><i style="width:30%;background:#15803d"></i><i style="width:20%;background:#86efac"></i><i style="width:25%;background:#60a5fa"></i></div></div></div></div>
-  <div class="tiles"><div class="tile e"><b>1</b><span class="sec">Scadute</span></div><div class="tile w"><b>2</b><span class="sec">In scadenza</span></div><div class="tile w"><b>1</b><span class="sec">Senza incaricati</span></div><div class="tile"><b>2</b><span class="sec">Da confermare</span></div></div>
-  <div class="card"><h2>Da confermare</h2><div class="row"><div><b>Autisti</b><div class="sec">Logistica › Trasporti</div></div><button class="btn">✔ Finito</button></div><div class="row"><div><b>Volantini</b><div class="sec">Comunicazione</div></div><button class="btn">✔ Finito</button></div></div>
-  <p class="note" style="text-align:center">(Schermata amministratore/responsabile: invariata, solo l'intestazione è compatta.)</p>`;
+  const adm=ruolo()==='admin', L=lista(), c=cnt(L), dc=L.filter(a=>a.st==='fatto');
+  const sc=L.filter(a=>a.k==='e'&&a.st!=='finito'), pr=L.filter(a=>a.k==='w'&&a.st!=='finito'&&a.st!=='fatto'), sn=L.filter(a=>!a.inc.length&&a.st!=='finito');
+  const mappa={scad:sc,prox:pr,senza:sn}[avv]||[];
+  // gruppi
+  let gruppi=[];
+  if(vista==='persona'){const m={};L.forEach(a=>a.inc.forEach(n=>(m[n]=m[n]||[]).push(a)));gruppi=Object.entries(m).map(([k,v])=>({k,l:v}));gruppi.sort((x,y)=>(y.l.filter(a=>a.st==='fatto').length-x.l.filter(a=>a.st==='fatto').length)||x.k.localeCompare(y.k)); if(sn.length)gruppi.push({k:'Senza incaricati',l:sn})}
+  else{const m={};L.forEach(a=>(m[a.ramo]=m[a.ramo]||[]).push(a));gruppi=Object.entries(m).map(([k,v])=>({k,l:v}))}
+  return `<div class="card sum"><div class="r1"><div class="big">${c.perc}%</div><div style="flex:1"><div class="cnts"><span style="--c:#15803d">${c.finito} finite</span><span style="--c:#86efac">${c.fatto} da confermare</span><span style="--c:#60a5fa">${c.in_corso} in corso</span><span style="--c:#cbd5e1">${c.da_fare} da fare</span></div></div></div><div style="margin-top:8px">${stk(c)}</div></div>
+  <div class="chips">${sc.length?`<button class="ch2 e ${avv==='scad'?'act':''}" onclick="filtro('scad')">⚠ ${sc.length} scadut${sc.length>1?'e':'a'}</button>`:''}${pr.length?`<button class="ch2 w ${avv==='prox'?'act':''}" onclick="filtro('prox')">⏰ ${pr.length} in scadenza</button>`:''}${sn.length?`<button class="ch2 w ${avv==='senza'?'act':''}" onclick="filtro('senza')">👤 ${sn.length} senza incaricati</button>`:''}${!(sc.length||pr.length||sn.length)?'<span class="sec">Nessuna scadenza critica ✓</span>':''}</div>
+  ${avv?`<div class="card" style="padding:6px 12px"><div class="gr"><div class="det">${mappa.map(a=>`<div class="ln" style="border:0"><div class="tt"><b>${a.t}</b><small>${a.p}${a.inc.length?' · '+a.inc.join(', '):''}</small></div>${a.sc?`<span class="badge ${a.k}">${a.sc}</span>`:''}</div>`).join('')}</div></div></div>`:''}
+  <div class="card conf"><h2>Da confermare ${dc.length?`(${dc.length})`:''}</h2>${dc.length?dc.map(a=>`<div class="row"><div style="min-width:0"><b>${a.t}</b><div class="sec" style="font-size:12px">${a.inc.join(', ')||'—'} · ${a.ramo}</div></div><button class="bt2" onclick="conferma(${a.id})">✔ Finito</button></div>`).join(''):'<div class="sec">Nessuna attività in attesa di conferma ✓</div>'}</div>
+  <div class="card"><div class="seg"><button class="${vista==='persona'?'on':''}" onclick="vista='persona';disegna()">Per persona</button><button class="${vista==='ramo'?'on':''}" onclick="vista='ramo';disegna()">Per ramo</button></div>
+   ${gruppi.map(g=>{const cc=cnt(g.l),a2=aperti.has(vista+g.k),nf=g.l.filter(a=>a.st==='fatto').length;return `<div class="gr"><div class="gh" onclick="toggle('${vista+g.k}')"><span class="nm">${g.k}</span>${nf?`<span class="badge" style="background:#dcfce7;color:#15803d" title="${nf} da confermare">✔ ${nf}</span>`:''}<span class="bar">${stk(cc)}</span><span class="fr">${cc.finito}/${cc.tot}</span><span class="ar">${a2?'▾':'▸'}</span></div>${a2?`<div class="det">${g.l.map(riga).join('')}</div>`:''}</div>`}).join('')}
+   <p class="note" style="margin:8px 0 0;text-align:center">Tocca una riga per vedere le attività. <span class="badge" style="background:#dcfce7;color:#15803d">✔ n</span> = da confermare.</p></div>`;
 }
 function eventi(){
-  return `<div class="top"><h1>Eventi</h1></div><p class="sec" style="margin-top:-6px">Scegli l'evento su cui lavorare.</p>`+EVENTI.filter(e=>ruolo()!=='utente'||e.id<3).map(e=>`<div class="evc ${e.id===ev?'sel':''}"><div class="inf"><b>${e.t}</b><div class="sec">${e.d}</div></div>${e.id===ev?'<span class="badge ok">● In uso</span>':`<button class="btn" onclick="ev=${e.id};vai('home')">Seleziona</button>`}</div>`).join('');
+  return `<div class="top"><h1>Eventi</h1></div><p class="sec" style="margin-top:-6px">Tocca un evento per lavorarci.</p>`+EVENTI.filter(e=>ruolo()!=='utente'||e.id<3).map(e=>`<div class="evc ${e.id===ev?'sel':''}" onclick="ev=${e.id};vai('home')"><div class="inf"><b>${e.t}</b><div class="sec">${e.d}</div></div>${e.id===ev?'<span class="uso">● In uso</span>':'<span class="ch">›</span>'}</div>`).join('');
 }
 function altro(){
   const op=ruolo()==='utente';
