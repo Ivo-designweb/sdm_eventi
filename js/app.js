@@ -20,7 +20,7 @@
   };
   const RUOLI = { admin: 'Amministratore', utente: 'Operatore' };
 
-  const stato = { sb: null, persona: null, evento: null, eventi: [], avanz: {}, parametri: { ...PARAM_DEFAULT }, avviata: false };
+  const stato = { pagina: 'home', sb: null, persona: null, evento: null, eventi: [], avanz: {}, parametri: { ...PARAM_DEFAULT }, avviata: false };
 
   // ---------- schermate ----------
   function mostraLogin() {
@@ -205,6 +205,7 @@
     $('#iRuolo').textContent = RUOLI[p.ruolo] || p.ruolo;
     $$('.adminOnly').forEach(e => e.classList.toggle('hidden', !admin));
     mostra('app');
+    renderNav();
     vai('eventi');
     aggiornaRete();
     caricaEventi().then(() => vai(stato.evento !== null ? 'home' : 'eventi'));
@@ -212,16 +213,46 @@
     verificaInformativa(); pulizieAutomatiche();
   }
 
+  function renderNav() {
+    const nav = $('#bottomNav'); if (!nav) return;
+    const op = !!stato.persona && isOperatore();
+    const v = op ? [['home', '📋', 'Attività'], ['eventi', '📅', 'Eventi'], ['altro', '☰', 'Altro']]
+      : [['home', '🏠', 'Home'], ['persone', '👥', 'Persone'], ['eventi', '📅', 'Eventi'], ['str', '🌳', 'Struttura'], ['altro', '☰', 'Altro']];
+    nav.replaceChildren(...v.map(x => { const b = h('button', { type: 'button', 'data-p': x[0] }, h('span', {}, x[1]), x[2]); b.addEventListener('click', () => vai(x[0])); return b; }));
+    segnaNav(stato.pagina);
+  }
+  function segnaNav(p) {
+    const op = !!stato.persona && isOperatore();
+    const k = (p === 'home' || p === 'eventi' || (!op && (p === 'persone' || p === 'str'))) ? p : 'altro';
+    $$('.nv').forEach(b => b.classList.toggle('on', b.dataset.p === p));
+    $$('.bottom button').forEach(b => b.classList.toggle('on', b.dataset.p === k));
+  }
+  function renderAltro() {
+    const op = !!stato.persona && isOperatore(), r = rivedereMio().length, i = infoPrivacy();
+    const voce = (ico, testo, fn, extra) => { const b = h('button', { class: 'altro', type: 'button' }, h('span', {}, ico + ' ' + testo), extra || ''); b.addEventListener('click', fn); return b; };
+    $('#altroLista').replaceChildren(...[
+      op ? voce('👥', 'Persone dell\'evento', () => vai('persone')) : '',
+      op ? voce('🌳', 'Le mie attività nell\'albero', () => vai('str')) : '',
+      voce('🔔', 'Da rivedere', () => vai('rev'), r ? h('span', { class: 'badge e' }, String(r)) : ''),
+      voce('⚙️', 'Impostazioni', () => vai('imp')),
+      isAdmin() ? voce('🎛️', 'Parametri', () => vai('par')) : '',
+      (i.url || i.testo) ? voce('🔒', 'Informativa privacy', () => apriInformativa()) : '',
+      voce('⎋', 'Esci', () => esci())
+    ].filter(Boolean));
+  }
+
   function vai(p) {
     if ((p === 'home' || p === 'str') && stato.evento === null && stato.persona) p = 'eventi';
     if (p === 'par' && !(stato.persona && stato.persona.ruolo === 'admin')) p = 'home';
+    stato.pagina = p;
     $$('.pg').forEach(e => e.classList.add('hidden'));
     $('#p-' + p).classList.remove('hidden');
-    $$('.nv, .bottom button').forEach(b => b.classList.toggle('on', b.dataset.p === p));
+    segnaNav(p);
     if (p === 'par') riempiParametri();
     if (p === 'persone') caricaPersone();
     if (p === 'str' || p === 'home') caricaStruttura();
     if (p === 'rev') renderRivedere();
+    if (p === 'altro') renderAltro();
     window.scrollTo(0, 0);
   }
 
@@ -413,44 +444,60 @@
   }
 
   function selezionaEvento(id, vaiHome) {
-    stato.evento = id; S.mod = false; S.collassati = new Set();
+    stato.evento = id; S.mod = false; S.collassati = new Set(); S.nodi = []; S.inc = {}; homeAvv = ''; homeAperti = new Set();
     LS.set('sdm_evento', { uid: stato.persona.uid, id });
     renderEvBar(); renderEventi();
     if (vaiHome) vai('home');
   }
 
-  function barraAvanz(e) {
-    const a = stato.avanz[e.id];
-    if (!a || !a.foglie_totali || (stato.persona && stato.persona.ruolo === 'utente')) return null;
-    return h('div', { style: 'min-width:110px' }, h('div', { class: 'sec', style: 'font-size:12px' }, 'Avanzamento ' + a.percentuale + '%'),
-      h('div', { class: 'prog' }, h('i', { style: 'width:' + a.percentuale + '%' })));
+  const MESI_BREVI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+  function fmtBreve(e) {
+    if (!e.data_inizio) return 'Data da definire';
+    const [y1, m1, d1] = e.data_inizio.split('-').map(Number);
+    if (!e.data_fine || e.data_fine === e.data_inizio) return d1 + ' ' + MESI_BREVI[m1 - 1] + ' ' + y1;
+    const [y2, m2, d2] = e.data_fine.split('-').map(Number);
+    if (y1 === y2 && m1 === m2) return d1 + '–' + d2 + ' ' + MESI_BREVI[m1 - 1] + ' ' + y1;
+    if (y1 === y2) return d1 + ' ' + MESI_BREVI[m1 - 1] + ' – ' + d2 + ' ' + MESI_BREVI[m2 - 1] + ' ' + y1;
+    return d1 + ' ' + MESI_BREVI[m1 - 1] + ' ' + y1 + ' – ' + d2 + ' ' + MESI_BREVI[m2 - 1] + ' ' + y2;
+  }
+
+  // avanzamento mostrato in alto: operatore = proprie attività; responsabile = suoi rami; admin = tutto
+  function percAvanzamento() {
+    if (stato.evento === null) return null;
+    if (!S.nodi.length) { const a = stato.avanz[stato.evento]; return a && a.foglie_totali ? Math.round(a.percentuale) : null; }
+    ordina();
+    const tutte = S.nodi.filter(isLeaf), me = stato.persona.id;
+    const base = isAdmin() ? tutte : (isOperatore() ? tutte.filter(n => (S.inc[n.id] || []).some(x => x.persona_id === me)) : tutte.filter(canEdit));
+    return base.length ? conteggio(base).perc : null;
   }
 
   function renderEvBar() {
     const e = eventoCorrente();
-    $('#evTit').className = 'tt' + (e ? '' : ' nessuno');
-    $('#evTit').replaceChildren(...(e
-      ? [h('span', {}, 'EVENTO'), h('b', {}, e.titolo), h('span', {}, fmtRange(e))]
-      : [h('b', {}, 'Nessun evento selezionato'), h('span', {}, 'Scegli un evento per iniziare')]));
-    const av = e ? barraAvanz(e) : null;
-    $('#evProg').replaceChildren(...(av ? [av] : []));
-    $('#cambiaEv').classList.toggle('hidden', !e);
+    $('#evN').textContent = e ? e.titolo : 'Nessun evento selezionato';
+    $('#evD').textContent = e ? fmtBreve(e) : 'Scegli un evento per iniziare';
+    const p = e ? percAvanzamento() : null;
+    $('#pc').classList.toggle('hidden', p === null);
+    if (p !== null) { $('#evP').textContent = p + '%'; $('#evB').style.width = p + '%'; }
   }
 
   function renderEventi() {
     const adm = isAdmin(), l = stato.eventi;
-    $('#evInfo').textContent = stato.evento !== null ? 'L\'evento di lavoro è evidenziato. Per cambiarlo, selezionane un altro.'
-      : (l.length ? 'Scegli l\'evento su cui lavorare: resterà selezionato in tutte le pagine.'
-        : (adm ? 'Nessun evento: creane uno con "+ Nuovo evento".' : 'Nessun evento disponibile: quando ti verranno assegnate delle attività compariranno qui.'));
+    $('#evInfo').textContent = l.length ? 'Tocca un evento per lavorarci.'
+      : (adm ? 'Nessun evento: creane uno con "+ Nuovo evento".' : 'Nessun evento disponibile: quando ti verranno assegnate delle attività compariranno qui.');
     $('#evLista').replaceChildren(...l.map(e => {
-      const sel = e.id === stato.evento, av = barraAvanz(e);
-      const card = h('div', { class: 'evc' + (sel ? ' sel' : '') },
-        h('div', { class: 'inf' }, h('b', {}, e.titolo), ' ', concluso(e) ? h('span', { class: 'badge' }, 'concluso') : '', h('div', { class: 'sec' }, fmtRange(e))),
-        av || '');
-      if (sel) card.append(h('span', { class: 'badge ok' }, '● Selezionato'));
-      else { const b = h('button', { class: 'btn', type: 'button' }, 'Seleziona'); b.addEventListener('click', () => selezionaEvento(e.id, true)); card.append(b); }
-      if (adm) { const m = h('button', { class: 'btn sec need-net', type: 'button' }, 'Modifica'); m.addEventListener('click', () => apriEvento(e.id)); card.append(m);
-        const d = h('button', { class: 'btn sec need-net', type: 'button' }, 'Duplica'); d.addEventListener('click', () => apriDuplica(e.id)); card.append(d); }
+      const sel = e.id === stato.evento;
+      const card = h('div', { class: 'evc' + (sel ? ' sel' : ''), tabindex: '0', role: 'button' },
+        h('div', { class: 'inf' }, h('b', {}, e.titolo), ' ', concluso(e) && !sel ? h('span', { class: 'badge' }, 'concluso') : '', h('div', { class: 'sec' }, fmtRange(e))),
+        sel ? h('span', { class: 'uso' }, '● In uso') : h('span', { class: 'ch' }, '›'));
+      const scegli = () => { if (sel) vai('home'); else selezionaEvento(e.id, true); };
+      card.addEventListener('click', scegli);
+      card.addEventListener('keydown', ev => { if (ev.key === 'Enter') scegli(); });
+      if (adm) {
+        const acts = h('div', { class: 'acts' });
+        const m = h('button', { class: 'btn sec need-net', type: 'button' }, 'Modifica'); m.addEventListener('click', ev => { ev.stopPropagation(); apriEvento(e.id); });
+        const d = h('button', { class: 'btn sec need-net', type: 'button' }, 'Duplica'); d.addEventListener('click', ev => { ev.stopPropagation(); apriDuplica(e.id); });
+        acts.append(m, d); card.append(acts);
+      }
       return card;
     }));
   }
@@ -542,7 +589,7 @@
       }
     }
     if (!ok) { const c = LS.get(chiave); if (c) { S.nodi = c.n; S.inc = c.i; S.nomi = c.m; S.assegnabili = c.a || []; } else S.nodi = []; sovrapponiCoda(); }
-    renderStruttura(); renderHome();
+    renderStruttura(); renderHome(); renderEvBar(); renderNav();
   }
 
   function badgeStato(st) {
@@ -822,15 +869,23 @@
   const rivedereMio = () => (LS.get(RIVEDERE) || []).filter(o => stato.persona && o.uid === stato.persona.uid);
   const nodiInAttesa = () => new Set(codaMia().map(o => o.nodo));
 
+  const ICONE_NET = {
+    on: '<svg viewBox="0 0 24 24"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01"/></svg>',
+    off: '<svg viewBox="0 0 24 24"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01M3 3l18 18"/></svg>',
+    run: '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"/></svg>'
+  };
   function aggiornaChip() {
     const c = $('#rete'); if (!c) return;
     const on = navigator.onLine, n = stato.persona ? codaMia().length : 0, r = stato.persona ? rivedereMio().length : 0;
-    c.className = 'chip ' + (sincronizzando ? 'run' : on ? 'on' : 'off');
-    c.textContent = sincronizzando ? '⟳ Sincronizzazione…' : (on ? '● Online' : '● Offline') + (n ? ' · ' + n + ' in attesa' : '');
+    const k = sincronizzando ? 'run' : on ? 'on' : 'off';
+    const testo = sincronizzando ? 'Sincronizzazione in corso…' : (on ? 'Online' : 'Offline') + (n ? ' · ' + n + ' modifiche in attesa' : '');
+    c.className = 'net ' + k; c.title = testo; c.setAttribute('aria-label', testo);
+    c.innerHTML = ICONE_NET[k] + (n ? '<span class="n">' + n + '</span>' : '');
     document.body.classList.toggle('offline', !on);
     const cr = $('#cntRev'); cr.textContent = r; cr.classList.toggle('hidden', !r);
     $('#iCoda').textContent = n; $('#iRevN').textContent = r;
     const u = LS.get('sdm_ultima_sync'); $('#iUlt').textContent = u ? new Date(u).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+    if (stato.pagina === 'altro') renderAltro();
   }
 
   function applicaOpLocale(o) {
@@ -960,64 +1015,89 @@
 
   const statoRapido = (n, v) => accodaStato(n, v);
 
+  let homeVista = 'persona', homeAperti = new Set(), homeAvv = '';
+  const radice = n => { const a = antenati(n); return a.length ? a[a.length - 1] : n; };
+  const nomiInc = n => (S.inc[n.id] || []).map(x => nomeP(x.persona_id));
+  const isOperatore = () => !!stato.persona && !isAdmin() && !S.nodi.some(n => n.responsabile_id === stato.persona.id);
+
   function renderHome() {
     const box = $('#homeCorpo');
     if (!box) return;
     if (stato.evento === null || !stato.persona) { box.replaceChildren(); return; }
     ordina(); S.pend = nodiInAttesa();
-    const adm = isAdmin(), me = stato.persona.id;
+    const adm = isAdmin(), me = stato.persona.id, op = isOperatore();
+    $('#homeTop').classList.toggle('hidden', op);
     const tutte = S.nodi.filter(isLeaf);
     const gestisco = adm ? tutte : tutte.filter(canEdit);
-    const sonoResp = adm || S.nodi.some(n => n.responsabile_id === me);
     const out = [];
-    if (sonoResp) {
+    if (!op) {
       const c = conteggio(gestisco);
-      out.push(card(adm ? 'Avanzamento dell\'evento' : 'Avanzamento dei tuoi rami',
-        h('div', { style: 'display:flex;gap:18px;align-items:center;flex-wrap:wrap' },
-          h('div', {}, h('div', { class: 'big' }, c.perc + '%'), h('div', { class: 'sec', style: 'font-size:13px' }, 'completato (' + c.finito + ' su ' + c.tot + ')')),
-          h('div', { style: 'flex:1;min-width:220px' }, barraStack(c), legenda()))));
-      const scad = gestisco.filter(n => scadClasse(n) === 'e').length, prox = gestisco.filter(n => scadClasse(n) === 'w').length;
-      const senza = gestisco.filter(n => !nIncarichi(n) && n.stato !== 'finito').length;
-      out.push(h('div', { class: 'tiles' }, tile(scad, 'Scadute', 'e'), tile(prox, 'In scadenza (' + (parseInt(stato.parametri.giorni_preavviso_scadenza, 10) || 7) + ' giorni)', 'w'), tile(senza, 'Senza persone incaricate', 'w'), tile(c.fatto, 'Da confermare', '')));
+      out.push(h('div', { class: 'card sum' }, h('div', { class: 'r1' }, h('div', { class: 'big' }, c.perc + '%'),
+        h('div', { class: 'cnts', style: 'flex:1' }, h('span', { style: '--c:#15803d' }, c.finito + ' finite'), h('span', { style: '--c:#86efac' }, c.fatto + ' da confermare'), h('span', { style: '--c:#60a5fa' }, c.in_corso + ' in corso'), h('span', { style: '--c:#cbd5e1' }, c.da_fare + ' da fare'))),
+        h('div', { style: 'margin-top:8px' }, barraStack(c))));
+      // avvisi
+      const sc = gestisco.filter(n => scadClasse(n) === 'e'), pr = gestisco.filter(n => scadClasse(n) === 'w'), sn = gestisco.filter(n => !nIncarichi(n) && n.stato !== 'finito');
+      const gg = parseInt(stato.parametri.giorni_preavviso_scadenza, 10) || 7;
+      const chip = (cl, k, txt, lista) => { if (!lista.length) return ''; const b = h('button', { class: 'ch2 ' + cl + (homeAvv === k ? ' act' : ''), type: 'button' }, txt); b.addEventListener('click', () => { homeAvv = homeAvv === k ? '' : k; renderHome(); }); return b; };
+      const chips = [chip('e', 'scad', '⚠ ' + sc.length + (sc.length > 1 ? ' scadute' : ' scaduta'), sc), chip('w', 'prox', '⏰ ' + pr.length + ' in scadenza (' + gg + ' gg)', pr), chip('w', 'senza', '👤 ' + sn.length + ' senza incaricati', sn)].filter(Boolean);
+      out.push(h('div', { class: 'chips' }, ...(chips.length ? chips : [h('span', { class: 'sec' }, 'Nessuna scadenza critica ✓')])));
+      const elenco = { scad: sc, prox: pr, senza: sn }[homeAvv] || [];
+      if (homeAvv && elenco.length) out.push(h('div', { class: 'card', style: 'padding:6px 12px' }, h('div', { class: 'gr' }, h('div', { class: 'det' },
+        ...elenco.map(n => { const l = h('div', { class: 'ln', style: 'border:0' }, h('div', { class: 'tt' }, h('b', {}, n.titolo), h('small', {}, percorsoTxt(n) + (nomiInc(n).length ? ' · ' + nomiInc(n).join(', ') : ''))), badgeScad(n)); l.addEventListener('click', () => apriScheda(n.id)); return l; })))));
+      // da confermare
       const dc = gestisco.filter(n => n.stato === 'fatto');
-      out.push(card('Da confermare', ...(dc.length ? dc.map(n => {
-        const b = h('button', { class: 'btn', type: 'button' }, '✔ Conferma finito');
-        b.addEventListener('click', () => statoRapido(n, 'finito'));
-        return h('div', { class: 'row', style: 'flex-wrap:wrap' }, h('div', { style: 'flex:1;min-width:180px' }, h('b', {}, n.titolo),
-          h('div', { class: 'sec', style: 'font-size:13px' }, percorsoTxt(n) + ' · ' + ((S.inc[n.id] || []).map(x => nomeP(x.persona_id)).join(', ') || 'nessun incaricato'))), b);
-      }) : [h('p', { class: 'sec', style: 'margin:0' }, 'Nessuna attività in attesa di conferma.')])));
-      const rami = adm ? figli(null).filter(n => !isLeaf(n)) : S.nodi.filter(n => n.responsabile_id === me && !isLeaf(n) && !antenati(n).some(a => a.responsabile_id === me));
-      if (rami.length) out.push(card('Avanzamento per ramo', ...rami.map(n => {
-        const cc = conteggio(foglie(n)), riga = h('div', { class: 'row', style: 'flex-wrap:wrap;cursor:pointer' },
-          h('div', { style: 'min-width:170px;flex:1' }, h('b', {}, n.titolo), n.responsabile_id ? h('div', { class: 'sec', style: 'font-size:13px' }, '👤 ' + nomeP(n.responsabile_id)) : ''),
-          h('div', { style: 'flex:2;min-width:200px' }, barraStack(cc)),
-          h('div', { style: 'min-width:90px;text-align:right' }, h('b', {}, cc.perc + '%'), ' ', h('span', { class: 'sec', style: 'font-size:12px' }, cc.finito + '/' + cc.tot)));
-        riga.addEventListener('click', () => vai('str')); return riga;
-      }), legenda()));
+      out.push(h('div', { class: 'card conf' }, h('h2', {}, 'Da confermare' + (dc.length ? ' (' + dc.length + ')' : '')), ...(dc.length ? dc.map(n => {
+        const b = h('button', { class: 'bt2', type: 'button' }, '✔ Finito'); b.addEventListener('click', () => statoRapido(n, 'finito'));
+        const r = h('div', { class: 'row' }, h('div', { style: 'min-width:0;cursor:pointer' }, h('b', {}, n.titolo), h('div', { class: 'sec', style: 'font-size:12px' }, (nomiInc(n).join(', ') || '—') + ' · ' + radice(n).titolo)), b);
+        r.firstChild.addEventListener('click', () => apriScheda(n.id)); return r;
+      }) : [h('div', { class: 'sec' }, 'Nessuna attività in attesa di conferma ✓')])));
+      // situazione dei lavori per persona / per ramo
+      const gruppi = [];
+      if (homeVista === 'persona') {
+        const m = new Map();
+        gestisco.forEach(n => (S.inc[n.id] || []).forEach(x => { if (!m.has(x.persona_id)) m.set(x.persona_id, []); m.get(x.persona_id).push(n); }));
+        m.forEach((l, id) => gruppi.push({ k: 'p' + id, nome: nomeP(id), l }));
+        gruppi.sort((a, b) => (b.l.filter(n => n.stato === 'fatto').length - a.l.filter(n => n.stato === 'fatto').length) || a.nome.localeCompare(b.nome));
+        if (sn.length) gruppi.push({ k: 'senza', nome: 'Senza incaricati', l: sn });
+      } else {
+        figli(null).forEach(r => { const l = gestisco.filter(n => radice(n).id === r.id); if (l.length) gruppi.push({ k: 'r' + r.id, nome: r.titolo, l }); });
+      }
+      const seg = h('div', { class: 'seg' }, ...[['persona', 'Per persona'], ['ramo', 'Per ramo']].map(([k, t]) => { const b = h('button', { type: 'button', class: homeVista === k ? 'on' : '' }, t); b.addEventListener('click', () => { homeVista = k; renderHome(); }); return b; }));
+      const righe = gruppi.map(g => {
+        const cc = conteggio(g.l), aperto = homeAperti.has(g.k), nf = g.l.filter(n => n.stato === 'fatto').length;
+        const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, g.nome), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, cc.finito + '/' + cc.tot), h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
+        gh.addEventListener('click', () => { if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); });
+        const gr = h('div', { class: 'gr' }, gh);
+        if (aperto) gr.append(h('div', { class: 'det' }, ...g.l.map(n => {
+          const ln = h('div', { class: 'ln' }, h('div', { class: 'tt' }, h('b', {}, n.titolo), h('small', {}, homeVista === 'persona' ? percorsoTxt(n) : (nomiInc(n).join(', ') || 'nessun incaricato'))), badgeScad(n),
+            ...(n.stato === 'fatto' ? [(() => { const b = h('button', { class: 'bt2', type: 'button' }, '✔ Finito'); b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); }); return b; })()] : [badgeStato(n.stato)]));
+          ln.addEventListener('click', () => apriScheda(n.id)); return ln;
+        })));
+        return gr;
+      });
+      out.push(h('div', { class: 'card' }, seg, ...(righe.length ? righe : [h('p', { class: 'sec' }, 'Nessuna attività.')]),
+        h('p', { class: 'note', style: 'margin:8px 0 0;text-align:center' }, 'Tocca una riga per vedere le attività. ✔ n = da confermare.')));
     }
     // le mie attività
     const ordine = n => (n.stato === 'finito' ? '3' : scadClasse(n) === 'e' ? '0' : scadClasse(n) === 'w' ? '1' : '2') + (n.scadenza || '9999');
     const mie = tutte.filter(n => (S.inc[n.id] || []).some(x => x.persona_id === me)).sort((a, b) => ordine(a).localeCompare(ordine(b)));
-    const nFin = mie.filter(n => n.stato === 'finito').length;
+    const nFin = mie.filter(n => n.stato === 'finito').length, aperte = mie.length - nFin;
     const lista = homeFinite ? mie : mie.filter(n => n.stato !== 'finito');
-    const testa = h('div', { style: 'display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center' }, h('h2', { style: 'margin:0' }, 'Le mie attività'));
-    if (nFin) {
-      const cb = h('input', { type: 'checkbox' }); cb.checked = homeFinite; cb.addEventListener('change', () => { homeFinite = cb.checked; renderHome(); });
-      testa.append(h('label', { style: 'margin:0;font-weight:400;display:flex;gap:6px;align-items:center' }, cb, ' mostra anche le finite (' + nFin + ')'));
+    if (op || mie.length) {
+      out.push(h('div', { class: 'top', style: 'margin-top:' + (op ? '0' : '6px') }, op ? h('h1', {}, 'Le mie attività') : h('h2', { style: 'margin:0;font-size:16px' }, 'Le mie attività'), h('span', { class: 'chip2' }, aperte + (aperte === 1 ? ' aperta' : ' aperte'))));
+      out.push(...(lista.length ? lista.map(n => {
+        const chiuso = n.stato === 'finito', puoFin = canEdit(n);
+        const sel = h('select', { class: 'st' }, ...['da_fare', 'in_corso', 'fatto', ...(puoFin || chiuso ? ['finito'] : [])].map(k => { const o = h('option', { value: k }, STATI[k].replace(' (confermato dal responsabile)', '')); if (n.stato === k) o.selected = true; if (chiuso && !puoFin && k !== 'finito') o.disabled = true; return o; }));
+        if (chiuso && !puoFin) sel.disabled = true;
+        sel.addEventListener('change', () => statoRapido(n, sel.value));
+        const nota = h('button', { class: 'ib', type: 'button' }, '✎ Nota' + (((S.inc[n.id] || []).find(x => x.persona_id === me) || {}).nota ? ' •' : '')); nota.addEventListener('click', () => apriScheda(n.id));
+        const t1 = h('div', { class: 't1' }, h('b', {}, n.titolo), badgeScad(n)), t2 = h('div', { class: 't2' }, percorsoTxt(n));
+        t1.addEventListener('click', () => apriScheda(n.id)); t2.addEventListener('click', () => apriScheda(n.id));
+        return h('div', { class: 'it' }, t1, t2, h('div', { class: 't3' }, sel, nota, S.pend.has(n.id) ? h('span', { class: 'pend' }, '⏳ in attesa') : ''));
+      }) : [h('p', { class: 'sec', style: 'text-align:center' }, mie.length ? 'Tutte le tue attività sono finite. 🎉' : 'Non hai attività assegnate in questo evento.')]));
+      if (nFin) { const a = h('a', { href: '#' }, (homeFinite ? 'Nascondi' : 'Mostra') + ' le attività finite (' + nFin + ')'); a.addEventListener('click', e => { e.preventDefault(); homeFinite = !homeFinite; renderHome(); }); out.push(h('p', { class: 'sec', style: 'text-align:center' }, a)); }
+      if (op) out.push(h('p', { class: 'note', style: 'text-align:center' }, 'Tocca "Nota" per scrivere cosa hai fatto. Le modifiche partono da sole appena c\'è rete.'));
     }
-    const righe = lista.map(n => {
-      const chiuso = n.stato === 'finito', puoFin = canEdit(n), sc = scadClasse(n);
-      const sel = h('select', { class: 'st' }, ...['da_fare', 'in_corso', 'fatto', ...(puoFin || chiuso ? ['finito'] : [])].map(k => { const o = h('option', { value: k }, STATI[k].replace(' (confermato dal responsabile)', '')); if (n.stato === k) o.selected = true; return o; }));
-      if (chiuso && !puoFin) sel.disabled = true;
-      sel.addEventListener('change', () => statoRapido(n, sel.value));
-      const ctrl = h('div', { style: 'display:flex;gap:6px;align-items:center;flex-wrap:wrap' }, S.pend.has(n.id) ? h('span', { class: 'badge w' }, '⏳ in attesa') : '', n.scadenza ? h('span', { class: 'badge ' + sc }, (sc === 'e' ? 'scaduta ' : sc === 'w' ? 'scade ' : 'scad. ') + n.scadenza.split('-').reverse().slice(0, 2).join('/')) : '', sel);
-      ctrl.addEventListener('click', e => e.stopPropagation());
-      const riga = h('div', { class: 'row', style: 'flex-wrap:wrap;cursor:pointer', tabindex: '0' }, h('div', { style: 'flex:1;min-width:170px' }, h('b', {}, n.titolo), h('div', { class: 'sec', style: 'font-size:13px' }, percorsoTxt(n))), ctrl);
-      riga.addEventListener('click', () => apriScheda(n.id));
-      return riga;
-    });
-    out.push(card('', testa, ...(righe.length ? righe : [h('p', { class: 'sec', style: 'margin:12px 0 0' }, mie.length ? 'Tutte le tue attività sono finite. 🎉' : 'Non hai attività assegnate in questo evento.')]),
-      h('p', { class: 'note' }, 'Tocca un\'attività per aprire la scheda con scadenza, note e colleghi.')));
     box.replaceChildren(...out);
   }
 
@@ -1519,7 +1599,6 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#evForm').addEventListener('submit', salvaEvento);
     $('#eAnnulla').onclick = chiudiEvento; $('#eDel').onclick = eliminaEvento;
     $('#evNuovo').onclick = () => apriEvento(null);
-    $('#cambiaEv').onclick = () => vai('eventi');
     $$('.lnkPriv').forEach(e => e.addEventListener('click', apriInformativa)); $('#privChiudi').onclick = () => $('#modPriv').classList.add('hidden');
     $('#infoOk').onclick = confermaInformativa; $('#iDati').onclick = () => scaricaDatiPersona(null);
     $('#fDati').onclick = () => P.corrente && scaricaDatiPersona(P.corrente.id); $('#fElimina').onclick = eliminaPersonaDef;
@@ -1546,7 +1625,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#installa').onclick = installa;
     $('#vaiPar').onclick = () => vai('par');
     $('#rete').onclick = () => sincronizza(true); $('#iSync').onclick = () => sincronizza(true); $('#iRev').onclick = () => vai('rev');
-    $$('.nv, .bottom button').forEach(b => { b.onclick = () => vai(b.dataset.p); });
+    $$('.nv').forEach(b => { b.onclick = () => vai(b.dataset.p); });
     window.addEventListener('online', aggiornaRete);
     window.addEventListener('offline', aggiornaRete);
 

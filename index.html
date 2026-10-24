@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="1.6">
+<meta name="app-version" content="1.7">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -75,18 +75,22 @@
   </nav>
 
   <main>
-    <div class="topbar"><img class="brandimg" alt="SDM Eventi" src="assets/logo.png"><span class="ver"></span></div>
-    <div class="evbar">
-      <div class="tt" id="evTit"></div>
-      <div id="evProg" style="min-width:110px"></div>
-      <button class="chip on" id="rete" type="button">● Online</button>
-      <button class="btn sec hidden" id="cambiaEv" type="button" style="padding:6px 12px">Cambia evento</button>
-    </div>
+    <header class="hd" id="hd">
+      <img class="lg brandimg" alt="SDM Eventi" src="assets/logo.png">
+      <div class="ev"><b id="evN"></b><span id="evD"></span></div>
+      <div class="pc hidden" id="pc"><b id="evP"></b><i><u id="evB"></u></i></div>
+      <button class="net on" id="rete" type="button" aria-label="Stato del collegamento"><svg viewBox="0 0 24 24"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01"/></svg></button>
+    </header>
 
     <div id="p-home" class="pg">
-      <div class="top"><div><h1>Ciao, <span id="saluto"></span></h1><span class="sec" id="sottoSaluto"></span></div></div>
+      <div class="top" id="homeTop"><div><h1>Ciao, <span id="saluto"></span></h1><span class="sec" id="sottoSaluto"></span></div></div>
       <div class="avviso off-only">Sei offline: stai vedendo l'ultima copia salvata sul dispositivo.</div>
       <div id="homeCorpo"></div>
+    </div>
+
+    <div id="p-altro" class="pg hidden">
+      <h1>Altro</h1>
+      <div id="altroLista" style="margin-top:10px"></div>
     </div>
 
     <div id="p-persone" class="pg hidden">
@@ -348,13 +352,7 @@
     <footer class="fine">Versione <span class="vers"></span> · <a href="#" class="lnkPriv hidden">Informativa privacy</a><span class="lnkPrivSep hidden"> · </span>Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
   </main>
 
-  <div class="bottom">
-    <button class="on" data-p="home"><span>🏠</span>Home</button>
-    <button data-p="persone"><span>👥</span>Persone</button>
-    <button data-p="eventi"><span>📅</span>Eventi</button>
-    <button data-p="str"><span>🌳</span>Struttura</button>
-    <button data-p="imp"><span>⚙️</span>Altro</button>
-  </div>
+  <nav class="bottom" id="bottomNav"></nav>
 </div>
 
 <footer class="fine" id="footLogin">Versione <span class="vers"></span> · <a href="#" class="lnkPriv hidden">Informativa privacy</a><span class="lnkPrivSep hidden"> · </span>Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
