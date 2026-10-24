@@ -1460,7 +1460,8 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
       max_livelli: liv, giorni_preavviso_scadenza: gg, responsabile_crea_rami: $('#pResp').checked,
       privacy_url: purl, privacy_testo: $('#pPrivTesto').value.trim(), informativa_obbligatoria: $('#pInfoObb').checked, informativa_versione: iver, conservazione_movimenti_mesi: mesi
     };
-    const righe = Object.entries(nuovi).map(([chiave, valore]) => ({ chiave, valore }));
+    // il logo si gestisce a parte; i valori vuoti (null) non si salvano: la colonna "valore" non accetta null
+    const righe = Object.entries(nuovi).filter(([k, v]) => k !== 'logo' && v !== null && v !== undefined).map(([chiave, valore]) => ({ chiave, valore }));
     $('#salva').disabled = true;
     const { error } = await stato.sb.from('parametri').upsert(righe, { onConflict: 'chiave' });
     $('#salva').disabled = false;
