@@ -230,6 +230,7 @@
   function renderAltro() {
     const op = !!stato.persona && isOperatore(), r = rivedereMio().length, i = infoPrivacy();
     const voce = (ico, testo, fn, extra) => { const b = h('button', { class: 'altro', type: 'button' }, h('span', {}, ico + ' ' + testo), extra || ''); b.addEventListener('click', fn); return b; };
+    if ($('#altroEvento')) $('#altroEvento').textContent = eventoCorrente() ? eventoCorrente().titolo : 'nessun evento selezionato';
     $('#altroLista').replaceChildren(...[
       op ? voce('👥', 'Persone dell\'evento', () => vai('persone')) : '',
       op ? voce('🌳', 'Le mie attività nell\'albero', () => vai('str')) : '',
@@ -1183,7 +1184,8 @@
 
   // --- PERSONE ---
   const COL_PERS = ['Cognome', 'Nome', 'Email', 'Cellulare', 'Iscritto', 'Numero iscritto', 'Data di nascita', 'Ruolo', 'Attivo', 'Note'];
-  function esportaPersone() {
+  async function esportaPersone() {
+    if (!P.elenco.length) await caricaPersone();
     const righe = [COL_PERS, ...P.elenco.map(p => [p.cognome, p.nome, p.email, p.cellulare || '', p.iscritto ? 'Sì' : 'No', p.numero_iscritto || '', ddmmyyyy(p.data_nascita), p.ruolo === 'admin' ? 'Amministratore' : 'Operatore', p.attivo ? 'Sì' : 'No', p.note || ''])];
     scaricaFile('persone.xlsx', [{ nome: 'Persone', righe, larghezze: [18, 16, 30, 16, 9, 14, 15, 15, 8, 30] }]);
   }
@@ -1247,7 +1249,8 @@
   const COL_STR = [...Array.from({ length: 10 }, (_, i) => 'Livello ' + (i + 1)), 'Descrizione', 'Note', 'Responsabile (email)', 'Scadenza', 'Stato', 'Incaricati (email)'];
   const LAB_STATO = { da_fare: 'Da fare', in_corso: 'In corso', fatto: 'Fatto', finito: 'Finito' };
   async function esportaStruttura() {
-    if (stato.evento === null) return;
+    if (stato.evento === null) { alert('Scegli prima un evento.'); return; }
+    if (navigator.onLine) await caricaStruttura();
     let pers = []; try { pers = await personeDB(); } catch (e) { /* senza rete: niente email */ }
     const mail = new Map(pers.map(p => [p.id, p.email]));
     ordina();
@@ -1269,8 +1272,10 @@
       { nome: 'Istruzioni', righe: [['Una riga per ogni ramo o attività. I livelli (Livello 1 … Livello 10) descrivono il percorso: nell\'ultima cella riempita c\'è il nome dell\'elemento.'], ['Le righe dei rami sono facoltative: se manca, il ramo viene creato dal percorso delle sue attività.'], ['Elementi già esistenti con lo stesso percorso vengono riconosciuti: si aggiornano solo i campi compilati, non si cancella nulla.'], ['Incaricati e Responsabile: email di persone già presenti in anagrafica (più incaricati separati da ;). Gli incaricati valgono solo per le attività (ultimo livello).'], ['Scadenza: gg/mm/aaaa. Stato (solo per elementi nuovi): Da fare, In corso, Fatto, Finito.']], larghezze: [120] }]);
   }
   function importaStruttura() {
-    if (stato.evento === null) return;
+    if (stato.evento === null) { alert('Scegli prima un evento.'); return; }
+    if (!(S.nodi.length || navigator.onLine)) return;
     apriImport('Importa la struttura dell\'evento', 'Aggiunge rami e attività all\'evento "' + (eventoCorrente() ? eventoCorrente().titolo : '') + '". Non cancella e non sposta nulla di quello che c\'è già. Scarica il modello vuoto per vedere il formato.', [], async file => {
+      await caricaStruttura();
       const rows = await leggiFile(file);
       if (rows.length < 2) throw new Error('il file non contiene righe di dati');
       const intest = rows[0].map(norm), liv = [];

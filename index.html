@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="1.7">
+<meta name="app-version" content="1.8">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -70,6 +70,7 @@
     <button class="nv" data-p="rev">🔔 Da rivedere <span class="cnt hidden" id="cntRev">0</span></button>
     <button class="nv" data-p="imp">⚙️ Impostazioni</button>
     <button class="nv lock adminOnly" data-p="par">🎛️ Parametri</button>
+    <button class="nv" data-p="altro">☰ Altro</button>
     <div class="spacer"></div>
     <div class="utente"><b id="uNome"></b><br><span id="uRuolo"></span><br><a href="#" id="esci">Esci</a></div>
   </nav>
@@ -86,22 +87,39 @@
       <div class="top" id="homeTop"><div><h1>Ciao, <span id="saluto"></span></h1><span class="sec" id="sottoSaluto"></span></div></div>
       <div class="avviso off-only">Sei offline: stai vedendo l'ultima copia salvata sul dispositivo.</div>
       <div id="homeCorpo"></div>
+      <footer class="fine">Versione <span class="vers"></span><span class="lnkPrivSep hidden"> · </span><a href="#" class="lnkPriv hidden">Informativa privacy</a></footer>
     </div>
 
     <div id="p-altro" class="pg hidden">
       <h1>Altro</h1>
       <div id="altroLista" style="margin-top:10px"></div>
+      <div id="altroExcel" class="adminOnly">
+        <div class="card">
+          <h2>Excel · Persone</h2>
+          <p class="sec" style="margin-top:-4px">Tutta l'anagrafica. L'importazione mostra un'anteprima e non cancella nulla.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn sec" id="perEsporta" type="button">⬇ Esporta</button>
+            <button class="btn sec need-net" id="perImporta" type="button">⬆ Importa</button>
+            <button class="btn sec" id="perModello" type="button">Modello vuoto</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Excel · Struttura dell'evento</h2>
+          <p class="sec" style="margin-top:-4px">Evento in uso: <b id="altroEvento">—</b></p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn sec" id="strEsporta" type="button">⬇ Esporta</button>
+            <button class="btn sec need-net" id="strImporta" type="button">⬆ Importa</button>
+            <button class="btn sec" id="strModello" type="button">Modello vuoto</button>
+          </div>
+        </div>
+      </div>
+      <footer class="fine">Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
     </div>
 
     <div id="p-persone" class="pg hidden">
       <div class="top"><div><h1>Persone</h1><span class="sec" id="perSotto"></span></div>
         <button class="btn need-net adminOnly" id="perNuova" type="button">+ Nuova persona</button></div>
       <div class="avviso off-only">Sei offline: stai consultando la copia salvata sul dispositivo. Per modificare serve la connessione.</div>
-      <div class="adminOnly" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-        <button class="btn sec" id="perEsporta" type="button">⬇ Esporta Excel</button>
-        <button class="btn sec need-net" id="perImporta" type="button">⬆ Importa Excel</button>
-        <button class="btn sec" id="perModello" type="button">Modello vuoto</button>
-      </div>
       <div class="card adminOnly" style="padding:12px">
         <div class="grid2">
           <input type="text" id="perCerca" placeholder="Cerca per cognome, nome, email, telefono…">
@@ -176,11 +194,6 @@
           <button class="btn need-net hidden" id="strModBtn" type="button">✎ Modifica struttura</button>
         </div></div>
       <div class="avviso off-only">Sei offline: puoi consultare la struttura ma non modificarla.</div>
-      <div class="adminOnly" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-        <button class="btn sec" id="strEsporta" type="button">⬇ Esporta Excel</button>
-        <button class="btn sec need-net" id="strImporta" type="button">⬆ Importa Excel</button>
-        <button class="btn sec" id="strModello" type="button">Modello vuoto</button>
-      </div>
       <div id="strLista"></div>
       <div class="todo" style="margin-top:12px">Scadenza, stato, incaricati e note per persona delle attività si completano nello step 5.</div>
     </div>
@@ -348,13 +361,12 @@
       </form>
     </div>
 
-    <footer class="fine">Versione <span class="vers"></span> · <a href="#" class="lnkPriv hidden">Informativa privacy</a><span class="lnkPrivSep hidden"> · </span>Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
   </main>
 
   <nav class="bottom" id="bottomNav"></nav>
 </div>
 
-<footer class="fine" id="footLogin">Versione <span class="vers"></span> · <a href="#" class="lnkPriv hidden">Informativa privacy</a><span class="lnkPrivSep hidden"> · </span>Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></footer>
+<footer class="fine" id="footLogin"><a href="#" class="lnkPriv hidden">Informativa privacy</a></footer>
 
 <script src="vendor/supabase.js"></script>
 <script src="vendor/sortable.min.js"></script>
