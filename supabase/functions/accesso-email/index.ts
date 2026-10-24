@@ -17,7 +17,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { email } = await req.json();
     const mail = String(email || '').trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) return json({ errore: 'Email non valida' }, 400);
+    if (!/^[^@\s*%]+@[^@\s*%]+\.[^@\s*%]+$/.test(mail)) return json({ errore: 'Email non valida' }, 400);
 
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
       auth: { persistSession: false },
@@ -30,8 +30,8 @@ Deno.serve(async (req: Request) => {
 
     // la persona deve esistere in anagrafica ed essere attiva
     const esatta = mail.replace(/[\\%_]/g, '\\$&');
-    const { data: pers } = await sb.from('persone').select('ruolo, attivo').ilike('email', esatta).maybeSingle();
-    if (!pers || !pers.attivo) return json({ errore: 'Email non presente in anagrafica o non attiva' }, 403);
+    const { data: pers } = await sb.from('persone').select('email, ruolo, attivo').ilike('email', esatta).maybeSingle();
+    if (!pers || !pers.attivo || String(pers.email).toLowerCase() !== mail) return json({ errore: 'Email non presente in anagrafica o non attiva' }, 403);
     if (pers.ruolo === 'admin') return json({ modo: 'otp' });   // l'amministratore usa sempre il codice
 
     // utente di accesso: lo crea se manca (nessuna mail inviata), poi genera il token per aprire la sessione
