@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 1.0
+-- Versione script: 1.1
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -1069,6 +1069,7 @@ insert into sdm_eventi.parametri (chiave, valore, descrizione) values
   ('responsabile_crea_rami',   'false',         'Se true i responsabili possono creare sottorami nel proprio ramo (altrimenti solo l''admin)'),
   ('privacy_url',              '""',            'Indirizzo dell''informativa privacy (facoltativo)'),
   ('privacy_testo',            '""',            'Testo dell''informativa privacy mostrato nell''app'),
+  ('otp_obbligatorio',         'true',          'Se false le persone (non admin) entrano con la sola email, senza codice OTP (serve la funzione accesso-email)'),
   ('informativa_versione',     '1',             'Versione dell''informativa: cambiandola gli utenti devono rileggerla'),
   ('informativa_obbligatoria', 'false',         'Se true chiede la presa visione dell''informativa al primo accesso'),
   ('conservazione_movimenti_mesi', '24',        'Mesi di conservazione del registro dei movimenti (0 = senza limite)')

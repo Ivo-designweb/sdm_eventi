@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="1.8">
+<meta name="app-version" content="1.9">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -343,6 +343,11 @@
             <div><b>I responsabili possono creare sottorami</b><div class="sec">Se disattivo, i rami li crea solo l'amministratore.</div></div>
             <input type="checkbox" class="sw" id="pResp">
           </div>
+        </div>
+        <div class="card">
+          <h2>Accesso all'app</h2>
+          <div class="row"><div><b>Richiedi il codice OTP per entrare</b><div class="sec">Attivo: tutti entrano con il codice ricevuto per mail. Disattivo: le persone in anagrafica (non amministratori) entrano con la sola email, senza codice. <b>L'amministratore entra sempre con il codice.</b></div></div><input type="checkbox" class="sw" id="pOtp"></div>
+          <p class="note">Disattivando il codice chi conosce l'email di una persona può entrare come lei: usalo solo se serve. Richiede l'installazione della funzione "accesso-email" (vedi docs/ACCESSO_SENZA_OTP.md).</p>
         </div>
         <div class="card">
           <h2>Privacy (GDPR)</h2>

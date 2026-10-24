@@ -15,7 +15,7 @@
 
   const PARAM_DEFAULT = {
     nome_app: 'SDM Eventi', tema: 'chiaro', colore_primario: '#1d4ed8',
-    max_livelli: 10, giorni_preavviso_scadenza: 7, responsabile_crea_rami: false, logo: null,
+    max_livelli: 10, giorni_preavviso_scadenza: 7, responsabile_crea_rami: false, logo: null, otp_obbligatorio: true,
     privacy_url: '', privacy_testo: '', informativa_versione: 1, informativa_obbligatoria: false, conservazione_movimenti_mesi: 24
   };
   const RUOLI = { admin: 'Amministratore', utente: 'Operatore' };
@@ -103,12 +103,36 @@
     return true;
   }
 
+  // Accesso senza codice (solo se il parametro "otp_obbligatorio" è disattivato e la funzione è installata).
+  // Restituisce 'ok' (entrato), 'errore' (messaggio già mostrato) oppure null (usare il codice OTP).
+  async function accessoDiretto(mail) {
+    if (!navigator.onLine) return null;
+    try {
+      const r = await fetch(cfg.SUPABASE_URL + '/functions/v1/accesso-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: cfg.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + cfg.SUPABASE_ANON_KEY },
+        body: JSON.stringify({ email: mail })
+      });
+      if (r.status === 404) return null;                       // funzione non installata
+      const d = await r.json().catch(() => ({}));
+      if (d.modo === 'diretto' && d.token_hash) {
+        const { error } = await stato.sb.auth.verifyOtp({ token_hash: d.token_hash, type: 'magiclink' });
+        if (error) { errore('Accesso non riuscito: ' + error.message); return 'errore'; }
+        return 'ok';                                           // prosegue onAuthStateChange
+      }
+      if (d.errore && r.status === 403) { errore(d.errore + '.'); return 'errore'; }
+      return null;
+    } catch (e) { return null; }
+  }
+
   async function inviaLink(ev) {
     ev.preventDefault();
     errore('');
     const mail = $('#mail').value.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) { errore('Inserisci un indirizzo email valido.'); return; }
     const b = $('#invia'); b.disabled = true;
+    const diretto = await accessoDiretto(mail);   // null = si procede con il codice OTP
+    if (diretto) { b.disabled = false; return; }
     const ok = await inviaCodice(mail);
     b.disabled = false;
     if (ok) mostraCodice(mail);
@@ -1526,7 +1550,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     const p = stato.parametri;
     $('#pNome').value = p.nome_app; $('#pTema').value = p.tema; $('#pCol').value = p.colore_primario;
     $('#pLiv').value = p.max_livelli; $('#pGg').value = p.giorni_preavviso_scadenza;
-    $('#pResp').checked = !!p.responsabile_crea_rami;
+    $('#pResp').checked = !!p.responsabile_crea_rami; $('#pOtp').checked = p.otp_obbligatorio !== false;
     $('#pPrivUrl').value = p.privacy_url || ''; $('#pPrivTesto').value = p.privacy_testo || ''; $('#pInfoObb').checked = !!p.informativa_obbligatoria;
     $('#pInfoVer').value = p.informativa_versione || 1; $('#pMesi').value = p.conservazione_movimenti_mesi === undefined ? 24 : p.conservazione_movimenti_mesi; $('#pPulMsg').textContent = '';
     $('#parMsg').textContent = '';
@@ -1544,11 +1568,13 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     if (!(mesi >= 0 && mesi <= 120)) { msg.textContent = 'I mesi di conservazione devono essere da 0 a 120.'; return; }
     if (!(iver >= 1)) { msg.textContent = 'La versione dell\'informativa deve essere almeno 1.'; return; }
     if (purl && !/^https?:\/\//i.test(purl)) { msg.textContent = 'L\'indirizzo dell\'informativa deve iniziare con http:// o https://'; return; }
+    if (stato.parametri.otp_obbligatorio !== false && !$('#pOtp').checked &&
+        !confirm('Disattivando il codice OTP, le persone in anagrafica (non amministratori) potranno entrare con la sola email. Chi conosce l\'email di una persona potrà entrare come lei. L\'amministratore continuerà a usare il codice. Confermi?')) return;
     if (!navigator.onLine) { msg.textContent = 'Serve la connessione per salvare i parametri.'; return; }
     const nuovi = {
       ...stato.parametri,
       nome_app: nome, tema: $('#pTema').value, colore_primario: $('#pCol').value,
-      max_livelli: liv, giorni_preavviso_scadenza: gg, responsabile_crea_rami: $('#pResp').checked,
+      max_livelli: liv, giorni_preavviso_scadenza: gg, responsabile_crea_rami: $('#pResp').checked, otp_obbligatorio: $('#pOtp').checked,
       privacy_url: purl, privacy_testo: $('#pPrivTesto').value.trim(), informativa_obbligatoria: $('#pInfoObb').checked, informativa_versione: iver, conservazione_movimenti_mesi: mesi
     };
     // il logo si gestisce a parte; i valori vuoti (null) non si salvano: la colonna "valore" non accetta null
