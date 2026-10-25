@@ -1564,6 +1564,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     if (!nome) { msg.textContent = 'Il nome applicazione è obbligatorio.'; return; }
     if (!(liv >= 1 && liv <= 10)) { msg.textContent = 'I livelli devono essere da 1 a 10.'; return; }
     if (!(gg >= 0 && gg <= 60)) { msg.textContent = 'I giorni di preavviso devono essere da 0 a 60.'; return; }
+    const riattivato = stato.parametri.otp_obbligatorio === false && $('#pOtp').checked;
     const mesi = parseInt($('#pMesi').value, 10), iver = parseInt($('#pInfoVer').value, 10), purl = $('#pPrivUrl').value.trim();
     if (!(mesi >= 0 && mesi <= 120)) { msg.textContent = 'I mesi di conservazione devono essere da 0 a 120.'; return; }
     if (!(iver >= 1)) { msg.textContent = 'La versione dell\'informativa deve essere almeno 1.'; return; }
@@ -1586,6 +1587,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     LS.set('sdm_parametri', nuovi);
     applicaParametri(nuovi);
     msg.textContent = '✔ Salvato';
+    if (riattivato) { msg.textContent = '✔ Salvato. Codice OTP riattivato: consigliato "Disconnetti tutti gli utenti" ed eliminare la funzione accesso-email (promemoria qui sopra).'; $('#promemoriaFn').open = true; $('#promemoriaFn').scrollIntoView({ block: 'center' }); }
   }
 
   // ---------- installazione PWA ----------
@@ -1633,6 +1635,13 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $$('.lnkPriv').forEach(e => e.addEventListener('click', apriInformativa)); $('#privChiudi').onclick = () => $('#modPriv').classList.add('hidden');
     $('#infoOk').onclick = confermaInformativa; $('#iDati').onclick = () => scaricaDatiPersona(null);
     $('#fDati').onclick = () => P.corrente && scaricaDatiPersona(P.corrente.id); $('#fElimina').onclick = eliminaPersonaDef;
+    $('#pDisconnetti').onclick = async () => {
+      const m = $('#pDiscMsg');
+      if (!confirm('Disconnettere tutti gli altri utenti (compresi gli altri amministratori)? Dovranno rientrare. Tu resti collegato.')) return;
+      if (!navigator.onLine) { m.textContent = 'Serve la connessione.'; return; }
+      const { data, error } = await stato.sb.rpc('disconnetti_tutti', { _anche_io: false });
+      m.textContent = error ? (/find the function|schema cache/i.test(error.message || '') ? 'Database non aggiornato: riesegui lo script SQL.' : 'Operazione non riuscita: ' + error.message) : '✔ Accessi chiusi: ' + data;
+    };
     $('#pPulisci').onclick = () => { if (confirm('Eliminare definitivamente i movimenti più vecchi del periodo di conservazione impostato (e già salvato)?')) pulisciMovimenti(true); };
     $('#pPrivModello').onclick = () => { if (!$('#pPrivTesto').value.trim() || confirm('Sostituire il testo attuale con il modello?')) $('#pPrivTesto').value = MODELLO_INFORMATIVA; };
     $('#perEsporta').onclick = esportaPersone; $('#perImporta').onclick = importaPersone; $('#perModello').onclick = modelloPersone;

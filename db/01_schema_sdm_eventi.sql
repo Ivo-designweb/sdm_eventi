@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 1.1
+-- Versione script: 1.2
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -849,6 +849,20 @@ begin
   select coalesce((valore #>> '{}')::int, 0) into v_mesi from sdm_eventi.parametri where chiave = 'conservazione_movimenti_mesi';
   if coalesce(v_mesi, 0) <= 0 then return 0; end if;
   delete from sdm_eventi.movimenti where data_ora < now() - make_interval(months => v_mesi);
+  get diagnostics n = row_count;
+  return n;
+end $$;
+
+-- Disconnette gli utenti (revoca le sessioni di accesso). L'amministratore che la usa resta collegato,
+-- salvo _anche_io = true. Serve, ad esempio, quando si riattiva il codice OTP dopo un periodo senza.
+create or replace function sdm_eventi.disconnetti_tutti(_anche_io boolean default false) returns integer
+language plpgsql security definer set search_path = sdm_eventi, public, auth, pg_temp as $$
+declare n integer; v_sess uuid;
+begin
+  if not sdm_eventi.is_admin() then raise exception 'Solo l''amministratore può disconnettere gli utenti'; end if;
+  begin v_sess := nullif(auth.jwt() ->> 'session_id', '')::uuid; exception when others then v_sess := null; end;
+  if v_sess is null and not _anche_io then raise exception 'Impossibile identificare la sessione corrente: riprova dopo aver rifatto l''accesso'; end if;
+  delete from auth.sessions where _anche_io or id <> v_sess;
   get diagnostics n = row_count;
   return n;
 end $$;

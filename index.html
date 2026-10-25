@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="1.9">
+<meta name="app-version" content="2.0">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -348,6 +348,18 @@
           <h2>Accesso all'app</h2>
           <div class="row"><div><b>Richiedi il codice OTP per entrare</b><div class="sec">Attivo: tutti entrano con il codice ricevuto per mail. Disattivo: le persone in anagrafica (non amministratori) entrano con la sola email, senza codice. <b>L'amministratore entra sempre con il codice.</b></div></div><input type="checkbox" class="sw" id="pOtp"></div>
           <p class="note">Disattivando il codice chi conosce l'email di una persona può entrare come lei: usalo solo se serve. Richiede l'installazione della funzione "accesso-email" (vedi docs/ACCESSO_SENZA_OTP.md).</p>
+          <div style="margin-top:10px"><button class="btn sec need-net" id="pDisconnetti" type="button">Disconnetti tutti gli utenti</button> <span id="pDiscMsg" class="sec"></span></div>
+          <p class="note">Chiude gli accessi aperti sugli altri dispositivi: ognuno dovrà rientrare. Tu resti collegato. Usalo quando riattivi il codice OTP.</p>
+          <details id="promemoriaFn" style="margin-top:8px;border:1px solid var(--bordo);border-radius:8px;padding:8px 10px">
+            <summary><b>Promemoria: elimina la funzione "accesso-email" dal server</b></summary>
+            <ol class="note" style="line-height:1.6">
+              <li>Apri Supabase e vai su <b>Edge Functions</b> (menu a sinistra).</li>
+              <li>Clicca sulla funzione <b>accesso-email</b>.</li>
+              <li>Apri il menu <b>⋯</b> (in alto a destra) e scegli <b>Delete function</b>, poi conferma.</li>
+              <li>Fatto: l'app, non trovandola, usa il codice per tutti. Per riattivare l'accesso senza codice la reinstalli come in <b>docs/ACCESSO_SENZA_OTP.md</b>.</li>
+            </ol>
+            <p class="note">Consigliato: elimina la funzione quando riattivi il codice OTP e non ti serve l'accesso con la sola email.</p>
+          </details>
         </div>
         <div class="card">
           <h2>Privacy (GDPR)</h2>

@@ -20,3 +20,9 @@ La funzione apre la sessione lato server (serve il permesso del server di Supaba
 5. Le chiavi del server (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`) sono fornite in automatico da Supabase: non scriverle da nessuna parte.
 
 Prova: disattiva il codice, apri l'app in una finestra anonima e accedi con l'email di una persona (non amministratore).
+
+## Quando riattivi il codice
+1. In **Parametri → Accesso all'app** rimetti la spunta e salva: da quel momento la funzione non fa entrare più nessuno senza codice.
+2. Premi **Disconnetti tutti gli utenti**: chiude gli accessi rimasti aperti dal periodo senza codice (tu resti collegato).
+3. Se non ti serve più, **elimina la funzione**: Supabase → *Edge Functions* → `accesso-email` → menu *⋯* → *Delete function*.
+   L'app, non trovandola, usa il codice per tutti. Per riattivarla in futuro rifai l'installazione qui sopra.
