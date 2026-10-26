@@ -1,6 +1,6 @@
 // Edge Function "accesso-email" - accesso senza codice OTP (solo email in anagrafica).
 // Funziona SOLO se il parametro "otp_obbligatorio" dell'app è disattivato (Parametri → Accesso) e
-// SOLO per persone attive che non sono amministratori: l'amministratore entra sempre con il codice.
+// SOLO per persone attive che non sono il proprietario: il proprietario (Ivo Taffarel) entra sempre con il codice.
 // Risposte: { modo: 'otp' } -> usa il codice via mail | { modo: 'diretto', token_hash } -> accesso immediato.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -30,9 +30,11 @@ Deno.serve(async (req: Request) => {
 
     // la persona deve esistere in anagrafica ed essere attiva
     const esatta = mail.replace(/[\\%_]/g, '\\$&');
-    const { data: pers } = await sb.from('persone').select('email, ruolo, attivo').ilike('email', esatta).maybeSingle();
+    let { data: pers, error: errCol } = await sb.from('persone').select('email, ruolo, attivo, superadmin').ilike('email', esatta).maybeSingle();
+    if (errCol) ({ data: pers } = await sb.from('persone').select('email, ruolo, attivo').ilike('email', esatta).maybeSingle());   // database non ancora aggiornato
     if (!pers || !pers.attivo || String(pers.email).toLowerCase() !== mail) return json({ errore: 'Email non presente in anagrafica o non attiva' }, 403);
-    if (pers.ruolo === 'admin') return json({ modo: 'otp' });   // l'amministratore usa sempre il codice
+    // il proprietario entra sempre con il codice (se il database non ha ancora il campo, vale per tutti gli amministratori)
+    if (pers.superadmin ?? pers.ruolo === 'admin') return json({ modo: 'otp' });
 
     // utente di accesso: lo crea se manca (nessuna mail inviata), poi genera il token per aprire la sessione
     await sb.auth.admin.createUser({ email: mail, email_confirm: true });   // se esiste già l'errore si ignora

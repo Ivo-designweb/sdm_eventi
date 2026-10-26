@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 1.2
+-- Versione script: 1.3
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -140,6 +140,13 @@ alter table sdm_eventi.incarichi add column if not exists nota_il  timestamptz n
 alter table sdm_eventi.movimenti add column if not exists data_ora_dispositivo timestamptz;
 alter table sdm_eventi.persone   add column if not exists informativa_ver integer not null default 0;
 alter table sdm_eventi.persone   add column if not exists informativa_il  timestamptz;
+-- Proprietario dell'app: l'unico a poter gestire i Parametri; è sempre un amministratore
+alter table sdm_eventi.persone   add column if not exists superadmin boolean not null default false;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'persone_superadmin_admin' and conrelid = 'sdm_eventi.persone'::regclass) then
+    alter table sdm_eventi.persone add constraint persone_superadmin_admin check (not superadmin or ruolo = 'admin');
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------------
 -- FUNZIONI DI SUPPORTO (security definer: evitano ricorsioni nelle RLS)
@@ -154,6 +161,12 @@ create or replace function sdm_eventi.is_admin() returns boolean
 language sql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
   select exists (select 1 from sdm_eventi.persone
                  where auth_user_id = auth.uid() and ruolo = 'admin' and attivo)
+$$;
+
+create or replace function sdm_eventi.is_superadmin() returns boolean
+language sql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
+  select exists (select 1 from sdm_eventi.persone
+                 where auth_user_id = auth.uid() and ruolo = 'admin' and superadmin and attivo)
 $$;
 
 -- true se l'utente è responsabile del nodo (se _incluso) o di un suo antenato
@@ -248,11 +261,40 @@ end $$;
 create or replace function sdm_eventi.trg_persone_controllo() returns trigger
 language plpgsql security definer set search_path = sdm_eventi, public, pg_temp as $$
 begin
+  if tg_op = 'INSERT' then
+    if new.superadmin and auth.uid() is not null and not sdm_eventi.is_superadmin() then
+      raise exception 'Solo il proprietario può assegnare il ruolo di proprietario';
+    end if;
+    return new;
+  end if;
+  -- l'ultimo amministratore / proprietario attivo non si tocca
   if old.ruolo = 'admin' and old.attivo
      and (tg_op = 'DELETE' or new.ruolo <> 'admin' or not new.attivo)
      and not exists (select 1 from sdm_eventi.persone p
                      where p.id <> old.id and p.ruolo = 'admin' and p.attivo) then
     raise exception 'Deve restare almeno un amministratore attivo';
+  end if;
+  if old.superadmin and old.attivo
+     and (tg_op = 'DELETE' or not new.superadmin or new.ruolo <> 'admin' or not new.attivo)
+     and not exists (select 1 from sdm_eventi.persone p
+                     where p.id <> old.id and p.superadmin and p.ruolo = 'admin' and p.attivo) then
+    raise exception 'Deve restare almeno un proprietario attivo';
+  end if;
+  -- solo il proprietario può toccare un proprietario o cambiare il flag
+  -- (sono sempre ammessi il collegamento all'accesso e la presa visione dell'informativa)
+  if auth.uid() is not null and not sdm_eventi.is_superadmin() then
+    if tg_op = 'DELETE' and old.superadmin then
+      raise exception 'Solo il proprietario può eliminare un proprietario';
+    end if;
+    if tg_op = 'UPDATE' then
+      if new.superadmin is distinct from old.superadmin then
+        raise exception 'Solo il proprietario può assegnare o togliere il ruolo di proprietario';
+      end if;
+      if old.superadmin and (to_jsonb(new) - 'auth_user_id' - 'aggiornato_il' - 'informativa_ver' - 'informativa_il')
+                           is distinct from (to_jsonb(old) - 'auth_user_id' - 'aggiornato_il' - 'informativa_ver' - 'informativa_il') then
+        raise exception 'Solo il proprietario può modificare un proprietario';
+      end if;
+    end if;
   end if;
   if tg_op = 'DELETE' then return old; end if;
   if lower(new.email) is distinct from lower(old.email) then
@@ -261,7 +303,7 @@ begin
   return new;
 end $$;
 drop trigger if exists a_controllo on sdm_eventi.persone;
-create trigger a_controllo before update or delete on sdm_eventi.persone
+create trigger a_controllo before insert or update or delete on sdm_eventi.persone
   for each row execute function sdm_eventi.trg_persone_controllo();
 
 -- Momento dell'ultima modifica dei due campi modificabili offline
@@ -845,7 +887,7 @@ create or replace function sdm_eventi.pulisci_movimenti() returns integer
 language plpgsql security definer set search_path = sdm_eventi, public, pg_temp as $$
 declare v_mesi integer; n integer;
 begin
-  if auth.uid() is not null and not sdm_eventi.is_admin() then raise exception 'Solo l''amministratore'; end if;
+  if auth.uid() is not null and not sdm_eventi.is_superadmin() then raise exception 'Solo il proprietario'; end if;
   select coalesce((valore #>> '{}')::int, 0) into v_mesi from sdm_eventi.parametri where chiave = 'conservazione_movimenti_mesi';
   if coalesce(v_mesi, 0) <= 0 then return 0; end if;
   delete from sdm_eventi.movimenti where data_ora < now() - make_interval(months => v_mesi);
@@ -859,7 +901,7 @@ create or replace function sdm_eventi.disconnetti_tutti(_anche_io boolean defaul
 language plpgsql security definer set search_path = sdm_eventi, public, auth, pg_temp as $$
 declare n integer; v_sess uuid;
 begin
-  if not sdm_eventi.is_admin() then raise exception 'Solo l''amministratore può disconnettere gli utenti'; end if;
+  if not sdm_eventi.is_superadmin() then raise exception 'Solo il proprietario può disconnettere gli utenti'; end if;
   begin v_sess := nullif(auth.jwt() ->> 'session_id', '')::uuid; exception when others then v_sess := null; end;
   if v_sess is null and not _anche_io then raise exception 'Impossibile identificare la sessione corrente: riprova dopo aver rifatto l''accesso'; end if;
   delete from auth.sessions where _anche_io or id <> v_sess;
@@ -968,7 +1010,7 @@ drop policy if exists parametri_select on sdm_eventi.parametri;
 create policy parametri_select on sdm_eventi.parametri for select to authenticated using (true);
 drop policy if exists parametri_write on sdm_eventi.parametri;
 create policy parametri_write on sdm_eventi.parametri for all to authenticated
-  using (sdm_eventi.is_admin()) with check (sdm_eventi.is_admin());
+  using (sdm_eventi.is_superadmin()) with check (sdm_eventi.is_superadmin());
 
 -- MOVIMENTI: lettura per admin e, per il proprio ramo, per i responsabili;
 -- le scritture avvengono solo dal trigger
@@ -1094,6 +1136,11 @@ on conflict (chiave) do nothing;
 insert into sdm_eventi.persone (cognome, nome, email, ruolo)
 values ('Taffarel', 'Ivo', 'ivotaffarel@gmail.com', 'admin')
 on conflict ((lower(email))) do nothing;
+
+-- Proprietario dell'app: se non ce n'è uno, lo diventa il primo amministratore (Ivo Taffarel)
+update sdm_eventi.persone set superadmin = true
+ where lower(email) = 'ivotaffarel@gmail.com' and ruolo = 'admin'
+   and not exists (select 1 from sdm_eventi.persone where superadmin);
 
 -- Fa rileggere all'API di Supabase lo schema (nuove funzioni e tabelle diventano subito utilizzabili)
 notify pgrst, 'reload schema';

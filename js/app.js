@@ -195,7 +195,14 @@
         .select('id, cognome, nome, email, ruolo').eq('id', pid).single();
       if (e2) throw e2;
       persona = { ...data, uid, informativa_ver: 0 };
-      try { const iv = await stato.sb.from('persone').select('informativa_ver').eq('id', pid).single(); if (!iv.error) persona.informativa_ver = iv.data.informativa_ver || 0; } catch (e) { /* colonna non ancora presente */ }
+      // colonne opzionali: se lo script SQL non è aggiornato non devono bloccare l'accesso
+      persona.superadmin = persona.ruolo === 'admin';       // senza il campo "proprietario" ogni amministratore vale come prima
+      try {
+        let iv = await stato.sb.from('persone').select('informativa_ver, superadmin').eq('id', pid).single();
+        if (iv.error) { persona.superadmin = persona.ruolo === 'admin'; iv = await stato.sb.from('persone').select('informativa_ver').eq('id', pid).single(); }
+        else persona.superadmin = !!iv.data.superadmin && persona.ruolo === 'admin';
+        if (!iv.error) persona.informativa_ver = iv.data.informativa_ver || 0;
+      } catch (e) { /* colonne non ancora presenti */ }
       LS.set('sdm_profilo', persona);
       stato.persona = persona;
       let nPar = 0, parErr = false;
@@ -228,6 +235,7 @@
     $('#iMail').textContent = p.email;
     $('#iRuolo').textContent = RUOLI[p.ruolo] || p.ruolo;
     $$('.adminOnly').forEach(e => e.classList.toggle('hidden', !admin));
+    $$('.superOnly').forEach(e => e.classList.toggle('hidden', !(admin && p.superadmin)));
     mostra('app');
     renderNav();
     vai('eventi');
@@ -260,7 +268,7 @@
       op ? voce('🌳', 'Le mie attività nell\'albero', () => vai('str')) : '',
       voce('🔔', 'Da rivedere', () => vai('rev'), r ? h('span', { class: 'badge e' }, String(r)) : ''),
       voce('⚙️', 'Impostazioni', () => vai('imp')),
-      isAdmin() ? voce('🎛️', 'Parametri', () => vai('par')) : '',
+      isSuper() ? voce('🎛️', 'Parametri', () => vai('par')) : '',
       (i.url || i.testo) ? voce('🔒', 'Informativa privacy', () => apriInformativa()) : '',
       voce('⎋', 'Esci', () => esci())
     ].filter(Boolean));
@@ -268,7 +276,7 @@
 
   function vai(p) {
     if ((p === 'home' || p === 'str') && stato.evento === null && stato.persona) p = 'eventi';
-    if (p === 'par' && !(stato.persona && stato.persona.ruolo === 'admin')) p = 'home';
+    if (p === 'par' && !isSuper()) p = 'home';
     stato.pagina = p;
     $$('.pg').forEach(e => e.classList.add('hidden'));
     $('#p-' + p).classList.remove('hidden');
@@ -286,6 +294,7 @@
 
   // ---------- persone ----------
   const isAdmin = () => !!(stato.persona && stato.persona.ruolo === 'admin');
+  const isSuper = () => !!(stato.persona && stato.persona.ruolo === 'admin' && stato.persona.superadmin);   // proprietario: unico a gestire i Parametri
   const COLONNE = 'id, cognome, nome, email, cellulare, iscritto, numero_iscritto, data_nascita, note, ruolo, attivo';
   const P = { elenco: [], corrente: null, aggiornato: null, resp: {} };
 
@@ -1472,7 +1481,7 @@
     $('#pPulMsg').textContent = error ? 'Operazione non riuscita: ' + error.message : (data ? 'Eliminati ' + data + ' movimenti.' : 'Nessun movimento da eliminare.');
   }
   function pulizieAutomatiche() {
-    if (!isAdmin() || !navigator.onLine || !(parseInt(stato.parametri.conservazione_movimenti_mesi, 10) > 0)) return;
+    if (!isSuper() || !navigator.onLine || !(parseInt(stato.parametri.conservazione_movimenti_mesi, 10) > 0)) return;
     const u = LS.get('sdm_pulizia'); if (u && Date.now() - u < 20 * 3600 * 1000) return;
     pulisciMovimenti(false).catch(() => {});
   }
