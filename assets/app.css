@@ -299,3 +299,38 @@ label.flag input{width:auto;margin:0}
   #modAtt.cmpt .inc{font-size:13px;color:var(--sec);padding:4px 0;cursor:pointer}
   #modAtt.cmpt .inc .det{margin-top:4px;color:var(--testo)}
 }
+
+/* v2.6: Home di responsabile/amministratore compatta */
+#homeCorpo .card{padding:8px 12px;margin-bottom:8px}
+#homeCorpo .card.sm{display:flex;align-items:center;gap:12px}
+#homeCorpo .sm .big{font-size:26px;color:var(--ok)}
+#homeCorpo .sm .r{flex:1;min-width:0}
+#homeCorpo .sm .stk{height:8px;margin-bottom:4px}
+#homeCorpo .sm .cnts{gap:2px 10px;font-size:11.5px}
+#homeCorpo .chips.sc{flex-wrap:nowrap;overflow-x:auto;margin:0 -2px 8px;padding:0 2px 2px;scrollbar-width:none;align-items:center}
+#homeCorpo .chips.sc::-webkit-scrollbar{display:none}
+#homeCorpo .chips.sc .ch2{flex:none;white-space:nowrap;padding:4px 10px;font-size:12.5px}
+#homeCorpo .chips.sc .nocrit{flex:none;white-space:nowrap;font-size:13px}
+#homeCorpo select.selarea{flex:none;border:1px solid var(--bordo);background:var(--card);color:var(--testo);border-radius:99px;padding:4px 8px;font:inherit;font-size:12.5px;width:auto;margin:0}
+.blk{background:var(--card);border:1px solid var(--bordo);border-radius:12px;margin-bottom:8px;overflow:hidden}
+.blk.conf{border-color:#86efac;background:#f0fdf4}
+.blk .bh{display:flex;align-items:center;gap:8px;padding:8px 12px;font-weight:700;font-size:14px;cursor:pointer}
+.blk .bh .ar2{margin-left:auto;color:var(--sec);font-size:12px}
+.blk .det{padding:0 0 2px;border-top:1px solid var(--bordo)}
+.blk .ln{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 8px;font-size:13.5px;border-left:5px solid transparent;cursor:pointer}
+.blk .ln .tt{flex:1;min-width:0;line-height:1.2}
+.blk .ln .tt b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.blk .ln .tt small{color:var(--sec);font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#homeCorpo .seg{margin-bottom:2px}
+#homeCorpo .gr .gh{padding:6px 2px}
+#homeCorpo .gr .gh .bar{flex:0 0 64px}
+#homeCorpo .gr .gh .bar .stk{height:6px}
+#homeCorpo .gr .det{padding:0 0 4px}
+#homeCorpo .gr .det .ln{padding:4px 2px}
+#homeCorpo .gr .det .ln .tt b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.ln.mia{display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:5px;background:var(--card);border:1px solid var(--bordo);border-left:5px solid transparent;border-radius:10px;font-size:13.5px}
+.ln.mia .tt{flex:1;min-width:0;line-height:1.2;cursor:pointer}
+.ln.mia .tt b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.ln.mia .tt small{color:var(--sec);font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ln.mia select{border:1px solid var(--bordo);border-radius:8px;padding:4px;font:inherit;font-size:13px;background:var(--card);color:var(--testo);width:auto;flex:none}
+.ln.mia .ib{padding:3px 8px;font-size:13px;flex:none}

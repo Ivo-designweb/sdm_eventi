@@ -1331,7 +1331,7 @@
 
   const statoRapido = (n, v) => accodaStato(n, v);
 
-  let homeVista = 'persona', homeAperti = new Set(), homeAvv = '';
+  let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null;
   const radice = n => { const a = antenati(n); return a.length ? a[a.length - 1] : n; };
   const nomiInc = n => (S.inc[n.id] || []).map(x => nomeP(x.persona_id));
   const isOperatore = () => !!stato.persona && !isAdmin() && !S.nodi.some(n => n.responsabile_id === stato.persona.id);
@@ -1347,33 +1347,48 @@
     const gestisco = adm ? tutte : tutte.filter(canEdit);
     const out = [];
     const ar = areeEv();
+    let selArea = null;
     if (ar.length) {   // filtro per area: vedi le attività dell'area scelta e quelle "Tutte"
       if (S.areaF && !ar.includes(S.areaF)) S.areaF = '';
       const sa = h('select', { class: 'f', style: 'width:auto;margin:0 0 10px', 'aria-label': 'Filtra per area' }, h('option', { value: '' }, 'Tutte le aree'), ...ar.map(a => h('option', { value: a }, a)));
       sa.value = S.areaF; sa.addEventListener('change', () => { S.areaF = sa.value; renderHome(); renderStruttura(); });
-      out.push(sa);
+      sa.className = 'selarea'; sa.style.cssText = '';
+      if (op) { sa.className = 'f'; sa.style.cssText = 'width:auto;margin:0 0 10px'; out.push(sa); } else selArea = sa;
     }
     if (!op) {
       const c = conteggio(gestisco);
-      out.push(h('div', { class: 'card sum' }, h('div', { class: 'r1' }, h('div', { class: 'big' }, c.perc + '%'),
-        h('div', { class: 'cnts', style: 'flex:1' }, h('span', { style: '--c:#15803d' }, c.finito + ' finite'), h('span', { style: '--c:#86efac' }, c.fatto + ' da confermare'), h('span', { style: '--c:#60a5fa' }, c.in_corso + ' in corso'), h('span', { style: '--c:#cbd5e1' }, c.da_fare + ' da fare'))),
-        h('div', { style: 'margin-top:8px' }, barraStack(c))));
+      out.push(h('div', { class: 'card sum sm' }, h('div', { class: 'big' }, c.perc + '%'),
+        h('div', { class: 'r' }, barraStack(c), h('div', { class: 'cnts' }, h('span', { style: '--c:#15803d' }, c.finito + ' finite'), h('span', { style: '--c:#86efac' }, c.fatto + ' da conf.'), h('span', { style: '--c:#60a5fa' }, c.in_corso + ' in corso'), h('span', { style: '--c:#cbd5e1' }, c.da_fare + ' da fare')))));
       // avvisi
       const sc = gestisco.filter(n => scadClasse(n) === 'e'), pr = gestisco.filter(n => scadClasse(n) === 'w'), sn = gestisco.filter(n => !nIncarichi(n) && n.stato !== 'finito');
       const gg = parseInt(stato.parametri.giorni_preavviso_scadenza, 10) || 7;
       const chip = (cl, k, txt, lista) => { if (!lista.length) return ''; const b = h('button', { class: 'ch2 ' + cl + (homeAvv === k ? ' act' : ''), type: 'button' }, txt); b.addEventListener('click', () => { homeAvv = homeAvv === k ? '' : k; renderHome(); }); return b; };
       const chips = [chip('e', 'scad', '⚠ ' + sc.length + (sc.length > 1 ? ' scadute' : ' scaduta'), sc), chip('w', 'prox', '⏰ ' + pr.length + ' in scadenza (' + gg + ' gg)', pr), chip('w', 'senza', '👤 ' + sn.length + ' senza incaricati', sn)].filter(Boolean);
-      out.push(h('div', { class: 'chips' }, ...(chips.length ? chips : [h('span', { class: 'sec' }, 'Nessuna scadenza critica ✓')])));
+      out.push(h('div', { class: 'chips sc' }, ...(chips.length ? chips : [h('span', { class: 'sec nocrit' }, 'Nessuna scadenza critica ✓')]), selArea || ''));
       const elenco = { scad: sc, prox: pr, senza: sn }[homeAvv] || [];
       if (homeAvv && elenco.length) out.push(h('div', { class: 'card', style: 'padding:6px 12px' }, h('div', { class: 'gr' }, h('div', { class: 'det' },
         ...elenco.map(n => { const l = h('div', { class: 'ln', style: 'border:0' }, h('div', { class: 'tt' }, h('b', {}, n.titolo), h('small', {}, percorsoTxt(n) + (nomiInc(n).length ? ' · ' + nomiInc(n).join(', ') : ''))), badgeScad(n)); l.addEventListener('click', () => apriScheda(n.id)); return l; })))));
-      // da confermare
+      // da confermare (admin) / in attesa di conferma (responsabile): riga ripiegabile, le righe aprono la scheda
       const dc = gestisco.filter(n => n.stato === 'fatto');
-      out.push(h('div', { class: 'card conf' }, h('h2', {}, (adm ? 'Da confermare' : 'In attesa di conferma dell\'amministratore') + (dc.length ? ' (' + dc.length + ')' : '')), ...(dc.length ? dc.map(n => {
-        const b = adm ? h('button', { class: 'bt2', type: 'button' }, '✔ Finito') : h('span', { class: 'badge ok' }, 'fatto'); if (adm) b.addEventListener('click', () => statoRapido(n, 'finito'));
-        const r = h('div', { class: 'row' }, h('div', { style: 'min-width:0;cursor:pointer' }, h('b', {}, n.titolo), h('div', { class: 'sec', style: 'font-size:12px' }, (nomiInc(n).join(', ') || '—') + ' · ' + radice(n).titolo)), b);
-        r.firstChild.addEventListener('click', () => apriScheda(n.id)); return r;
-      }) : [h('div', { class: 'sec' }, 'Nessuna attività in attesa di conferma ✓')])));
+      if (dc.length) {
+        const aperto = homeConf === null ? adm : homeConf;
+        const hd = h('div', { class: 'bh' }, adm ? 'Da confermare' : '⏳ In attesa di conferma', h('span', { class: 'badge ok' }, String(dc.length)), h('span', { class: 'ar2' }, aperto ? '▾' : '▸'));
+        hd.addEventListener('click', () => { homeConf = !aperto; renderHome(); });
+        const blk = h('div', { class: 'blk conf' }, hd);
+        if (aperto) {
+          const det = h('div', { class: 'det' });
+          dc.forEach(n => {
+            const cA = colArea(n.area);
+            const b = adm ? h('button', { class: 'bt2', type: 'button' }, '✔ Finito') : h('span', { class: 'badge ok' }, 'fatto');
+            if (adm) b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); });
+            const r = h('div', { class: 'ln', ...(cA ? { style: 'border-left-color:' + cA } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, (nomiInc(n).join(', ') || '—') + ' · ' + radice(n).titolo)), b);
+            r.addEventListener('click', () => apriScheda(n.id)); det.append(r);
+          });
+          if (!adm) det.append(h('div', { class: 'note', style: 'padding:2px 12px 6px' }, 'Il "Finito" lo conferma l\'amministratore. Tocca una riga per aprire l\'attività.'));
+          blk.append(det);
+        }
+        out.push(blk);
+      }
       // situazione dei lavori per persona / per ramo
       const gruppi = [];
       if (homeVista === 'persona') {
@@ -1419,6 +1434,12 @@
         const rc = righeCheck(n), ck = rc.length ? h('button', { class: 'ib ck', type: 'button', title: 'Check-list' }, '☑ ' + checkFatte(n) + '/' + rc.length) : '';
         if (ck) ck.addEventListener('click', () => apriScheda(n.id, false, true));
         const cA = colArea(n.area);
+        if (!op) {   // responsabile/admin: una riga per attività
+          const tt = h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, percorsoTxt(n) + ' ', badgeScad(n), S.pend.has(n.id) ? ' ⏳' : ''));
+          tt.addEventListener('click', () => apriScheda(n.id));
+          nota.textContent = '✎' + (((S.inc[n.id] || []).find(x => x.persona_id === me) || {}).nota ? '•' : '');
+          return h('div', { class: 'ln mia', ...(cA ? { style: 'background:color-mix(in srgb,' + cA + ' 14%,var(--card));border-left-color:' + cA } : {}) }, tt, sel, ck, nota);
+        }
         return h('div', { class: 'it', ...(cA ? { style: 'background:color-mix(in srgb,' + cA + ' 18%,var(--card));border-left:5px solid ' + cA } : {}) }, t1, t2, h('div', { class: 't3' }, sel, ck, nota, S.pend.has(n.id) ? h('span', { class: 'pend' }, '⏳ in attesa') : ''));
       }) : [h('p', { class: 'sec', style: 'text-align:center' }, mie.length ? 'Tutte le tue attività sono finite. 🎉' : 'Non hai attività assegnate in questo evento.')]));
       if (nFin) { const a = h('a', { href: '#' }, (homeFinite ? 'Nascondi' : 'Mostra') + ' le attività finite (' + nFin + ')'); a.addEventListener('click', e => { e.preventDefault(); homeFinite = !homeFinite; renderHome(); }); out.push(h('p', { class: 'sec', style: 'text-align:center' }, a)); }
