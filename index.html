@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="2.1">
+<meta name="app-version" content="2.2">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -178,6 +178,10 @@
           <div><label for="eIni">Data (inizio) *</label><input type="date" id="eIni"></div>
           <div><label for="eFin">Data fine (se più giorni)</label><input type="date" id="eFin"></div>
         </div>
+        <label>Aree dell'evento <span class="sec" style="font-weight:400">(facoltative, max 10)</span></label>
+        <p class="note" style="margin-top:0">Elenco libero delle sotto-aree gestite da questo evento. Ogni attività può avere "Tutte" (sempre presente, vale per ogni area) oppure una sola di queste.</p>
+        <div id="eAree"></div>
+        <button class="btn sec" id="eAreaAdd" type="button">+ Aggiungi area</button>
         <div id="eErr" class="avviso hidden" style="margin-top:12px"></div>
         <div style="display:flex;gap:10px;margin-top:16px;justify-content:space-between;flex-wrap:wrap">
           <button class="btn sec need-net" id="eDel" type="button" style="color:var(--err);border-color:var(--err)">Elimina evento</button>
@@ -189,13 +193,13 @@
     <div id="p-str" class="pg hidden">
       <div class="top"><div><h1>Struttura</h1><p class="sec" id="strInfo" style="margin:4px 0 0"></p></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn sec" id="strEspandi" type="button">Espandi tutto</button>
+          <select class="f hidden" id="strArea" aria-label="Filtra per area" style="width:auto;margin:0"></select>
+                    <button class="btn sec" id="strEspandi" type="button">Espandi tutto</button>
           <button class="btn sec" id="strComprimi" type="button">Comprimi tutto</button>
           <button class="btn need-net hidden" id="strModBtn" type="button">✎ Modifica struttura</button>
         </div></div>
       <div class="avviso off-only">Sei offline: puoi consultare la struttura ma non modificarla.</div>
       <div id="strLista"></div>
-      <div class="todo" style="margin-top:12px">Scadenza, stato, incaricati e note per persona delle attività si completano nello step 5.</div>
     </div>
 
     <div id="modNodo" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">

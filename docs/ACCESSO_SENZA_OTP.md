@@ -35,5 +35,5 @@ Prova: disattiva il codice, apri l'app in una finestra anonima e accedi con l'em
   ma non vedono né modificano i Parametri, e non possono modificare, disattivare o eliminare il proprietario.
 - Il ruolo di proprietario lo assegna solo il proprietario (non c'è un pulsante nell'app: si cambia con una modifica diretta nel
   database). Deve restare sempre almeno un proprietario attivo.
-- Dopo aver aggiornato lo script SQL (versione 1.3), **reinstalla la funzione** `accesso-email` copiando il nuovo
+- Dopo aver aggiornato lo script SQL (versione 1.4), **reinstalla la funzione** `accesso-email` copiando il nuovo
   `supabase/functions/accesso-email/index.ts` (così il proprietario è l'unico a restare sempre con il codice).

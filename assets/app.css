@@ -227,3 +227,31 @@ ul.trl.vuoto{min-height:12px;border:1px dashed var(--bordo);border-radius:8px;ma
 .gr .det .ln .tt{flex:1;min-width:0}.gr .det .ln .tt small{display:block;color:var(--sec);font-size:11px}
 .bt2{background:var(--ok);color:#fff;border:0;border-radius:8px;padding:5px 10px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
 .altro{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:var(--card);color:var(--testo);border:1px solid var(--bordo);border-radius:12px;padding:12px;margin-bottom:8px;font:inherit;cursor:pointer}
+
+/* v2.2: struttura compatta (PC), numerazione, check-list, sponsor */
+.num{font-variant-numeric:tabular-nums;font-size:12px;font-weight:700;color:var(--sec);margin-right:8px;white-space:nowrap}
+.tn.cmp{flex-wrap:nowrap;padding:5px 8px;margin-bottom:3px;gap:6px;cursor:pointer;min-height:36px}
+.tn.cmp:hover{border-color:var(--primario)}
+.tn.cmp.op{border-color:var(--primario)}
+.tn.cmp .tt2{min-width:0;flex:1 1 auto;display:flex;align-items:baseline;gap:8px;overflow:hidden;white-space:nowrap}
+.tn.cmp .tt2 b{flex:none;max-width:42%;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+.tn.cmp .ds{color:var(--sec);font-size:12px;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tn.cmp .meta{flex:none;flex-wrap:nowrap;gap:4px}
+.tn.cmp .meta .badge{font-size:11px;padding:1px 8px}
+.tn.cmp .azn{display:flex;gap:4px;flex:none}
+.tn.cmp .ib{padding:1px 7px;font-size:13px}
+.tn .tg0{display:inline-block;width:26px;flex:none}
+.tn .tt2 .num{flex:none}
+.dett{margin:-2px 0 6px 26px;padding:8px 12px;border:1px solid var(--bordo);border-top:0;border-radius:0 0 10px 10px;background:color-mix(in srgb,var(--primario) 3%,var(--card));font-size:13px}
+.dett .dr{display:flex;gap:10px;padding:2px 0}
+.dett .dl{flex:none;width:96px;color:var(--sec);font-weight:600}
+.dett .dv{min-width:0;overflow-wrap:anywhere}
+label.flag{display:flex;align-items:center;gap:8px;margin-top:14px;font-weight:600;cursor:pointer}
+label.flag input{width:auto;margin:0}
+.ckbox{border:1px solid var(--bordo);border-radius:10px;padding:4px 12px 12px;margin-top:6px;background:color-mix(in srgb,var(--primario) 3%,var(--card))}
+.ckfill{border:1px solid var(--bordo);border-radius:10px;padding:10px 12px;margin-top:14px;background:color-mix(in srgb,var(--ok) 5%,var(--card))}
+.ckr{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--bordo)}
+.ckr input[type=checkbox]{width:22px;height:22px;flex:none;margin:0}
+.ckr .ckt{flex:1;min-width:0}
+.ib.ck{font-weight:600}
+.it .t1 .num{margin-right:6px}

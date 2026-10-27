@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 1.3
+-- Versione script: 1.4
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -136,6 +136,28 @@ create index if not exists movimenti_record_idx on sdm_eventi.movimenti (tabella
 
 -- Colonne per la sincronizzazione offline (aggiunte anche a installazioni precedenti)
 alter table sdm_eventi.nodi      add column if not exists stato_il timestamptz not null default now();
+
+-- v1.4: aree dell'evento, area / check-list delle attività, sponsor
+alter table sdm_eventi.eventi add column if not exists aree text[] not null default '{}';
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'eventi_aree_max10') then
+    alter table sdm_eventi.eventi add constraint eventi_aree_max10 check (cardinality(aree) <= 10);
+  end if;
+end $$;
+alter table sdm_eventi.nodi add column if not exists area text;                     -- null = "Tutte"
+alter table sdm_eventi.nodi add column if not exists checklist jsonb;               -- {"descrizione":"..","righe":[{"id":"..","testo":"..","qta":0}]}
+alter table sdm_eventi.nodi add column if not exists checklist_esito jsonb not null default '{}'::jsonb;
+                                                                                    -- {"<id riga>":{"ok":true,"qta":3,"ts":"..."}}
+
+-- Sponsor di un'attività: tabella separata, leggibile e modificabile solo dagli amministratori
+create table if not exists sdm_eventi.nodi_sponsor (
+  nodo_id        uuid primary key references sdm_eventi.nodi(id) on delete cascade,
+  fornitore      text,
+  referente      text,
+  cellulare      text,
+  importo        numeric(12,2),
+  aggiornato_il  timestamptz not null default now()
+);
 alter table sdm_eventi.incarichi add column if not exists nota_il  timestamptz not null default now();
 alter table sdm_eventi.movimenti add column if not exists data_ora_dispositivo timestamptz;
 alter table sdm_eventi.persone   add column if not exists informativa_ver integer not null default 0;
@@ -383,6 +405,9 @@ begin
   if tg_op = 'INSERT' and new.creato_da is null then
     new.creato_da := sdm_eventi.persona_corrente();
   end if;
+  if tg_op = 'INSERT' and new.stato = 'finito' and auth.uid() is not null and not sdm_eventi.is_admin() then
+    raise exception 'Lo stato "finito" è impostabile solo dall''amministratore';
+  end if;
   return new;
 end $$;
 
@@ -416,6 +441,11 @@ begin
   if auth.uid() is null or pg_trigger_depth() > 1 then return new; end if;
   if sdm_eventi.is_admin() then return new; end if;
 
+  -- lo stato "finito" lo imposta (e lo toglie) solo l'amministratore
+  if new.stato is distinct from old.stato and (new.stato = 'finito' or old.stato = 'finito') then
+    raise exception 'Lo stato "finito" è impostabile solo dall''amministratore';
+  end if;
+
   if sdm_eventi.is_responsabile_di(old.id, true) then
     if new.parent_id is distinct from old.parent_id then
       if new.parent_id is null or not sdm_eventi.is_responsabile_di(new.parent_id, true) then
@@ -426,11 +456,10 @@ begin
   end if;
 
   if sdm_eventi.is_incaricato_in(old.id) then
-    if (to_jsonb(new) - 'stato' - 'stato_il' - 'aggiornato_il') is distinct from (to_jsonb(old) - 'stato' - 'stato_il' - 'aggiornato_il') then
-      raise exception 'Gli incaricati possono modificare solo lo stato';
-    end if;
-    if new.stato = 'finito' or old.stato = 'finito' then
-      raise exception 'Lo stato "finito" è impostabile solo dal responsabile';
+    -- gli incaricati possono cambiare solo lo stato e compilare la check-list
+    if (to_jsonb(new) - 'stato' - 'stato_il' - 'aggiornato_il' - 'checklist_esito')
+       is distinct from (to_jsonb(old) - 'stato' - 'stato_il' - 'aggiornato_il' - 'checklist_esito') then
+      raise exception 'Gli incaricati possono modificare solo lo stato e la check-list';
     end if;
     return new;
   end if;
@@ -601,6 +630,7 @@ declare
   v_n     int;
   v_esito text;
   v_mot   text;
+  v_es    jsonb;
 begin
   for op in select value from jsonb_array_elements(_ops) with ordinality as t(value, n)
             order by (value ->> 'ts')::timestamptz nulls last, n
@@ -628,6 +658,20 @@ begin
           v_esito := 'superata'; v_mot := 'La nota è stata modificata da altri dopo la tua modifica';
         else
           update sdm_eventi.incarichi set nota = op ->> 'valore' where id = (op ->> 'id')::uuid;
+          get diagnostics v_n = row_count;
+          if v_n = 0 then v_esito := 'rifiutata'; v_mot := 'Modifica non permessa'; end if;
+        end if;
+      elsif op ->> 'tipo' = 'nodo_check' then
+        -- una riga della check-list: vince la modifica più recente, riga per riga
+        select checklist_esito into v_es from sdm_eventi.nodi where id = (op ->> 'id')::uuid;
+        if not found then
+          v_esito := 'rifiutata'; v_mot := 'Attività non trovata, eliminata o non più accessibile';
+        elsif nullif(v_es -> (op ->> 'sub') ->> 'ts', '')::timestamptz > v_ts then
+          v_esito := 'superata'; v_mot := 'La riga della check-list è stata modificata da altri dopo la tua modifica';
+        else
+          update sdm_eventi.nodi set checklist_esito = jsonb_set(coalesce(checklist_esito, '{}'::jsonb), array[op ->> 'sub'],
+                 jsonb_build_object('ok', coalesce((op -> 'valore' ->> 'ok')::boolean, false), 'qta', op -> 'valore' -> 'qta', 'ts', v_ts))
+           where id = (op ->> 'id')::uuid;
           get diagnostics v_n = row_count;
           if v_n = 0 then v_esito := 'rifiutata'; v_mot := 'Modifica non permessa'; end if;
         end if;
@@ -678,6 +722,7 @@ end $$;
 -- DUPLICA EVENTO (solo admin): copia titolo/date nuovi, rami, descrizioni, note, scadenze
 -- (spostate in base alla nuova data di inizio se richiesto). Gli stati ripartono da "da fare".
 -- Responsabili e incaricati si copiano solo su richiesta; le note degli incaricati non si copiano.
+-- Aree, area e check-list (senza gli esiti) si copiano; gli sponsor no.
 create or replace function sdm_eventi.duplica_evento(
   _evento uuid, _titolo text, _data_inizio date, _data_fine date,
   _copia_incaricati boolean default false, _sposta_scadenze boolean default true, _copia_responsabili boolean default true)
@@ -695,16 +740,16 @@ begin
   if not found then raise exception 'Evento non trovato'; end if;
   if coalesce(trim(_titolo), '') = '' then raise exception 'Il titolo è obbligatorio'; end if;
   if v_old.data_inizio is not null and _data_inizio is not null then v_delta := _data_inizio - v_old.data_inizio; end if;
-  insert into sdm_eventi.eventi (titolo, descrizione, luogo, data_inizio, data_fine, creato_da)
-  values (trim(_titolo), v_old.descrizione, v_old.luogo, _data_inizio, _data_fine, sdm_eventi.persona_corrente())
+  insert into sdm_eventi.eventi (titolo, descrizione, luogo, data_inizio, data_fine, aree, creato_da)
+  values (trim(_titolo), v_old.descrizione, v_old.luogo, _data_inizio, _data_fine, v_old.aree, sdm_eventi.persona_corrente())
   returning id into v_new;
   drop table if exists pg_temp._dup_map;
   create temp table _dup_map (old_id uuid primary key, new_id uuid) on commit drop;
   for r in select * from sdm_eventi.nodi where evento_id = _evento order by livello, posizione, creato_il loop
-    insert into sdm_eventi.nodi (evento_id, parent_id, titolo, descrizione, note, scadenza, stato, posizione, responsabile_id)
+    insert into sdm_eventi.nodi (evento_id, parent_id, titolo, descrizione, note, scadenza, stato, posizione, responsabile_id, area, checklist)
     values (v_new, (select new_id from _dup_map where old_id = r.parent_id), r.titolo, r.descrizione, r.note,
             case when r.scadenza is null then null when _sposta_scadenze then r.scadenza + v_delta else r.scadenza end,
-            'da_fare', r.posizione, case when _copia_responsabili then r.responsabile_id end)
+            'da_fare', r.posizione, case when _copia_responsabili then r.responsabile_id end, r.area, r.checklist)
     returning id into v_nid;
     insert into _dup_map values (r.id, v_nid);
   end loop;
@@ -797,6 +842,25 @@ begin
   end loop;
   return jsonb_build_object('creati', n_cre, 'aggiornati', n_agg, 'incarichi', n_inc);
 end $$;
+
+-- NUMERAZIONE gerarchica (01, 01.01, 01.01.01 ...): derivata dall'ordine dei fratelli, quindi
+-- si aggiorna da sola quando si spostano, riordinano, aggiungono o eliminano rami e attività.
+-- Calcolata sull'albero completo dell'evento, così ogni utente vede lo stesso numero
+-- anche se per lui sono visibili solo alcuni rami.
+create or replace function sdm_eventi.numerazione(_evento uuid)
+returns table (nodo_id uuid, numero text)
+language sql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
+  with recursive t as (
+    select n.id, n.parent_id,
+           row_number() over (partition by n.parent_id order by n.posizione, n.creato_il, n.id) as rn
+    from sdm_eventi.nodi n where n.evento_id = _evento
+  ), r as (
+    select t.id, lpad(t.rn::text, 2, '0') as num from t where t.parent_id is null
+    union all
+    select t.id, r.num || '.' || lpad(t.rn::text, 2, '0') from t join r on t.parent_id = r.id
+  )
+  select r.id, r.num from r where sdm_eventi.puo_vedere_nodo(r.id)
+$$;
 
 -- =====================================================================
 -- PRIVACY / GDPR
@@ -936,6 +1000,7 @@ alter table sdm_eventi.eventi       enable row level security;
 alter table sdm_eventi.nodi         enable row level security;
 alter table sdm_eventi.incarichi    enable row level security;
 alter table sdm_eventi.parametri    enable row level security;
+alter table sdm_eventi.nodi_sponsor enable row level security;
 alter table sdm_eventi.movimenti    enable row level security;
 
 -- PERSONE: anagrafica completa solo all'admin (e la propria scheda in lettura).
@@ -1004,6 +1069,11 @@ create policy incarichi_update on sdm_eventi.incarichi for update to authenticat
 drop policy if exists incarichi_delete on sdm_eventi.incarichi;
 create policy incarichi_delete on sdm_eventi.incarichi for delete to authenticated
   using (sdm_eventi.is_admin() or sdm_eventi.is_responsabile_di(nodo_id, true));
+
+-- SPONSOR delle attività: dati economici e contatti, solo amministratori
+drop policy if exists sponsor_admin on sdm_eventi.nodi_sponsor;
+create policy sponsor_admin on sdm_eventi.nodi_sponsor for all to authenticated
+  using (sdm_eventi.is_admin()) with check (sdm_eventi.is_admin());
 
 -- PARAMETRI: lettura per tutti gli utenti autenticati (es. tema), scrittura solo admin
 drop policy if exists parametri_select on sdm_eventi.parametri;
@@ -1101,7 +1171,7 @@ revoke all on schema sdm_eventi from public, anon;
 grant usage on schema sdm_eventi to authenticated, service_role;
 
 grant select, insert, update, delete on sdm_eventi.persone, sdm_eventi.eventi, sdm_eventi.nodi,
-      sdm_eventi.incarichi, sdm_eventi.parametri to authenticated;
+      sdm_eventi.incarichi, sdm_eventi.parametri, sdm_eventi.nodi_sponsor to authenticated;
 grant select on sdm_eventi.movimenti to authenticated;
 grant select on sdm_eventi.v_movimenti, sdm_eventi.v_avanzamento_nodi,
       sdm_eventi.v_avanzamento_eventi to authenticated;

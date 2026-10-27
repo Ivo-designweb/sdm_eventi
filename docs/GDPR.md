@@ -17,6 +17,7 @@
 - Accesso: email e codici monouso (gestiti da Supabase Auth).
 - Attività: incarichi, stati, scadenze, note personali sulle attività.
 - Registro dei movimenti: chi ha fatto cosa e quando (dati personali dell'operatore).
+- Sponsor delle attività (solo amministratori): nome fornitore, referente e cellulare del referente, importo del contributo. Il referente è un terzo non registrato nell'app: informalo del trattamento e inserisci solo i contatti professionali necessari.
 - Sul dispositivo: copia locale dei dati visibili all'utente (per l'uso offline).
 - **Nessun dato particolare (art. 9)** va inserito (salute, convinzioni, ecc.): non usare il campo Note per questo.
 - Se ci sono **minorenni**: informativa ai genitori e raccolta solo dei dati strettamente necessari.

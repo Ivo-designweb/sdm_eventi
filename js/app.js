@@ -245,17 +245,19 @@
     verificaInformativa(); pulizieAutomatiche();
   }
 
+  // La Struttura (albero, modifica, spostamenti) si usa da PC: su smartphone non compare
+  const isMobile = () => !!(window.matchMedia && window.matchMedia('(max-width:760px)').matches);
   function renderNav() {
     const nav = $('#bottomNav'); if (!nav) return;
     const op = !!stato.persona && isOperatore();
     const v = op ? [['home', '📋', 'Attività'], ['eventi', '📅', 'Eventi'], ['altro', '☰', 'Altro']]
-      : [['home', '🏠', 'Home'], ['persone', '👥', 'Persone'], ['eventi', '📅', 'Eventi'], ['str', '🌳', 'Struttura'], ['altro', '☰', 'Altro']];
+      : [['home', '🏠', 'Home'], ['persone', '👥', 'Persone'], ['eventi', '📅', 'Eventi'], ['altro', '☰', 'Altro']];
     nav.replaceChildren(...v.map(x => { const b = h('button', { type: 'button', 'data-p': x[0] }, h('span', {}, x[1]), x[2]); b.addEventListener('click', () => vai(x[0])); return b; }));
     segnaNav(stato.pagina);
   }
   function segnaNav(p) {
     const op = !!stato.persona && isOperatore();
-    const k = (p === 'home' || p === 'eventi' || (!op && (p === 'persone' || p === 'str'))) ? p : 'altro';
+    const k = (p === 'home' || p === 'eventi' || (!op && p === 'persone')) ? p : 'altro';
     $$('.nv').forEach(b => b.classList.toggle('on', b.dataset.p === p));
     $$('.bottom button').forEach(b => b.classList.toggle('on', b.dataset.p === k));
   }
@@ -265,7 +267,6 @@
     if ($('#altroEvento')) $('#altroEvento').textContent = eventoCorrente() ? eventoCorrente().titolo : 'nessun evento selezionato';
     $('#altroLista').replaceChildren(...[
       op ? voce('👥', 'Persone dell\'evento', () => vai('persone')) : '',
-      op ? voce('🌳', 'Le mie attività nell\'albero', () => vai('str')) : '',
       voce('🔔', 'Da rivedere', () => vai('rev'), r ? h('span', { class: 'badge e' }, String(r)) : ''),
       voce('⚙️', 'Impostazioni', () => vai('imp')),
       isSuper() ? voce('🎛️', 'Parametri', () => vai('par')) : '',
@@ -277,6 +278,7 @@
   function vai(p) {
     if ((p === 'home' || p === 'str') && stato.evento === null && stato.persona) p = 'eventi';
     if (p === 'par' && !isSuper()) p = 'home';
+    if (p === 'str' && isMobile()) p = 'home';
     stato.pagina = p;
     $$('.pg').forEach(e => e.classList.add('hidden'));
     $('#p-' + p).classList.remove('hidden');
@@ -458,8 +460,9 @@
     const cache = LS.get('sdm_eventi');
     let ok = false;
     if (navigator.onLine) {
-      const { data, error } = await stato.sb.from('eventi').select('id, titolo, data_inizio, data_fine')
-        .order('data_inizio', { ascending: false, nullsFirst: false }).order('titolo');
+      const qEv = cols => stato.sb.from('eventi').select(cols).order('data_inizio', { ascending: false, nullsFirst: false }).order('titolo');
+      let { data, error } = await qEv('id, titolo, data_inizio, data_fine, aree');
+      if (error) ({ data, error } = await qEv('id, titolo, data_inizio, data_fine'));   // database non ancora aggiornato
       if (!error) {
         stato.eventi = data; ok = true;
         stato.avanz = {};
@@ -478,7 +481,7 @@
   }
 
   function selezionaEvento(id, vaiHome) {
-    stato.evento = id; S.mod = false; S.collassati = new Set(); S.nodi = []; S.inc = {}; homeAvv = ''; homeAperti = new Set();
+    stato.evento = id; S.mod = false; S.collassati = new Set(); S.aperti = new Set(); S.areaF = ''; S.nodi = []; S.inc = {}; S.num = {}; S.sponsor = {}; homeAvv = ''; homeAperti = new Set();
     LS.set('sdm_evento', { uid: stato.persona.uid, id });
     renderEvBar(); renderEventi();
     if (vaiHome) vai('home');
@@ -536,10 +539,21 @@
     }));
   }
 
-  let evCorr = null;
+  let evCorr = null, EA = [];
+  // aree dell'evento: elenco libero (max 10) delle sotto-aree gestite; "Tutte" c'è sempre e non va inserita
+  function renderAreeEv() {
+    $('#eAree').replaceChildren(...EA.map((a, i) => {
+      const t = h('input', { type: 'text', maxlength: '60', value: a.val, placeholder: 'Area ' + (i + 1), style: 'flex:1;min-width:0' });
+      t.addEventListener('input', () => { a.val = t.value; });
+      const x = h('button', { class: 'ib dn', type: 'button', title: 'Togli l\'area' }, '✕'); x.addEventListener('click', () => { EA.splice(i, 1); renderAreeEv(); });
+      return h('div', { style: 'display:flex;gap:6px;align-items:center;margin-bottom:6px' }, t, x);
+    }));
+    $('#eAreaAdd').disabled = EA.length >= 10;
+  }
   function apriEvento(id) {
     evCorr = stato.eventi.find(x => x.id === id) || null;
     const e = evCorr || { titolo: '', data_inizio: '', data_fine: '' };
+    EA = (e.aree || []).map(v => ({ orig: v, val: v })); renderAreeEv();
     $('#evModTit').textContent = evCorr ? 'Modifica evento' : 'Nuovo evento';
     $('#eTit').value = e.titolo; $('#eIni').value = e.data_inizio || ''; $('#eFin').value = e.data_fine || '';
     $('#eDel').classList.toggle('hidden', !evCorr);
@@ -552,16 +566,30 @@
   async function salvaEvento(ev) {
     ev.preventDefault();
     const rec = { titolo: $('#eTit').value.trim(), data_inizio: $('#eIni').value || null, data_fine: $('#eFin').value || null };
+    const aree = EA.map(a => a.val.trim()).filter(Boolean);
+    if (aree.some(a => norm(a) === 'tutte')) { erroreEv('"Tutte" è sempre presente: non va inserita tra le aree.'); return; }
+    if (new Set(aree.map(norm)).size !== aree.length) { erroreEv('Ci sono due aree con lo stesso nome.'); return; }
+    if (aree.length > 10) { erroreEv('Al massimo 10 aree.'); return; }
+    if (evCorr ? stab(aree) !== stab(evCorr.aree || []) : aree.length) rec.aree = aree;   // senza modifiche alle aree non tocco la colonna
     if (!rec.titolo) { erroreEv('Il titolo è obbligatorio.'); return; }
     if (!rec.data_inizio) { erroreEv('La data è obbligatoria.'); return; }
     if (rec.data_fine && rec.data_fine < rec.data_inizio) { erroreEv('La data fine non può precedere la data di inizio.'); return; }
     if (!navigator.onLine) { erroreEv('Serve la connessione per salvare.'); return; }
     const b = $('#eSalva'); b.disabled = true;
     const q = stato.sb.from('eventi');
-    const { error } = evCorr ? await q.update(rec).eq('id', evCorr.id) : await q.insert({ ...rec, creato_da: stato.persona.id });
+    let { error } = evCorr ? await q.update(rec).eq('id', evCorr.id) : await q.insert({ ...rec, creato_da: stato.persona.id });
+    if (!error && evCorr) {   // aree rinominate o tolte: le attività che le usavano seguono (le tolte tornano a "Tutte")
+      for (const a of EA) {
+        if (!a.orig) continue;
+        const nuovo = a.val.trim();
+        if (nuovo === a.orig) continue;
+        const r = await stato.sb.from('nodi').update({ area: nuovo || null }).eq('evento_id', evCorr.id).eq('area', a.orig);
+        if (r.error) { error = r.error; break; }
+      }
+    }
     b.disabled = false;
-    if (error) { erroreEv('Salvataggio non riuscito: ' + error.message); return; }
-    chiudiEvento(); await caricaEventi();
+    if (error) { erroreEv('Salvataggio non riuscito: ' + errDb(error.message)); return; }
+    chiudiEvento(); await caricaEventi(); if (evCorr && evCorr.id === stato.evento) await caricaStruttura();
   }
 
   async function eliminaEvento() {
@@ -576,7 +604,7 @@
 
 
   // ---------- struttura (rami e attività) ----------
-  const S = { pend: new Set(), nodi: [], inc: {}, nomi: {}, assegnabili: [], byId: {}, byParent: {}, mod: false, collassati: new Set(), corr: null, padre: null, sort: [] };
+  const S = { pend: new Set(), nodi: [], inc: {}, nomi: {}, assegnabili: [], byId: {}, byParent: {}, mod: false, collassati: new Set(), aperti: new Set(), corr: null, padre: null, sort: [], num: {}, numLoc: {}, sponsor: {}, areaF: '' };
   const maxLivelli = () => Math.min(10, Math.max(1, parseInt(stato.parametri.max_livelli, 10) || 10));
   const nomeP = id => S.nomi[id] || '—';
   const figli = id => S.byParent[id || 'root'] || [];
@@ -593,11 +621,22 @@
   const canAdd = n => isAdmin() || (!!stato.parametri.responsabile_crea_rami && respDi(n, true));
   const nIncarichi = n => (S.inc[n.id] || []).length;
   const percorsoTxt = n => [...antenati(n).reverse(), n].map(x => x.titolo).join(' › ');
+  // numerazione gerarchica 01 / 01.01 / 01.01.01: calcolata dal database sull'albero completo (uguale per tutti),
+  // con ripiego locale sui soli elementi visibili se il database non è aggiornato
+  const numTxt = n => S.num[n.id] || S.numLoc[n.id] || '';
+  const areeEv = () => { const e = eventoCorrente(); return (e && Array.isArray(e.aree)) ? e.aree : []; };
+  const passaArea = n => S.mod || !S.areaF || (isLeaf(n) ? (!n.area || n.area === S.areaF) : figli(n.id).some(passaArea));
+  const righeCheck = n => (n.checklist && Array.isArray(n.checklist.righe)) ? n.checklist.righe : [];
+  const esitoRiga = (n, id) => (n.checklist_esito || {})[id] || {};
+  const checkFatte = n => righeCheck(n).filter(r => esitoRiga(n, r.id).ok).length;
 
   function ordina() {
     S.byId = {}; S.byParent = {};
     S.nodi.forEach(n => { S.byId[n.id] = n; const k = n.parent_id || 'root'; (S.byParent[k] = S.byParent[k] || []).push(n); });
     Object.values(S.byParent).forEach(a => a.sort((x, y) => (x.posizione - y.posizione) || x.titolo.localeCompare(y.titolo)));
+    S.numLoc = {};
+    const numera = (pid, pre) => figli(pid).forEach((n, i) => { const t = (pre ? pre + '.' : '') + String(i + 1).padStart(2, '0'); S.numLoc[n.id] = t; numera(n.id, t); });
+    numera(null, '');
   }
 
   async function caricaStruttura() {
@@ -605,24 +644,33 @@
     const chiave = 'sdm_struttura_' + stato.evento;
     let ok = false;
     if (navigator.onLine) {
-      const [n, i, pe, pa] = await Promise.all([
-        stato.sb.from('nodi').select('id, parent_id, livello, posizione, titolo, descrizione, note, scadenza, stato, responsabile_id').eq('evento_id', stato.evento),
+      const NODI_BASE = 'id, parent_id, livello, posizione, titolo, descrizione, note, scadenza, stato, responsabile_id';
+      const qNodi = async () => {
+        const r = await stato.sb.from('nodi').select(NODI_BASE + ', area, checklist, checklist_esito').eq('evento_id', stato.evento);
+        return r.error ? stato.sb.from('nodi').select(NODI_BASE).eq('evento_id', stato.evento) : r;   // database non ancora aggiornato
+      };
+      const [n, i, pe, pa, nu, sp] = await Promise.all([
+        qNodi(),
         stato.sb.from('incarichi').select('id, nodo_id, persona_id, nota'),
         stato.sb.rpc('persone_evento', { _evento: stato.evento }),
-        stato.sb.rpc('persone_assegnabili')
+        stato.sb.rpc('persone_assegnabili'),
+        stato.sb.rpc('numerazione', { _evento: stato.evento }),
+        isAdmin() ? stato.sb.from('nodi_sponsor').select('nodo_id, fornitore, referente, cellulare, importo') : Promise.resolve({ data: [] })
       ]);
       if (!n.error) {
         ok = true;
         S.nodi = n.data;
         const ids = new Set(S.nodi.map(x => x.id)); S.inc = {};
         (i.data || []).filter(x => ids.has(x.nodo_id)).forEach(x => { (S.inc[x.nodo_id] = S.inc[x.nodo_id] || []).push({ id: x.id, persona_id: x.persona_id, nota: x.nota }); });
+        S.num = {}; if (!nu.error) (nu.data || []).forEach(x => { S.num[x.nodo_id] = x.numero; });
+        S.sponsor = {}; if (!sp.error) (sp.data || []).filter(x => ids.has(x.nodo_id)).forEach(x => { S.sponsor[x.nodo_id] = x; });
         S.nomi = {}; S.assegnabili = (pa.data || []);
         [...(pe.data || []), ...S.assegnabili].forEach(p => { S.nomi[p.id] = p.cognome + ' ' + p.nome; });
         sovrapponiCoda();
-        LS.set(chiave, { n: S.nodi, i: S.inc, m: S.nomi, a: S.assegnabili });
+        LS.set(chiave, { n: S.nodi, i: S.inc, m: S.nomi, a: S.assegnabili, u: S.num, s: S.sponsor });
       }
     }
-    if (!ok) { const c = LS.get(chiave); if (c) { S.nodi = c.n; S.inc = c.i; S.nomi = c.m; S.assegnabili = c.a || []; } else S.nodi = []; sovrapponiCoda(); }
+    if (!ok) { const c = LS.get(chiave); if (c) { S.nodi = c.n; S.inc = c.i; S.nomi = c.m; S.assegnabili = c.a || []; S.num = c.u || {}; S.sponsor = c.s || {}; } else S.nodi = []; sovrapponiCoda(); }
     renderStruttura(); renderHome(); renderEvBar(); renderNav();
   }
 
@@ -639,33 +687,64 @@
     return h('span', { class: 'badge' }, 'scad. ' + d);
   }
 
+  // dettagli di una riga (si aprono con un click sulla riga)
+  function dettagliNodo(n) {
+    const lf = isLeaf(n), inc = S.inc[n.id] || [], sp = isAdmin() ? S.sponsor[n.id] : null;
+    const dr = (et, v) => (v ? h('div', { class: 'dr' }, h('span', { class: 'dl' }, et), h('div', { class: 'dv' }, v)) : '');
+    const els = [dr('Descrizione', n.descrizione), dr('Note', n.note), dr('Responsabile', n.responsabile_id ? nomeP(n.responsabile_id) : ''),
+      lf ? dr('Scadenza', n.scadenza ? fmtData(n.scadenza) : '') : '', lf ? dr('Area', n.area || 'Tutte') : ''];
+    if (lf) {
+      els.push(dr('Incaricati', inc.length ? h('div', {}, ...inc.map(x => h('div', {}, nomeP(x.persona_id), x.nota ? h('span', { class: 'sec' }, ' — “' + x.nota + '”') : ''))) : ''));
+      const rc = righeCheck(n);
+      if (n.checklist) els.push(dr('Check-list', h('div', {}, n.checklist.descrizione ? h('div', {}, h('b', {}, n.checklist.descrizione)) : '',
+        ...rc.map(r => { const e = esitoRiga(n, r.id); return h('div', {}, (e.ok ? '☑ ' : '☐ ') + r.testo, h('span', { class: 'sec' }, ' · previste ' + (r.qta == null || r.qta === '' ? '—' : r.qta) + (e.qta != null && e.qta !== '' ? ' · rilevate ' + e.qta : ''))); }),
+        rc.length ? '' : h('span', { class: 'sec' }, 'nessuna riga'))));
+      if (sp) els.push(dr('Sponsor', h('div', {}, h('b', {}, sp.fornitore || '—'), sp.referente ? ' · ' + sp.referente : '', sp.cellulare ? ' · ' + sp.cellulare : '', sp.importo != null ? ' · € ' + Number(sp.importo).toLocaleString('it-IT', { minimumFractionDigits: 2 }) : '')));
+    }
+    const pan = h('div', { class: 'dett' }, ...els.filter(Boolean));
+    if (!pan.children.length) pan.append(h('span', { class: 'sec' }, 'Nessun dettaglio.'));
+    if (lf) { const b = h('button', { class: 'btn sec', type: 'button', style: 'padding:4px 12px;margin-top:6px' }, 'Apri scheda'); b.addEventListener('click', () => apriScheda(n.id)); pan.append(b); }
+    return pan;
+  }
+
   function rigaNodo(n) {
-    const lf = isLeaf(n), aperto = !S.collassati.has(n.id), lv = n.livello;
+    const lf = isLeaf(n), aperto = !S.collassati.has(n.id), lv = n.livello, det = S.aperti.has(n.id);
+    const chip = (t, cl, tit) => h('span', { class: 'badge' + (cl ? ' ' + cl : ''), title: tit || '' }, t);
     const meta = h('div', { class: 'meta' });
-    if (S.pend && S.pend.has(n.id)) meta.append(h('span', { class: 'badge w' }, '⏳ in attesa'));
-    if (n.responsabile_id) meta.append(h('span', { class: 'badge' }, '👤 ' + nomeP(n.responsabile_id)));
-    if (lf) meta.append(badgeStato(n.stato), badgeScad(n), h('span', { class: 'badge' }, '👥 ' + nIncarichi(n)));
-    else {
+    if (S.pend && S.pend.has(n.id)) meta.append(chip('⏳ in attesa', 'w'));
+    if (lf && n.area) meta.append(chip('Area · ' + n.area, '', 'Area'));
+    if (n.responsabile_id) meta.append(chip('👤 ' + nomeP(n.responsabile_id), '', 'Responsabile'));
+    if (lf) {
+      meta.append(badgeStato(n.stato), badgeScad(n), chip('👥 ' + nIncarichi(n), '', 'Persone incaricate'));
+      if (righeCheck(n).length) meta.append(chip('☑ ' + checkFatte(n) + '/' + righeCheck(n).length, '', 'Check-list'));
+      if (isAdmin() && S.sponsor[n.id]) meta.append(chip('€ sponsor', 'ok', 'Sponsor: ' + (S.sponsor[n.id].fornitore || '')));
+    } else {
       const ls = foglie(n), f = ls.filter(x => x.stato === 'finito').length, p = ls.length ? Math.round(100 * f / ls.length) : 0;
       meta.append(h('span', { class: 'sec', style: 'font-size:12px' }, f + '/' + ls.length + ' ', h('span', { class: 'mini' }, h('i', { style: 'width:' + p + '%' })), ' ' + p + '%'));
     }
-    const btns = h('div', { style: 'display:flex;gap:6px' });
+    const btns = h('div', { class: 'azn' });
     const ib = (txt, titolo, fn, cl) => { const b = h('button', { class: 'ib' + (cl ? ' ' + cl : ''), type: 'button', title: titolo, 'aria-label': titolo }, txt); b.addEventListener('click', fn); return b; };
     let handle = '';
     if (S.mod) {
+      const padre = n.parent_id ? nodo(n.parent_id) : null;
       if (canEdit(n)) handle = h('span', { class: 'hd', title: 'Trascina' }, '☰');
       if (canAdd(n) && lv < maxLivelli()) btns.append(ib('＋', 'Aggiungi sottoramo', () => apriNodo(null, n.id)));
+      if (lf && (padre ? canAdd(padre) : isAdmin())) btns.append(ib('⧉', 'Duplica attività', () => apriScheda(n.id, true)));
       if (canEdit(n)) btns.append(ib('✎', 'Modifica', () => apriNodo(n.id, null)), ib('⇄', 'Sposta in…', () => apriSposta(n.id)));
       if (canDel(n)) btns.append(ib('🗑', 'Elimina', () => eliminaNodo(n.id), 'dn'));
     }
     let tg;
-    if (lf) tg = h('span', { style: 'width:26px;display:inline-block' });
+    if (lf) tg = h('span', { class: 'tg0' });
     else { tg = h('button', { class: 'tg', type: 'button', 'aria-label': aperto ? 'Comprimi' : 'Espandi' }, aperto ? '▼' : '▶'); tg.addEventListener('click', () => { if (aperto) S.collassati.add(n.id); else S.collassati.delete(n.id); renderStruttura(); }); }
-    const row = h('div', { class: 'tn' + (lf ? '' : ' br') }, handle, tg,
-      h('div', { class: 'tt2' }, h('b', {}, n.titolo), n.descrizione ? h('div', { class: 'sec', style: 'font-size:13px' }, n.descrizione) : ''), meta, btns);
-    if (lf && !S.mod) { row.style.cursor = 'pointer'; row.setAttribute('tabindex', '0'); row.addEventListener('click', () => apriScheda(n.id)); row.addEventListener('keydown', e => { if (e.key === 'Enter') apriScheda(n.id); }); }
+    const row = h('div', { class: 'tn cmp' + (lf ? '' : ' br') + (det ? ' op' : ''), tabindex: '0', role: 'button', 'aria-expanded': det ? 'true' : 'false' }, handle, tg,
+      h('span', { class: 'num' }, numTxt(n)),
+      h('div', { class: 'tt2' }, h('b', { title: n.titolo }, n.titolo), n.descrizione ? h('span', { class: 'ds' }, n.descrizione) : ''), meta, btns);
+    const commuta = () => { if (S.aperti.has(n.id)) S.aperti.delete(n.id); else S.aperti.add(n.id); renderStruttura(); };
+    row.addEventListener('click', e => { if (e.target.closest('button,.hd,a,input,select')) return; commuta(); });
+    row.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === row) commuta(); });
     const li = h('li', { 'data-id': n.id }, row);
-    if (!lf && aperto) { const ul = h('ul', { class: 'trl', 'data-parent': n.id }); figli(n.id).forEach(c => ul.append(rigaNodo(c))); li.append(ul); }
+    if (det) li.append(dettagliNodo(n));
+    if (!lf && aperto) { const ul = h('ul', { class: 'trl', 'data-parent': n.id }); figli(n.id).filter(passaArea).forEach(c => ul.append(rigaNodo(c))); li.append(ul); }
     else if (lf && S.mod) li.append(h('ul', { class: 'trl vuoto', 'data-parent': n.id }));
     return li;
   }
@@ -680,10 +759,14 @@
     const lista = $('#strLista');
     $('#strInfo').textContent = adm ? 'Albero completo dell\'evento · max ' + maxLivelli() + ' livelli'
       : (puoMod ? 'I rami di cui sei responsabile e le tue attività' : 'Le attività in cui sei incaricato');
+    const ar = areeEv(), sa = $('#strArea');
+    if (S.areaF && !ar.includes(S.areaF)) S.areaF = '';
+    sa.classList.toggle('hidden', !ar.length);
+    sa.replaceChildren(h('option', { value: '' }, 'Tutte le aree'), ...ar.map(a => h('option', { value: a }, a))); sa.value = S.areaF;
     S.sort.forEach(x => x.destroy()); S.sort = [];
     const nuovo = adm && S.mod ? h('div', { style: 'margin-bottom:10px' }, (() => { const b = h('button', { class: 'btn need-net', type: 'button' }, '+ Nuovo ramo di primo livello'); b.addEventListener('click', () => apriNodo(null, null)); return b; })()) : '';
     const radice = h('ul', { class: 'trl' });
-    figli(null).forEach(n => radice.append(rigaNodo(n)));
+    figli(null).filter(passaArea).forEach(n => radice.append(rigaNodo(n)));
     lista.replaceChildren(...[nuovo, S.nodi.length ? radice : h('p', { class: 'sec' }, adm ? 'Nessun ramo: crea il primo con "Modifica struttura".' : 'Nessuna attività assegnata per questo evento.')].filter(Boolean));
     if (S.mod && window.Sortable) lista.querySelectorAll('ul.trl').forEach(ul => S.sort.push(new window.Sortable(ul, {
       group: 'albero', handle: '.hd', animation: 150, forceFallback: true, fallbackOnBody: true, swapThreshold: 0.65, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
@@ -784,50 +867,134 @@
 
 
   // ---------- scheda attività (foglia) ----------
-  S.att = null; S.attInc = [];
-  const STATI = { da_fare: 'Da fare', in_corso: 'In corso', fatto: 'Fatto', finito: 'Finito (confermato dal responsabile)' };
+  S.att = null; S.attInc = []; S.bozza = null; S.ckRighe = [];
+  const STATI = { da_fare: 'Da fare', in_corso: 'In corso', fatto: 'Fatto', finito: 'Finito (confermato dall\'amministratore)' };
   const chiudiScheda = () => $('#modAtt').classList.add('hidden');
   function erroreScheda(m) { $('#aErr').textContent = m; $('#aErr').classList.remove('hidden'); }
+  const errDb = m => (/find the (table|function)|schema cache|does not exist|column/i.test(m || '') ? 'Database non aggiornato: riesegui lo script db/01_schema_sdm_eventi.sql nell\'SQL Editor di Supabase (' + m + ')' : m);
+  // confronto di valori JSON indipendente dall'ordine delle chiavi
+  const stab = v => JSON.stringify(v === undefined ? null : v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x)) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : 1))) : x);
+  const idRiga = () => 'r' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3);
 
   function campo(etich, el) { return h('div', {}, h('label', {}, etich), el); }
   function testo(v, vuoto) { return h('div', { style: 'padding:8px 0' }, v || h('span', { class: 'sec' }, vuoto || '—')); }
+  function flag(id, etich, on) { const c = h('input', { type: 'checkbox', id }); c.checked = !!on; return h('label', { class: 'flag' }, c, ' ' + etich); }
 
-  function apriScheda(id) {
-    const n = nodo(id); if (!n) return;
-    S.att = n; S.attInc = (S.inc[id] || []).map(x => ({ ...x }));
-    const me = stato.persona.id, ed = canEdit(n), isInc = S.attInc.some(x => x.persona_id === me), chiuso = n.stato === 'finito';
-    const puoStato = ed || (isInc && !chiuso);
+  // apriScheda(id)            apre la scheda
+  // apriScheda(id, true)      propone una copia (stesso livello) con la descrizione vuota
+  // apriScheda(id, false, true) come la prima, scorrendo fino alla check-list
+  function apriScheda(id, duplica, vaiCheck) {
+    const orig = nodo(id); if (!orig) return;
+    const bozza = !!duplica;
+    const n = bozza ? { ...orig, id: null, descrizione: null, stato: 'da_fare', checklist_esito: {} } : orig;
+    S.att = n; S.bozza = bozza ? orig : null;
+    S.attInc = (S.inc[id] || []).map(x => bozza ? { id: null, persona_id: x.persona_id, nota: '' } : { ...x });
+    S.ckRighe = righeCheck(n).map(r => ({ ...r }));
+    const me = stato.persona.id, adm = isAdmin(), ed = bozza || canEdit(n), isInc = !bozza && S.attInc.some(x => x.persona_id === me), chiuso = n.stato === 'finito';
+    const puoStato = adm || (!chiuso && (ed || isInc));
     const corpo = [];
     if (ed) {
       corpo.push(campo('Titolo *', h('input', { type: 'text', id: 'aTit', maxlength: '120', value: n.titolo })),
-        campo('Descrizione', h('input', { type: 'text', id: 'aDes', maxlength: '500', value: n.descrizione || '' })),
+        campo('Descrizione', h('input', { type: 'text', id: 'aDes', maxlength: '500', value: n.descrizione || '', placeholder: bozza ? 'Da compilare per la nuova attività' : '' })),
         campo('Note', h('input', { type: 'text', id: 'aNot', maxlength: '1000', value: n.note || '' })));
     } else {
       corpo.push(campo('Attività', testo(h('b', {}, n.titolo))), campo('Descrizione', testo(n.descrizione)), campo('Note', testo(n.note)));
     }
-    const selStato = h('select', { class: 'f', id: 'aStato' }, ...['da_fare', 'in_corso', 'fatto', ...(ed || chiuso ? ['finito'] : [])]
+    const selStato = h('select', { class: 'f', id: 'aStato' }, ...['da_fare', 'in_corso', 'fatto', ...(adm || chiuso ? ['finito'] : [])]
       .map(k => { const o = h('option', { value: k }, STATI[k]); if (n.stato === k) o.selected = true; return o; }));
     if (!puoStato) selStato.disabled = true;
     corpo.push(h('div', { class: 'grid2' },
       campo('Scadenza', ed ? h('input', { type: 'date', id: 'aScad', value: n.scadenza || '' }) : testo(n.scadenza ? fmtData(n.scadenza) : '')),
       campo('Stato', selStato)));
-    if (!ed && chiuso) corpo.push(h('p', { class: 'note' }, 'Questa attività è stata confermata come finita dal responsabile: solo lui può riaprirla.'));
-    if (!ed && !chiuso && isInc) corpo.push(h('p', { class: 'note' }, 'Puoi indicare "Fatto": sarà il responsabile a confermare "Finito".'));
+    // area
+    const ar = areeEv();
+    if (ed) {
+      const opz = [h('option', { value: '' }, 'Tutte'), ...ar.map(a => h('option', { value: a }, a))];
+      if (n.area && !ar.includes(n.area)) opz.push(h('option', { value: n.area }, n.area + ' (non più nell\'elenco)'));
+      const sa = h('select', { class: 'f', id: 'aArea' }, ...opz); sa.value = n.area || '';
+      corpo.push(campo('Area', sa), h('p', { class: 'note', style: 'margin-top:-4px' }, '"Tutte" = l\'attività vale per qualsiasi area dell\'evento.' + (ar.length ? '' : ' Le aree si definiscono nell\'anagrafica dell\'evento.')));
+    } else corpo.push(campo('Area', testo(n.area || 'Tutte')));
+    if (!adm && chiuso) corpo.push(h('p', { class: 'note' }, 'Questa attività è stata confermata come finita dall\'amministratore: solo lui può riaprirla.'));
+    if (!adm && !chiuso && (ed || isInc)) corpo.push(h('p', { class: 'note' }, 'Puoi indicare "Fatto": sarà l\'amministratore a confermare "Finito".'));
+
+    // check-list: compilazione (tutti gli incaricati) e definizione (chi può modificare)
+    if (!bozza && righeCheck(n).length) corpo.push(h('div', { class: 'ckfill', id: 'aCompila' }));
+    if (ed) {
+      corpo.push(h('div', { class: 'so' }, flag('aCkOn', 'Questa attività ha una check-list', !!n.checklist),
+        h('div', { id: 'aCkBox', class: 'ckbox' + (n.checklist ? '' : ' hidden') },
+          campo('Descrizione della check-list', h('input', { type: 'text', id: 'aCkDes', maxlength: '300', value: (n.checklist && n.checklist.descrizione) || '', placeholder: 'Es. Controllo materiale prima dell\'evento' })),
+          h('label', {}, 'Voci (descrizione e quantità prevista)'), h('div', { id: 'aCkRighe' }),
+          (() => { const b = h('button', { class: 'btn sec', type: 'button', id: 'aCkAdd', style: 'margin-top:6px' }, '+ Aggiungi voce'); b.addEventListener('click', () => { if (S.ckRighe.length >= 100) return; S.ckRighe.push({ id: idRiga(), testo: '', qta: null }); renderCkRighe(); const l = $('#aCkRighe').querySelectorAll('input[type=text]'); if (l.length) l[l.length - 1].focus(); }); return b; })())));
+    }
+    // sponsor (solo amministratori)
+    if (adm) {
+      const sp = S.sponsor[bozza ? orig.id : n.id] || null;
+      corpo.push(h('div', { class: 'so' }, flag('aSpOn', 'Questa attività ha uno sponsor', !!sp),
+        h('div', { id: 'aSpBox', class: 'ckbox' + (sp ? '' : ' hidden') },
+          h('div', { class: 'grid2' }, campo('Nome fornitore *', h('input', { type: 'text', id: 'aSpFor', maxlength: '120', value: (sp && sp.fornitore) || '' })), campo('Nome referente', h('input', { type: 'text', id: 'aSpRef', maxlength: '120', value: (sp && sp.referente) || '' }))),
+          h('div', { class: 'grid2' }, campo('Cellulare', h('input', { type: 'tel', id: 'aSpCel', maxlength: '40', value: (sp && sp.cellulare) || '' })), campo('Importo del contributo (€)', h('input', { type: 'number', id: 'aSpImp', min: '0', step: '0.01', inputmode: 'decimal', value: sp && sp.importo != null ? sp.importo : '' }))))));
+    }
     corpo.push(h('label', {}, 'Persone incaricate'), h('div', { id: 'aInc' }));
     if (ed) corpo.push(h('div', { style: 'display:flex;gap:8px;margin-top:8px' }, h('select', { class: 'f', id: 'aIncSel', style: 'flex:1' }),
       (() => { const b = h('button', { class: 'btn sec need-net', type: 'button' }, '+ Aggiungi'); b.addEventListener('click', aggiungiIncarico); return b; })()));
-    $('#aTitH').textContent = n.titolo; $('#aPerc').textContent = percorsoTxt(n);
+    $('#aTitH').textContent = bozza ? 'Duplica attività' : n.titolo;
+    $('#aPerc').textContent = bozza ? 'Copia di: ' + percorsoTxt(orig) + ' — stesso livello, subito dopo l\'originale' : (numTxt(n) ? numTxt(n) + ' · ' : '') + percorsoTxt(n);
+    $('#aSalva').textContent = bozza ? 'Crea la copia' : 'Salva';
     $('#aCorpo').replaceChildren(...corpo); $('#aErr').classList.add('hidden');
-    if (!navigator.onLine) $('#aCorpo').querySelectorAll('#aTit,#aDes,#aNot,#aScad').forEach(i => { i.disabled = true; });
+    if (ed) {
+      $('#aCkOn').addEventListener('change', e => { $('#aCkBox').classList.toggle('hidden', !e.target.checked); if (e.target.checked && !S.ckRighe.length) { S.ckRighe.push({ id: idRiga(), testo: '', qta: null }); renderCkRighe(); } });
+      renderCkRighe();
+    }
+    if (adm) $('#aSpOn').addEventListener('change', e => $('#aSpBox').classList.toggle('hidden', !e.target.checked));
+    if (!navigator.onLine) $('#aCorpo').querySelectorAll('#aTit,#aDes,#aNot,#aScad,#aArea,.so input,.so select,.so button').forEach(i => { i.disabled = true; });
     $('#aSalva').classList.toggle('hidden', !(ed || puoStato || isInc));
     renderIncarichi();
+    if (!bozza) renderCompila(n, adm || (puoStato && (ed || isInc)));
     $('#modAtt').classList.remove('hidden');
+    if (vaiCheck) setTimeout(() => { const c = $('#aCompila'); if (c) c.scrollIntoView({ block: 'center' }); }, 60);
+  }
+
+  // definizione della check-list (modifica delle voci)
+  function renderCkRighe() {
+    const box = $('#aCkRighe'); if (!box) return;
+    box.replaceChildren(...S.ckRighe.map((r, i) => {
+      const t = h('input', { type: 'text', maxlength: '200', value: r.testo || '', placeholder: 'Voce ' + (i + 1), style: 'flex:1;min-width:0' });
+      const q = h('input', { type: 'number', min: '0', step: 'any', inputmode: 'decimal', value: r.qta == null ? '' : r.qta, placeholder: 'Q.tà', style: 'width:90px;flex:none' });
+      t.addEventListener('input', () => { r.testo = t.value; }); q.addEventListener('input', () => { r.qta = q.value === '' ? null : Number(q.value); });
+      const x = h('button', { class: 'ib dn', type: 'button', title: 'Togli la voce' }, '✕'); x.addEventListener('click', () => { S.ckRighe.splice(i, 1); renderCkRighe(); });
+      return h('div', { style: 'display:flex;gap:6px;align-items:center;margin-bottom:6px' }, t, q, x);
+    }));
+    const add = $('#aCkAdd'); if (add) add.disabled = S.ckRighe.length >= 100;
+  }
+
+  // compilazione della check-list: spunta + quantità rilevata, anche offline (parte con la coda)
+  function renderCompila(n, puo) {
+    const box = $('#aCompila'); if (!box) return;
+    const rc = righeCheck(n);
+    const prog = h('b', {}, '');
+    const agg = () => { prog.textContent = checkFatte(n) + '/' + rc.length; };
+    box.replaceChildren(h('div', { class: 'row', style: 'margin-bottom:6px' }, h('b', {}, '☑ Check-list'), h('span', { class: 'badge' }, prog)),
+      n.checklist.descrizione ? h('p', { class: 'sec', style: 'margin:0 0 8px' }, n.checklist.descrizione) : '',
+      ...rc.map(r => {
+        const e = esitoRiga(n, r.id);
+        const cb = h('input', { type: 'checkbox', 'aria-label': r.testo }); cb.checked = !!e.ok; cb.disabled = !puo;
+        const q = h('input', { type: 'number', min: '0', step: 'any', inputmode: 'decimal', value: e.qta == null ? '' : e.qta, placeholder: r.qta == null ? 'Q.tà' : String(r.qta), style: 'width:96px;flex:none' }); q.disabled = !puo;
+        const invia = () => {
+          accodaModifica('nodo_check', n.id, { ok: cb.checked, qta: q.value === '' ? null : Number(q.value) },
+            { sub: r.id, nodo: n.id, titolo: n.titolo, percorso: percorsoTxt(n), etichetta: 'Check-list “' + r.testo + '”' });
+          agg();
+        };
+        cb.addEventListener('change', invia); q.addEventListener('change', invia);
+        return h('div', { class: 'ckr' }, cb, h('span', { class: 'ckt' }, r.testo, r.qta == null ? '' : h('small', { class: 'sec' }, ' · previste ' + r.qta)), q);
+      }));
+    agg();
+    if (!puo) box.append(h('p', { class: 'note' }, 'Sola lettura.'));
   }
 
   function leggiNoteScheda() { $('#aInc').querySelectorAll('[data-pid]').forEach(i => { const w = S.attInc.find(x => x.persona_id === i.dataset.pid); if (w) w.nota = i.value; }); }
 
   function renderIncarichi() {
-    const n = S.att, me = stato.persona.id, ed = canEdit(n);
+    const n = S.att, me = stato.persona.id, ed = !!S.bozza || canEdit(n);
     const righe = S.attInc.map(x => {
       const mia = x.persona_id === me, modif = ed || mia;
       const riga = h('div', { class: 'row', style: 'align-items:flex-start;flex-wrap:wrap' },
@@ -855,17 +1022,51 @@
 
   async function salvaScheda(ev) {
     ev.preventDefault();
-    const n = S.att, ed = canEdit(n), me = stato.persona.id;
+    const n = S.att, bozza = !!S.bozza, ed = bozza || canEdit(n), me = stato.persona.id, adm = isAdmin();
     leggiNoteScheda();
-    const rec = {};
+    const rec = {}; let sp;   // sp: undefined = non toccare, null = nessuno sponsor, oggetto = dati sponsor
     if (ed) {
       rec.titolo = $('#aTit').value.trim();
       if (!rec.titolo) { erroreScheda('Il titolo è obbligatorio.'); return; }
       rec.descrizione = $('#aDes').value.trim() || null; rec.note = $('#aNot').value.trim() || null; rec.scadenza = $('#aScad').value || null;
+      rec.area = $('#aArea').value || null;
+      if ($('#aCkOn').checked) {
+        const righe = S.ckRighe.map(r => ({ id: r.id, testo: (r.testo || '').trim(), qta: (r.qta === '' || r.qta == null || isNaN(r.qta)) ? null : Number(r.qta) })).filter(r => r.testo);
+        if (!righe.length) { erroreScheda('La check-list è attiva ma non ha voci: aggiungine almeno una oppure togli il flag.'); return; }
+        rec.checklist = { descrizione: $('#aCkDes').value.trim(), righe };
+      } else rec.checklist = null;
+      if (adm) {
+        if ($('#aSpOn').checked) {
+          const f = $('#aSpFor').value.trim(), imp = $('#aSpImp').value.trim().replace(',', '.');
+          if (!f) { erroreScheda('Indica il nome del fornitore sponsor oppure togli il flag.'); return; }
+          if (imp !== '' && (isNaN(Number(imp)) || Number(imp) < 0)) { erroreScheda('L\'importo dello sponsor non è valido.'); return; }
+          sp = { fornitore: f, referente: $('#aSpRef').value.trim() || null, cellulare: $('#aSpCel').value.trim() || null, importo: imp === '' ? null : Math.round(Number(imp) * 100) / 100 };
+        } else sp = null;
+      }
     }
     const st = $('#aStato');
     const statoNuovo = (!st.disabled && st.value !== n.stato) ? st.value : null;
-    const diff = Object.fromEntries(Object.entries(rec).filter(([k, v]) => (v === undefined ? null : v) !== (n[k] === undefined ? null : n[k])));
+    if (bozza) {
+      if (!navigator.onLine) { erroreScheda('Serve la connessione per duplicare l\'attività.'); return; }
+      const orig = S.bozza, b = $('#aSalva'); b.disabled = true;
+      let errore = null;
+      const ins = await stato.sb.from('nodi').insert({ ...rec, evento_id: stato.evento, parent_id: orig.parent_id, responsabile_id: orig.responsabile_id, stato: st.value || 'da_fare', posizione: orig.posizione + 1 }).select('id').single();
+      if (ins.error) errore = ins.error.message;
+      else {
+        const nid = ins.data.id;
+        if (S.attInc.length) { const r = await stato.sb.from('incarichi').insert(S.attInc.map(w => ({ nodo_id: nid, persona_id: w.persona_id, nota: (w.nota || '').trim() || null }))); if (r.error) errore = r.error.message; }
+        if (!errore && sp) { const r = await stato.sb.from('nodi_sponsor').upsert({ nodo_id: nid, ...sp }, { onConflict: 'nodo_id' }); if (r.error) errore = r.error.message; }
+        if (!errore) { const r = await stato.sb.rpc('sposta_nodo', { _nodo: nid, _padre: orig.parent_id, _indice: figli(orig.parent_id).findIndex(x => x.id === orig.id) + 1 }); if (r.error) errore = r.error.message; }
+      }
+      b.disabled = false;
+      if (errore) { erroreScheda('Duplicazione non riuscita: ' + errDb(errore)); await aggiornaTutto(); return; }
+      chiudiScheda(); await aggiornaTutto(); toast('Attività duplicata');
+      return;
+    }
+    const diff = Object.fromEntries(Object.entries(rec).filter(([k, v]) => stab(v) !== stab(n[k])));
+    const spOrig = S.sponsor[n.id] || null;
+    const spNorm = o => o && { fornitore: o.fornitore || '', referente: o.referente || null, cellulare: o.cellulare || null, importo: o.importo == null ? null : Number(o.importo) };
+    const spCambia = sp !== undefined && stab(spNorm(sp)) !== stab(spNorm(spOrig));
     const orig = S.inc[n.id] || [];
     let tolti = [], aggiunti = [], cambiatiAltri = [], miaNota = null;
     const mioW = S.attInc.find(w => w.persona_id === me), mioO = orig.find(o => o.persona_id === me);
@@ -875,8 +1076,8 @@
       aggiunti = S.attInc.filter(w => !orig.some(o => o.persona_id === w.persona_id));
       cambiatiAltri = S.attInc.filter(w => { const o = orig.find(o => o.persona_id === w.persona_id); return w.persona_id !== me && o && (o.nota || '') !== (w.nota || ''); });
     }
-    const strutturale = Object.keys(diff).length || tolti.length || aggiunti.length || cambiatiAltri.length;
-    if (strutturale && !navigator.onLine) { erroreScheda('Senza connessione puoi cambiare solo lo stato e la tua nota. Per le altre modifiche serve la rete.'); return; }
+    const strutturale = Object.keys(diff).length || tolti.length || aggiunti.length || cambiatiAltri.length || spCambia;
+    if (strutturale && !navigator.onLine) { erroreScheda('Senza connessione puoi cambiare solo lo stato, la tua nota e la check-list. Per le altre modifiche serve la rete.'); return; }
     const b = $('#aSalva'); b.disabled = true;
     let errore = null;
     const esegui = async p => { if (errore) return; const r = await p; if (r.error) errore = r.error.message; };
@@ -884,8 +1085,9 @@
     for (const o of tolti) await esegui(stato.sb.from('incarichi').delete().eq('id', o.id));
     if (aggiunti.length) await esegui(stato.sb.from('incarichi').insert(aggiunti.map(w => ({ nodo_id: n.id, persona_id: w.persona_id, nota: (w.nota || '').trim() || null }))));
     for (const w of cambiatiAltri) await esegui(stato.sb.from('incarichi').update({ nota: (w.nota || '').trim() || null }).eq('id', w.id));
+    if (spCambia) await esegui(sp === null ? stato.sb.from('nodi_sponsor').delete().eq('nodo_id', n.id) : stato.sb.from('nodi_sponsor').upsert({ nodo_id: n.id, ...sp, aggiornato_il: new Date().toISOString() }, { onConflict: 'nodo_id' }));
     b.disabled = false;
-    if (errore) { erroreScheda('Salvataggio non riuscito: ' + errore); await aggiornaTutto(); return; }
+    if (errore) { erroreScheda('Salvataggio non riuscito: ' + errDb(errore)); await aggiornaTutto(); return; }
     chiudiScheda();
     if (strutturale) await aggiornaTutto();
     // stato e propria nota passano dalla coda: funzionano anche offline
@@ -924,14 +1126,15 @@
 
   function applicaOpLocale(o) {
     if (o.tipo === 'nodo_stato') { const n = S.nodi.find(x => x.id === o.id); if (n) n.stato = o.valore; }
+    else if (o.tipo === 'nodo_check') { const n = S.nodi.find(x => x.id === o.id); if (n) n.checklist_esito = { ...(n.checklist_esito || {}), [o.sub]: { ...o.valore, ts: o.ts } }; }
     else Object.values(S.inc).forEach(l => { const x = l.find(i => i.id === o.id); if (x) x.nota = o.valore; });
   }
   const sovrapponiCoda = () => codaMia().filter(o => o.ev === stato.evento).forEach(applicaOpLocale);
-  const salvaCacheStruttura = () => LS.set('sdm_struttura_' + stato.evento, { n: S.nodi, i: S.inc, m: S.nomi, a: S.assegnabili });
+  const salvaCacheStruttura = () => LS.set('sdm_struttura_' + stato.evento, { n: S.nodi, i: S.inc, m: S.nomi, a: S.assegnabili, u: S.num, s: S.sponsor });
 
   function accodaModifica(tipo, id, valore, extra) {
     const coda = LS.get(CODA) || [], uid = stato.persona.uid;
-    const resto = coda.filter(o => !(o.uid === uid && o.tipo === tipo && o.id === id));
+    const resto = coda.filter(o => !(o.uid === uid && o.tipo === tipo && o.id === id && (o.sub || '') === ((extra && extra.sub) || '')));
     const op = { op_id: uuid(), uid, tipo, id, valore, ts: new Date().toISOString(), ev: stato.evento, ...extra };
     resto.push(op); LS.set(CODA, resto);
     applicaOpLocale(op); salvaCacheStruttura();
@@ -963,7 +1166,7 @@
       if (mie.length) {
         await misuraOffset();
         const off = LS.get('sdm_offset') || 0;
-        const ops = mie.map(o => ({ op_id: o.op_id, tipo: o.tipo, id: o.id, valore: o.valore, ts: new Date(Date.parse(o.ts) + off).toISOString() }));
+        const ops = mie.map(o => ({ op_id: o.op_id, tipo: o.tipo, id: o.id, sub: o.sub, valore: o.valore, ts: new Date(Date.parse(o.ts) + off).toISOString() }));
         const { data, error } = await stato.sb.rpc('applica_modifiche', { _ops: ops });
         if (error) throw error;
         const esiti = new Map((data || []).map(r => [r.op_id, r]));
@@ -971,7 +1174,7 @@
         const rev = LS.get(RIVEDERE) || [];
         mie.forEach(o => {
           const e = esiti.get(o.op_id);
-          if (e && e.esito !== 'ok') rev.push({ id: o.op_id, uid: o.uid, tipo: o.tipo, rif: o.id, nodo: o.nodo, ev: o.ev, titolo: o.titolo, percorso: o.percorso, etichetta: o.etichetta, valore: o.valore, t: o.ts, esito: e.esito, motivo: e.motivo });
+          if (e && e.esito !== 'ok') rev.push({ id: o.op_id, uid: o.uid, tipo: o.tipo, rif: o.id, sub: o.sub, nodo: o.nodo, ev: o.ev, titolo: o.titolo, percorso: o.percorso, etichetta: o.etichetta, valore: o.valore, t: o.ts, esito: e.esito, motivo: e.motivo });
         });
         LS.set(RIVEDERE, rev);
         LS.set(CODA, (LS.get(CODA) || []).filter(o => !(inviati.has(o.op_id) && esiti.has(o.op_id))));
@@ -989,7 +1192,8 @@
   }
 
   function dettaglioOp(o) {
-    return o.tipo === 'nodo_stato' ? (STATI[o.valore] || o.valore).replace(' (confermato dal responsabile)', '') : (o.valore ? '“' + String(o.valore).slice(0, 80) + '”' : '(nota vuota)');
+    if (o.tipo === 'nodo_check') return (o.valore && o.valore.ok ? '☑ fatta' : '☐ non fatta') + (o.valore && o.valore.qta != null ? ' · q.tà ' + o.valore.qta : '');
+    return o.tipo === 'nodo_stato' ? (STATI[o.valore] || o.valore).replace(' (confermato dall\'amministratore)', '') : (o.valore ? '“' + String(o.valore).slice(0, 80) + '”' : '(nota vuota)');
   }
   function renderRivedere() {
     const l = rivedereMio().sort((a, b) => Date.parse(b.t) - Date.parse(a.t));
@@ -998,7 +1202,7 @@
       const bt = h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' });
       if (o.esito === 'superata') {
         const r = h('button', { class: 'btn sec', type: 'button' }, 'Riapplica la mia modifica');
-        r.addEventListener('click', () => { rimuovi(o.id); if (o.ev === stato.evento) accodaModifica(o.tipo, o.rif, o.valore, { nodo: o.nodo, titolo: o.titolo, percorso: o.percorso, etichetta: o.etichetta }); else toast('Apri l\'evento "' + o.percorso + '" per riapplicare'); });
+        r.addEventListener('click', () => { rimuovi(o.id); if (o.ev === stato.evento) accodaModifica(o.tipo, o.rif, o.valore, { sub: o.sub, nodo: o.nodo, titolo: o.titolo, percorso: o.percorso, etichetta: o.etichetta }); else toast('Apri l\'evento "' + o.percorso + '" per riapplicare'); });
         bt.append(r);
       }
       const ok = h('button', { class: 'btn sec', type: 'button' }, 'Ho capito'); ok.addEventListener('click', () => rimuovi(o.id)); bt.append(ok);
@@ -1061,9 +1265,16 @@
     ordina(); S.pend = nodiInAttesa();
     const adm = isAdmin(), me = stato.persona.id, op = isOperatore();
     $('#homeTop').classList.toggle('hidden', op);
-    const tutte = S.nodi.filter(isLeaf);
+    const tutte = S.nodi.filter(isLeaf).filter(passaArea);
     const gestisco = adm ? tutte : tutte.filter(canEdit);
     const out = [];
+    const ar = areeEv();
+    if (ar.length) {   // filtro per area: vedi le attività dell'area scelta e quelle "Tutte"
+      if (S.areaF && !ar.includes(S.areaF)) S.areaF = '';
+      const sa = h('select', { class: 'f', style: 'width:auto;margin:0 0 10px', 'aria-label': 'Filtra per area' }, h('option', { value: '' }, 'Tutte le aree'), ...ar.map(a => h('option', { value: a }, a)));
+      sa.value = S.areaF; sa.addEventListener('change', () => { S.areaF = sa.value; renderHome(); renderStruttura(); });
+      out.push(sa);
+    }
     if (!op) {
       const c = conteggio(gestisco);
       out.push(h('div', { class: 'card sum' }, h('div', { class: 'r1' }, h('div', { class: 'big' }, c.perc + '%'),
@@ -1080,8 +1291,8 @@
         ...elenco.map(n => { const l = h('div', { class: 'ln', style: 'border:0' }, h('div', { class: 'tt' }, h('b', {}, n.titolo), h('small', {}, percorsoTxt(n) + (nomiInc(n).length ? ' · ' + nomiInc(n).join(', ') : ''))), badgeScad(n)); l.addEventListener('click', () => apriScheda(n.id)); return l; })))));
       // da confermare
       const dc = gestisco.filter(n => n.stato === 'fatto');
-      out.push(h('div', { class: 'card conf' }, h('h2', {}, 'Da confermare' + (dc.length ? ' (' + dc.length + ')' : '')), ...(dc.length ? dc.map(n => {
-        const b = h('button', { class: 'bt2', type: 'button' }, '✔ Finito'); b.addEventListener('click', () => statoRapido(n, 'finito'));
+      out.push(h('div', { class: 'card conf' }, h('h2', {}, (adm ? 'Da confermare' : 'In attesa di conferma dell\'amministratore') + (dc.length ? ' (' + dc.length + ')' : '')), ...(dc.length ? dc.map(n => {
+        const b = adm ? h('button', { class: 'bt2', type: 'button' }, '✔ Finito') : h('span', { class: 'badge ok' }, 'fatto'); if (adm) b.addEventListener('click', () => statoRapido(n, 'finito'));
         const r = h('div', { class: 'row' }, h('div', { style: 'min-width:0;cursor:pointer' }, h('b', {}, n.titolo), h('div', { class: 'sec', style: 'font-size:12px' }, (nomiInc(n).join(', ') || '—') + ' · ' + radice(n).titolo)), b);
         r.firstChild.addEventListener('click', () => apriScheda(n.id)); return r;
       }) : [h('div', { class: 'sec' }, 'Nessuna attività in attesa di conferma ✓')])));
@@ -1103,8 +1314,8 @@
         gh.addEventListener('click', () => { if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); });
         const gr = h('div', { class: 'gr' }, gh);
         if (aperto) gr.append(h('div', { class: 'det' }, ...g.l.map(n => {
-          const ln = h('div', { class: 'ln' }, h('div', { class: 'tt' }, h('b', {}, n.titolo), h('small', {}, homeVista === 'persona' ? percorsoTxt(n) : (nomiInc(n).join(', ') || 'nessun incaricato'))), badgeScad(n),
-            ...(n.stato === 'fatto' ? [(() => { const b = h('button', { class: 'bt2', type: 'button' }, '✔ Finito'); b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); }); return b; })()] : [badgeStato(n.stato)]));
+          const ln = h('div', { class: 'ln' }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, homeVista === 'persona' ? percorsoTxt(n) : (nomiInc(n).join(', ') || 'nessun incaricato'))), badgeScad(n),
+            ...(n.stato === 'fatto' && adm ? [(() => { const b = h('button', { class: 'bt2', type: 'button' }, '✔ Finito'); b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); }); return b; })()] : [badgeStato(n.stato)]));
           ln.addEventListener('click', () => apriScheda(n.id)); return ln;
         })));
         return gr;
@@ -1120,17 +1331,19 @@
     if (op || mie.length) {
       out.push(h('div', { class: 'top', style: 'margin-top:' + (op ? '0' : '6px') }, op ? h('h1', {}, 'Le mie attività') : h('h2', { style: 'margin:0;font-size:16px' }, 'Le mie attività'), h('span', { class: 'chip2' }, aperte + (aperte === 1 ? ' aperta' : ' aperte'))));
       out.push(...(lista.length ? lista.map(n => {
-        const chiuso = n.stato === 'finito', puoFin = canEdit(n);
-        const sel = h('select', { class: 'st' }, ...['da_fare', 'in_corso', 'fatto', ...(puoFin || chiuso ? ['finito'] : [])].map(k => { const o = h('option', { value: k }, STATI[k].replace(' (confermato dal responsabile)', '')); if (n.stato === k) o.selected = true; if (chiuso && !puoFin && k !== 'finito') o.disabled = true; return o; }));
+        const chiuso = n.stato === 'finito', puoFin = adm;
+        const sel = h('select', { class: 'st' }, ...['da_fare', 'in_corso', 'fatto', ...(puoFin || chiuso ? ['finito'] : [])].map(k => { const o = h('option', { value: k }, STATI[k].replace(' (confermato dall\'amministratore)', '')); if (n.stato === k) o.selected = true; if (chiuso && !puoFin && k !== 'finito') o.disabled = true; return o; }));
         if (chiuso && !puoFin) sel.disabled = true;
         sel.addEventListener('change', () => statoRapido(n, sel.value));
         const nota = h('button', { class: 'ib', type: 'button' }, '✎ Nota' + (((S.inc[n.id] || []).find(x => x.persona_id === me) || {}).nota ? ' •' : '')); nota.addEventListener('click', () => apriScheda(n.id));
-        const t1 = h('div', { class: 't1' }, h('b', {}, n.titolo), badgeScad(n)), t2 = h('div', { class: 't2' }, percorsoTxt(n));
+        const t1 = h('div', { class: 't1' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), badgeScad(n)), t2 = h('div', { class: 't2' }, percorsoTxt(n) + (n.area ? ' · Area: ' + n.area : ''));
         t1.addEventListener('click', () => apriScheda(n.id)); t2.addEventListener('click', () => apriScheda(n.id));
-        return h('div', { class: 'it' }, t1, t2, h('div', { class: 't3' }, sel, nota, S.pend.has(n.id) ? h('span', { class: 'pend' }, '⏳ in attesa') : ''));
+        const rc = righeCheck(n), ck = rc.length ? h('button', { class: 'ib ck', type: 'button', title: 'Check-list' }, '☑ ' + checkFatte(n) + '/' + rc.length) : '';
+        if (ck) ck.addEventListener('click', () => apriScheda(n.id, false, true));
+        return h('div', { class: 'it' }, t1, t2, h('div', { class: 't3' }, sel, ck, nota, S.pend.has(n.id) ? h('span', { class: 'pend' }, '⏳ in attesa') : ''));
       }) : [h('p', { class: 'sec', style: 'text-align:center' }, mie.length ? 'Tutte le tue attività sono finite. 🎉' : 'Non hai attività assegnate in questo evento.')]));
       if (nFin) { const a = h('a', { href: '#' }, (homeFinite ? 'Nascondi' : 'Mostra') + ' le attività finite (' + nFin + ')'); a.addEventListener('click', e => { e.preventDefault(); homeFinite = !homeFinite; renderHome(); }); out.push(h('p', { class: 'sec', style: 'text-align:center' }, a)); }
-      if (op) out.push(h('p', { class: 'note', style: 'text-align:center' }, 'Tocca "Nota" per scrivere cosa hai fatto. Le modifiche partono da sole appena c\'è rete.'));
+      if (op) out.push(h('p', { class: 'note', style: 'text-align:center' }, 'Tocca "Nota" per scrivere cosa hai fatto e ☑ per compilare la check-list. Le modifiche partono da sole appena c\'è rete.'));
     }
     box.replaceChildren(...out);
   }
@@ -1287,14 +1500,14 @@
     let pers = []; try { pers = await personeDB(); } catch (e) { /* senza rete: niente email */ }
     const mail = new Map(pers.map(p => [p.id, p.email]));
     ordina();
-    const righe = [COL_STR];
+    const righe = [['N.', ...COL_STR, 'Area']];
     const giu = (pid, path) => figli(pid).forEach(n => {
       const p = [...path, n.titolo], lv = Array.from({ length: 10 }, (_, i) => p[i] || '');
-      righe.push([...lv, n.descrizione || '', n.note || '', mail.get(n.responsabile_id) || '', ddmmyyyy(n.scadenza), isLeaf(n) ? LAB_STATO[n.stato] : '', (S.inc[n.id] || []).map(x => mail.get(x.persona_id) || nomeP(x.persona_id)).join('; ')]);
+      righe.push([numTxt(n), ...lv, n.descrizione || '', n.note || '', mail.get(n.responsabile_id) || '', ddmmyyyy(n.scadenza), isLeaf(n) ? LAB_STATO[n.stato] : '', (S.inc[n.id] || []).map(x => mail.get(x.persona_id) || nomeP(x.persona_id)).join('; '), isLeaf(n) ? (n.area || 'Tutte') : '']);
       giu(n.id, p);
     });
     giu(null, []);
-    scaricaFile('struttura_' + (eventoCorrente() ? eventoCorrente().titolo.replace(/[^\w\-]+/g, '_') : 'evento') + '.xlsx', [{ nome: 'Struttura', righe, larghezze: [...Array(10).fill(16), 30, 30, 26, 12, 10, 40] }]);
+    scaricaFile('struttura_' + (eventoCorrente() ? eventoCorrente().titolo.replace(/[^\w\-]+/g, '_') : 'evento') + '.xlsx', [{ nome: 'Struttura', righe, larghezze: [8, ...Array(10).fill(16), 30, 30, 26, 12, 10, 40, 14] }]);
   }
   function modelloStruttura() {
     scaricaFile('modello_struttura.xlsx', [
@@ -1302,7 +1515,7 @@
         ['Logistica', '', '', '', '', '', '', '', '', '', 'Tutto l\'allestimento', '', 'anna.rossi@esempio.it', '', '', ''],
         ['Logistica', 'Sedie', '', '', '', '', '', '', '', '', 'Sedie per il pubblico', 'Ne servono 300', '', '30/10/2027', 'Da fare', 'marco.bianchi@esempio.it; luca.verdi@esempio.it'],
         ['Logistica', 'Trasporti', 'Furgone', '', '', '', '', '', '', '', '', '', '', '01/11/2027', '', 'marco.bianchi@esempio.it']], larghezze: [...Array(10).fill(16), 30, 30, 26, 12, 10, 40] },
-      { nome: 'Istruzioni', righe: [['Una riga per ogni ramo o attività. I livelli (Livello 1 … Livello 10) descrivono il percorso: nell\'ultima cella riempita c\'è il nome dell\'elemento.'], ['Le righe dei rami sono facoltative: se manca, il ramo viene creato dal percorso delle sue attività.'], ['Elementi già esistenti con lo stesso percorso vengono riconosciuti: si aggiornano solo i campi compilati, non si cancella nulla.'], ['Incaricati e Responsabile: email di persone già presenti in anagrafica (più incaricati separati da ;). Gli incaricati valgono solo per le attività (ultimo livello).'], ['Scadenza: gg/mm/aaaa. Stato (solo per elementi nuovi): Da fare, In corso, Fatto, Finito.']], larghezze: [120] }]);
+      { nome: 'Istruzioni', righe: [['Una riga per ogni ramo o attività. I livelli (Livello 1 … Livello 10) descrivono il percorso: nell\'ultima cella riempita c\'è il nome dell\'elemento.'], ['Le righe dei rami sono facoltative: se manca, il ramo viene creato dal percorso delle sue attività.'], ['Elementi già esistenti con lo stesso percorso vengono riconosciuti: si aggiornano solo i campi compilati, non si cancella nulla.'], ['Incaricati e Responsabile: email di persone già presenti in anagrafica (più incaricati separati da ;). Gli incaricati valgono solo per le attività (ultimo livello).'], ['Scadenza: gg/mm/aaaa. Stato (solo per elementi nuovi): Da fare, In corso, Fatto, Finito.'], ['Nel file esportato le colonne N. (numerazione) e Area sono solo informative: in importazione vengono ignorate.']], larghezze: [120] }]);
   }
   function importaStruttura() {
     if (stato.evento === null) { alert('Scegli prima un evento.'); return; }
@@ -1640,6 +1853,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#perForm').addEventListener('submit', salvaPersona);
     $('#evForm').addEventListener('submit', salvaEvento);
     $('#eAnnulla').onclick = chiudiEvento; $('#eDel').onclick = eliminaEvento;
+    $('#eAreaAdd').onclick = () => { if (EA.length >= 10) return; EA.push({ orig: null, val: '' }); renderAreeEv(); const l = $('#eAree').querySelectorAll('input'); if (l.length) l[l.length - 1].focus(); };
     $('#evNuovo').onclick = () => apriEvento(null);
     $$('.lnkPriv').forEach(e => e.addEventListener('click', apriInformativa)); $('#privChiudi').onclick = () => $('#modPriv').classList.add('hidden');
     $('#infoOk').onclick = confermaInformativa; $('#iDati').onclick = () => scaricaDatiPersona(null);
@@ -1661,6 +1875,8 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#attForm').addEventListener('submit', salvaScheda); $('#aChiudi').onclick = chiudiScheda;
     $('#nAnnulla').onclick = chiudiNodo; $('#mvAnnulla').onclick = () => $('#modMove').classList.add('hidden');
     $('#strModBtn').onclick = () => { S.mod = !S.mod; renderStruttura(); };
+    if (window.matchMedia) window.matchMedia('(max-width:760px)').addEventListener('change', () => { renderNav(); if (isMobile() && stato.pagina === 'str') vai('home'); });
+    $('#strArea').onchange = e => { S.areaF = e.target.value; renderStruttura(); renderHome(); };
     $('#strEspandi').onclick = () => { S.collassati = new Set(); renderStruttura(); };
     $('#strComprimi').onclick = () => { S.collassati = new Set(S.nodi.filter(n => S.nodi.some(x => x.parent_id === n.id)).map(n => n.id)); renderStruttura(); };
     $('#lgFile').addEventListener('change', caricaLogo); $('#lgDel').onclick = ripristinaLogo;
