@@ -542,13 +542,14 @@
   let evCorr = null, EA = [];
   // aree dell'evento: elenco libero (max 10) delle sotto-aree gestite; "Tutte" c'è sempre e non va inserita
   function renderAreeEv() {
+    if (!$('#eAree')) return;
     $('#eAree').replaceChildren(...EA.map((a, i) => {
       const t = h('input', { type: 'text', maxlength: '60', value: a.val, placeholder: 'Area ' + (i + 1), style: 'flex:1;min-width:0' });
       t.addEventListener('input', () => { a.val = t.value; });
       const x = h('button', { class: 'ib dn', type: 'button', title: 'Togli l\'area' }, '✕'); x.addEventListener('click', () => { EA.splice(i, 1); renderAreeEv(); });
       return h('div', { style: 'display:flex;gap:6px;align-items:center;margin-bottom:6px' }, t, x);
     }));
-    $('#eAreaAdd').disabled = EA.length >= 10;
+    if ($('#eAreaAdd')) $('#eAreaAdd').disabled = EA.length >= 10;
   }
   function apriEvento(id) {
     evCorr = stato.eventi.find(x => x.id === id) || null;
@@ -761,8 +762,8 @@
       : (puoMod ? 'I rami di cui sei responsabile e le tue attività' : 'Le attività in cui sei incaricato');
     const ar = areeEv(), sa = $('#strArea');
     if (S.areaF && !ar.includes(S.areaF)) S.areaF = '';
-    sa.classList.toggle('hidden', !ar.length);
-    sa.replaceChildren(h('option', { value: '' }, 'Tutte le aree'), ...ar.map(a => h('option', { value: a }, a))); sa.value = S.areaF;
+    if (sa) { sa.classList.toggle('hidden', !ar.length);
+      sa.replaceChildren(h('option', { value: '' }, 'Tutte le aree'), ...ar.map(a => h('option', { value: a }, a))); sa.value = S.areaF; }
     S.sort.forEach(x => x.destroy()); S.sort = [];
     const nuovo = adm && S.mod ? h('div', { style: 'margin-bottom:10px' }, (() => { const b = h('button', { class: 'btn need-net', type: 'button' }, '+ Nuovo ramo di primo livello'); b.addEventListener('click', () => apriNodo(null, null)); return b; })()) : '';
     const radice = h('ul', { class: 'trl' });
@@ -1853,7 +1854,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#perForm').addEventListener('submit', salvaPersona);
     $('#evForm').addEventListener('submit', salvaEvento);
     $('#eAnnulla').onclick = chiudiEvento; $('#eDel').onclick = eliminaEvento;
-    $('#eAreaAdd').onclick = () => { if (EA.length >= 10) return; EA.push({ orig: null, val: '' }); renderAreeEv(); const l = $('#eAree').querySelectorAll('input'); if (l.length) l[l.length - 1].focus(); };
+    if ($('#eAreaAdd')) $('#eAreaAdd').onclick = () => { if (EA.length >= 10) return; EA.push({ orig: null, val: '' }); renderAreeEv(); const l = $('#eAree').querySelectorAll('input'); if (l.length) l[l.length - 1].focus(); };
     $('#evNuovo').onclick = () => apriEvento(null);
     $$('.lnkPriv').forEach(e => e.addEventListener('click', apriInformativa)); $('#privChiudi').onclick = () => $('#modPriv').classList.add('hidden');
     $('#infoOk').onclick = confermaInformativa; $('#iDati').onclick = () => scaricaDatiPersona(null);
@@ -1865,6 +1866,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
       const { data, error } = await stato.sb.rpc('disconnetti_tutti', { _anche_io: false });
       m.textContent = error ? (/find the function|schema cache/i.test(error.message || '') ? 'Database non aggiornato: riesegui lo script SQL.' : 'Operazione non riuscita: ' + error.message) : '✔ Accessi chiusi: ' + data;
     };
+    $$('.nv').forEach(b => { b.onclick = () => vai(b.dataset.p); });
     $('#pPulisci').onclick = () => { if (confirm('Eliminare definitivamente i movimenti più vecchi del periodo di conservazione impostato (e già salvato)?')) pulisciMovimenti(true); };
     $('#pPrivModello').onclick = () => { if (!$('#pPrivTesto').value.trim() || confirm('Sostituire il testo attuale con il modello?')) $('#pPrivTesto').value = MODELLO_INFORMATIVA; };
     $('#perEsporta').onclick = esportaPersone; $('#perImporta').onclick = importaPersone; $('#perModello').onclick = modelloPersone;
@@ -1876,7 +1878,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#nAnnulla').onclick = chiudiNodo; $('#mvAnnulla').onclick = () => $('#modMove').classList.add('hidden');
     $('#strModBtn').onclick = () => { S.mod = !S.mod; renderStruttura(); };
     if (window.matchMedia) window.matchMedia('(max-width:760px)').addEventListener('change', () => { renderNav(); if (isMobile() && stato.pagina === 'str') vai('home'); });
-    $('#strArea').onchange = e => { S.areaF = e.target.value; renderStruttura(); renderHome(); };
+    if ($('#strArea')) $('#strArea').onchange = e => { S.areaF = e.target.value; renderStruttura(); renderHome(); };
     $('#strEspandi').onclick = () => { S.collassati = new Set(); renderStruttura(); };
     $('#strComprimi').onclick = () => { S.collassati = new Set(S.nodi.filter(n => S.nodi.some(x => x.parent_id === n.id)).map(n => n.id)); renderStruttura(); };
     $('#lgFile').addEventListener('change', caricaLogo); $('#lgDel').onclick = ripristinaLogo;
@@ -1890,7 +1892,6 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#installa').onclick = installa;
     $('#vaiPar').onclick = () => vai('par');
     $('#rete').onclick = () => sincronizza(true); $('#iSync').onclick = () => sincronizza(true); $('#iRev').onclick = () => vai('rev');
-    $$('.nv').forEach(b => { b.onclick = () => vai(b.dataset.p); });
     window.addEventListener('online', aggiornaRete);
     window.addEventListener('offline', aggiornaRete);
 
