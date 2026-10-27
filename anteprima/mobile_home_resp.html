@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="app-version" content="1.0">
+<title>SDM Eventi - Anteprima Home responsabile compatta</title>
+<style>
+:root{--primario:#1d4ed8;--bg:#f4f6fa;--card:#fff;--testo:#1c2333;--sec:#5b6578;--bordo:#dde2ec;--ok:#15803d;--warn:#b45309;--err:#b91c1c}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#cfd5e1;color:var(--testo)}
+.demo{background:#111827;color:#e5e7eb;padding:10px 14px;font-size:13px}
+.phone{max-width:400px;margin:16px auto;background:var(--bg);border:1px solid #b8c0d0;border-radius:18px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+.hidden{display:none!important}
+.sec{color:var(--sec)}
+.hd{display:flex;align-items:center;gap:10px;padding:7px 12px;background:var(--card);border-bottom:1px solid var(--bordo)}
+.hd b{font-size:15px;flex:1}
+main{padding:10px 10px 14px}
+/* riepilogo in una striscia */
+.sum{background:var(--card);border:1px solid var(--bordo);border-radius:12px;padding:8px 12px;margin-bottom:8px;display:flex;gap:12px;align-items:center}
+.sum .big{font-size:26px;font-weight:800;line-height:1;color:var(--ok)}
+.sum .r{flex:1;min-width:0}
+.stk{display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--bordo);margin-bottom:4px}.stk i{display:block}
+.cn{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--sec)}
+.cn span:before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:4px}
+/* avvisi + filtri su una riga scorrevole */
+.chips{display:flex;gap:6px;overflow-x:auto;margin:0 -10px 8px;padding:0 10px 2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.ch2{flex:none;border:1px solid var(--bordo);background:var(--card);border-radius:99px;padding:4px 10px;font:inherit;font-size:12.5px;font-weight:600;white-space:nowrap}
+.ch2.e{background:#fee2e2;color:var(--err);border-color:#fecaca}.ch2.w{background:#fef3c7;color:var(--warn);border-color:#fde68a}
+.ch2.act{outline:2px solid var(--primario)}
+select.mini{flex:none;border:1px solid var(--bordo);background:var(--card);border-radius:99px;padding:4px 8px;font:inherit;font-size:12.5px}
+/* blocchi */
+.blk{background:var(--card);border:1px solid var(--bordo);border-radius:12px;margin-bottom:8px;overflow:hidden}
+.bh{display:flex;align-items:center;gap:8px;padding:8px 12px;font-weight:700;font-size:14px;cursor:pointer}
+.bh .n{margin-left:auto;display:flex;gap:6px;align-items:center}
+.ar2{color:var(--sec);font-size:12px}
+.badge{font-size:11px;border-radius:99px;padding:1px 8px;background:#eef2ff;color:var(--primario);font-weight:600;white-space:nowrap}
+.badge.ok{background:#dcfce7;color:var(--ok)}.badge.w{background:#fef3c7;color:var(--warn)}.badge.e{background:#fee2e2;color:var(--err)}
+.seg{display:flex;border-bottom:1px solid var(--bordo)}
+.seg button{flex:1;border:0;background:none;padding:7px 4px;font:inherit;font-size:13px;font-weight:600;color:var(--sec)}
+.seg button.on{color:var(--primario);box-shadow:inset 0 -2px 0 var(--primario)}
+.gr{border-top:1px solid var(--bordo)}
+.gh{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:14px}
+.gh .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.gh .bar{width:64px;flex:none}.gh .bar .stk{margin:0;height:6px}
+.gh .fr{font-size:12px;color:var(--sec);width:34px;text-align:right;flex:none}
+.det{background:#f8fafc;padding:2px 0}
+.ln{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 10px;font-size:13.5px;border-left:5px solid transparent}
+.ln .tt{flex:1;min-width:0;line-height:1.2}.ln .tt b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}.ln small{color:var(--sec);font-size:11px}
+.num{font-size:11px;font-weight:700;color:var(--sec);margin-right:5px}
+.mie .ln{padding:6px 10px}
+.mie select{border:1px solid var(--bordo);border-radius:8px;padding:4px 4px;font:inherit;font-size:13px;background:var(--card)}
+.ib{border:1px solid var(--bordo);background:var(--card);border-radius:8px;padding:4px 8px;font-size:13px}
+.note{font-size:11.5px;color:var(--sec);text-align:center;margin:6px 0 0}
+</style>
+</head>
+<body>
+<div class="demo"><b>Anteprima v1.0 · Home del responsabile (smartphone)</b> — versione compatta. Dati di esempio: tocca "Da confermare", i gruppi e "Per persona / Per ramo" per provarli. Nessun salvataggio.</div>
+<div class="phone">
+  <div class="hd"><b>Gara Sociale 2027</b><span class="sec" style="font-size:12px">14 mag</span></div>
+  <main>
+    <div class="sum">
+      <div class="big">57%</div>
+      <div class="r">
+        <div class="stk"><i style="width:57%;background:#15803d"></i><i style="width:14%;background:#86efac"></i><i style="width:19%;background:#60a5fa"></i></div>
+        <div class="cn"><span style="--c:#15803d">12 finite</span><span style="--c:#86efac">3 da conf.</span><span style="--c:#60a5fa">4 in corso</span><span style="--c:#cbd5e1">2 da fare</span></div>
+      </div>
+    </div>
+
+    <div class="chips">
+      <button class="ch2 e">⚠ 2 scadute</button><button class="ch2 w">⏰ 3 in scadenza</button><button class="ch2 w">👤 1 senza incaricati</button>
+      <select class="mini"><option>Tutte le aree</option><option>Campo</option><option>Bar</option></select>
+    </div>
+
+    <div class="blk" id="conf">
+      <div class="bh" id="confH">⏳ In attesa di conferma <span class="badge ok">3</span><span class="n"><span class="ar2" id="confA">▸</span></span></div>
+      <div class="det hidden" id="confB">
+        <div class="ln" style="border-left-color:#22c55e"><div class="tt"><b><span class="num">01.02</span>Montaggio gazebo</b><small>Rossi A. · Logistica</small></div><span class="badge ok">fatto</span></div>
+        <div class="ln" style="border-left-color:#f97316"><div class="tt"><b><span class="num">02.03</span>Rifornimento bar</b><small>Bianchi M. · Ristoro</small></div><span class="badge ok">fatto</span></div>
+        <div class="ln"><div class="tt"><b><span class="num">03.01</span>Pulizia finale</b><small>Verdi L. · Servizi</small></div><span class="badge ok">fatto</span></div>
+        <div class="note" style="padding:2px 12px 6px">Il "Finito" lo conferma l'amministratore.</div>
+      </div>
+    </div>
+
+    <div class="blk">
+      <div class="seg" id="seg"><button class="on" data-v="p">Per persona</button><button data-v="r">Per ramo</button></div>
+      <div id="gruppi"></div>
+    </div>
+
+    <div class="blk mie">
+      <div class="bh" style="cursor:default">Le mie attività <span class="badge">2 aperte</span></div>
+      <div class="ln" style="border-left-color:#22c55e;background:color-mix(in srgb,#22c55e 14%,#fff)"><div class="tt"><b><span class="num">01.01</span>Controllo campo</b><small>Logistica › Campo · scad. 30/10</small></div><select><option>In corso</option></select><button class="ib">✎</button></div>
+      <div class="ln"><div class="tt"><b><span class="num">03.02</span>Verbale riunione</b><small>Servizi · Tutte · scad. 05/11</small></div><select><option>Da fare</option></select><button class="ib">✎</button></div>
+    </div>
+    <p class="note">Una riga per attività e per persona; i dettagli si aprono con un tocco.</p>
+  </main>
+</div>
+<script>
+const DATI={p:[['Rossi Anna',5,6,2,'#22c55e'],['Bianchi Marco',3,5,1,'#f97316'],['Verdi Luca',2,4,0,'#22c55e'],['Senza incaricati',0,1,0,'']],
+            r:[['Logistica',6,9,2],['Ristoro',3,6,1],['Servizi',3,5,0]]};
+const ATT={'Rossi Anna':[['01.02','Montaggio gazebo','fatto','#22c55e'],['01.03','Trasporti','in corso','#22c55e'],['01.04','Segnaletica','da fare','']],
+ 'Logistica':[['01.01','Controllo campo','in corso','#22c55e'],['01.02','Montaggio gazebo','fatto','#22c55e']],'default':[['02.03','Rifornimento bar','fatto','#f97316'],['02.04','Ghiaccio','da fare','#f97316']]};
+let vista='p',aperti=new Set();
+function bar(f,t,d){const w=x=>t?100*x/t:0;return `<div class="stk"><i style="width:${w(f)}%;background:#15803d"></i><i style="width:${w(d)}%;background:#86efac"></i></div>`}
+function render(){
+  const g=document.getElementById('gruppi');
+  g.innerHTML=DATI[vista].map(x=>{const open=aperti.has(vista+x[0]);const ls=(ATT[x[0]]||ATT.default);
+   return `<div class="gr"><div class="gh" data-k="${vista+x[0]}"><span class="nm">${x[0]}</span>${x[3]?`<span class="badge ok">✔ ${x[3]}</span>`:''}<span class="bar">${bar(x[1],x[2],x[3])}</span><span class="fr">${x[1]}/${x[2]}</span><span class="ar2">${open?'▾':'▸'}</span></div>`+
+   (open?`<div class="det">${ls.map(a=>`<div class="ln" style="border-left-color:${a[3]||'transparent'}"><div class="tt"><b><span class="num">${a[0]}</span>${a[1]}</b></div><span class="badge ${a[2]==='fatto'?'ok':a[2]==='in corso'?'w':''}">${a[2]}</span></div>`).join('')}</div>`:'')+`</div>`}).join('');
+  g.querySelectorAll('.gh').forEach(e=>e.onclick=()=>{const k=e.dataset.k;aperti.has(k)?aperti.delete(k):aperti.add(k);render()});
+}
+document.querySelectorAll('#seg button').forEach(b=>b.onclick=()=>{vista=b.dataset.v;document.querySelectorAll('#seg button').forEach(x=>x.classList.toggle('on',x===b));render()});
+document.getElementById('confH').onclick=()=>{const b=document.getElementById('confB');b.classList.toggle('hidden');document.getElementById('confA').textContent=b.classList.contains('hidden')?'▸':'▾'};
+render();
+</script>
+</body>
+</html>
