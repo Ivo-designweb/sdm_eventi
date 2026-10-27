@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 1.4
+-- Versione script: 1.5
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -144,6 +144,7 @@ do $$ begin
     alter table sdm_eventi.eventi add constraint eventi_aree_max10 check (cardinality(aree) <= 10);
   end if;
 end $$;
+alter table sdm_eventi.eventi add column if not exists aree_colori jsonb not null default '{}'::jsonb;   -- {"<area>":"#rrggbb"}
 alter table sdm_eventi.nodi add column if not exists area text;                     -- null = "Tutte"
 alter table sdm_eventi.nodi add column if not exists checklist jsonb;               -- {"descrizione":"..","righe":[{"id":"..","testo":"..","qta":0}]}
 alter table sdm_eventi.nodi add column if not exists checklist_esito jsonb not null default '{}'::jsonb;
@@ -740,8 +741,8 @@ begin
   if not found then raise exception 'Evento non trovato'; end if;
   if coalesce(trim(_titolo), '') = '' then raise exception 'Il titolo è obbligatorio'; end if;
   if v_old.data_inizio is not null and _data_inizio is not null then v_delta := _data_inizio - v_old.data_inizio; end if;
-  insert into sdm_eventi.eventi (titolo, descrizione, luogo, data_inizio, data_fine, aree, creato_da)
-  values (trim(_titolo), v_old.descrizione, v_old.luogo, _data_inizio, _data_fine, v_old.aree, sdm_eventi.persona_corrente())
+  insert into sdm_eventi.eventi (titolo, descrizione, luogo, data_inizio, data_fine, aree, aree_colori, creato_da)
+  values (trim(_titolo), v_old.descrizione, v_old.luogo, _data_inizio, _data_fine, v_old.aree, v_old.aree_colori, sdm_eventi.persona_corrente())
   returning id into v_new;
   drop table if exists pg_temp._dup_map;
   create temp table _dup_map (old_id uuid primary key, new_id uuid) on commit drop;

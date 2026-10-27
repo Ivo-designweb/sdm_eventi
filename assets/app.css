@@ -15,7 +15,7 @@ button,input,select{font:inherit}
 h1{font-size:22px;margin:0 0 4px} h2{font-size:18px;margin:0 0 12px} h3{font-size:15px;margin:0 0 8px}
 p.sec,.sec{color:var(--sec);font-size:14px}
 label{display:block;font-size:14px;font-weight:600;margin:14px 0 4px}
-input[type=text],input[type=email],input[type=number],select.f{width:100%;padding:10px 12px;border:1px solid var(--bordo);border-radius:8px;background:var(--card);color:var(--testo)}
+input[type=text],input[type=email],input[type=number],input[type=search],select.f{width:100%;padding:10px 12px;border:1px solid var(--bordo);border-radius:8px;background:var(--card);color:var(--testo)}
 .btn{display:inline-block;background:var(--primario);color:var(--primario-testo);border:0;border-radius:8px;padding:10px 16px;font-weight:600;cursor:pointer;text-decoration:none}
 .btn.sec{background:transparent;color:var(--primario);border:1px solid var(--primario)}
 .btn.full{width:100%;margin-top:18px}
@@ -255,3 +255,10 @@ label.flag input{width:auto;margin:0}
 .ckr .ckt{flex:1;min-width:0}
 .ib.ck{font-weight:600}
 .it .t1 .num{margin-right:6px}
+
+/* v2.4: barra filtri della Struttura */
+.fbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px;padding:8px 10px;border:1px solid var(--bordo);border-radius:12px;background:var(--card)}
+.fbar input[type=search]{flex:1 1 240px;min-width:160px;margin:0}
+.fbar select.f{width:auto;min-width:0;margin:0;flex:0 1 auto}
+.fbar .btn{padding:6px 12px}
+.fbar.hidden{display:none}

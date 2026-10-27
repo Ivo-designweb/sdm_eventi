@@ -461,7 +461,8 @@
     let ok = false;
     if (navigator.onLine) {
       const qEv = cols => stato.sb.from('eventi').select(cols).order('data_inizio', { ascending: false, nullsFirst: false }).order('titolo');
-      let { data, error } = await qEv('id, titolo, data_inizio, data_fine, aree');
+      let { data, error } = await qEv('id, titolo, data_inizio, data_fine, aree, aree_colori');
+      if (error) ({ data, error } = await qEv('id, titolo, data_inizio, data_fine, aree'));
       if (error) ({ data, error } = await qEv('id, titolo, data_inizio, data_fine'));   // database non ancora aggiornato
       if (!error) {
         stato.eventi = data; ok = true;
@@ -481,7 +482,7 @@
   }
 
   function selezionaEvento(id, vaiHome) {
-    stato.evento = id; S.mod = false; S.collassati = new Set(); S.aperti = new Set(); S.areaF = ''; S.nodi = []; S.inc = {}; S.num = {}; S.sponsor = {}; homeAvv = ''; homeAperti = new Set();
+    stato.evento = id; S.mod = false; S.collassati = new Set(); S.aperti = new Set(); S.areaF = ''; S.f = { q: '', stato: '', pers: '', scad: '' }; S.nodi = []; S.inc = {}; S.num = {}; S.sponsor = {}; homeAvv = ''; homeAperti = new Set();
     LS.set('sdm_evento', { uid: stato.persona.uid, id });
     renderEvBar(); renderEventi();
     if (vaiHome) vai('home');
@@ -546,15 +547,19 @@
     $('#eAree').replaceChildren(...EA.map((a, i) => {
       const t = h('input', { type: 'text', maxlength: '60', value: a.val, placeholder: 'Area ' + (i + 1), style: 'flex:1;min-width:0' });
       t.addEventListener('input', () => { a.val = t.value; });
+      const c = h('input', { type: 'color', value: a.col, title: 'Colore dell\'area', 'aria-label': 'Colore dell\'area', style: 'width:44px;height:38px;padding:2px;flex:none;cursor:pointer' });
+      c.addEventListener('input', () => { a.col = c.value; });
       const x = h('button', { class: 'ib dn', type: 'button', title: 'Togli l\'area' }, '✕'); x.addEventListener('click', () => { EA.splice(i, 1); renderAreeEv(); });
-      return h('div', { style: 'display:flex;gap:6px;align-items:center;margin-bottom:6px' }, t, x);
+      return h('div', { style: 'display:flex;gap:6px;align-items:center;margin-bottom:6px' }, c, t, x);
     }));
     if ($('#eAreaAdd')) $('#eAreaAdd').disabled = EA.length >= 10;
   }
   function apriEvento(id) {
     evCorr = stato.eventi.find(x => x.id === id) || null;
     const e = evCorr || { titolo: '', data_inizio: '', data_fine: '' };
-    EA = (e.aree || []).map(v => ({ orig: v, val: v })); renderAreeEv();
+    EA = [];
+    (e.aree || []).forEach((v, i) => { const col = (e.aree_colori || {})[v] || PALETTE[i % PALETTE.length]; EA.push({ orig: v, val: v, col }); });
+    renderAreeEv();
     $('#evModTit').textContent = evCorr ? 'Modifica evento' : 'Nuovo evento';
     $('#eTit').value = e.titolo; $('#eIni').value = e.data_inizio || ''; $('#eFin').value = e.data_fine || '';
     $('#eDel').classList.toggle('hidden', !evCorr);
@@ -571,7 +576,10 @@
     if (aree.some(a => norm(a) === 'tutte')) { erroreEv('"Tutte" è sempre presente: non va inserita tra le aree.'); return; }
     if (new Set(aree.map(norm)).size !== aree.length) { erroreEv('Ci sono due aree con lo stesso nome.'); return; }
     if (aree.length > 10) { erroreEv('Al massimo 10 aree.'); return; }
-    if (evCorr ? stab(aree) !== stab(evCorr.aree || []) : aree.length) rec.aree = aree;   // senza modifiche alle aree non tocco la colonna
+    const colori = {}; EA.forEach(a => { const v = a.val.trim(); if (v) colori[v] = a.col; });
+    const cambiaAree = evCorr ? stab(aree) !== stab(evCorr.aree || []) : aree.length;
+    if (cambiaAree) rec.aree = aree;
+    if (cambiaAree || (evCorr && stab(colori) !== stab(evCorr.aree_colori || {}) && aree.length)) rec.aree_colori = colori;   // senza modifiche alle aree non tocco la colonna
     if (!rec.titolo) { erroreEv('Il titolo è obbligatorio.'); return; }
     if (!rec.data_inizio) { erroreEv('La data è obbligatoria.'); return; }
     if (rec.data_fine && rec.data_fine < rec.data_inizio) { erroreEv('La data fine non può precedere la data di inizio.'); return; }
@@ -625,8 +633,28 @@
   // numerazione gerarchica 01 / 01.01 / 01.01.01: calcolata dal database sull'albero completo (uguale per tutti),
   // con ripiego locale sui soli elementi visibili se il database non è aggiornato
   const numTxt = n => S.num[n.id] || S.numLoc[n.id] || '';
+  // palette per le aree: prima i colori più vivaci, sempre diversi
+  const PALETTE = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#84cc16'];
+  const prossimoColore = usati => PALETTE.find(c => !usati.map(x => String(x).toLowerCase()).includes(c)) || PALETTE[usati.length % PALETTE.length];
+  const colArea = a => { if (!a) return null; const e = eventoCorrente(), i = areeEv().indexOf(a); return ((e && e.aree_colori) || {})[a] || (i >= 0 ? PALETTE[i % PALETTE.length] : null); };
   const areeEv = () => { const e = eventoCorrente(); return (e && Array.isArray(e.aree)) ? e.aree : []; };
   const passaArea = n => S.mod || !S.areaF || (isLeaf(n) ? (!n.area || n.area === S.areaF) : figli(n.id).some(passaArea));
+  // filtri della Struttura (riga in alto): un'attività compare se rispetta tutti i filtri attivi;
+  // un ramo compare se almeno una sua attività li rispetta (o se il testo cercato è nel ramo stesso)
+  S.f = { q: '', stato: '', pers: '', scad: '' };
+  const filtriAttivi = () => !!(S.f.q || S.f.stato || S.f.pers || S.f.scad || S.areaF);
+  const testoNodo = n => [n.titolo, n.descrizione, n.note, n.area, n.responsabile_id ? nomeP(n.responsabile_id) : '', ...(S.inc[n.id] || []).flatMap(x => [nomeP(x.persona_id), x.nota]), numTxt(n)].filter(Boolean).join(' ');
+  const passaFiltri = n => {
+    if (S.mod || !filtriAttivi()) return true;
+    if (!isLeaf(n)) return figli(n.id).some(passaFiltri) || (!S.f.stato && !S.f.pers && !S.f.scad && !S.areaF && !!S.f.q && norm(testoNodo(n)).includes(norm(S.f.q)));
+    const f = S.f;
+    if (S.areaF && n.area && n.area !== S.areaF) return false;
+    if (f.stato && n.stato !== f.stato) return false;
+    if (f.pers) { const inc = S.inc[n.id] || []; if (f.pers === '__no' ? inc.length : !(inc.some(x => x.persona_id === f.pers) || n.responsabile_id === f.pers)) return false; }
+    if (f.scad) { const c = scadClasse(n); if (f.scad === 'e' && c !== 'e') return false; if (f.scad === 'w' && c !== 'w') return false; if (f.scad === 'con' && !n.scadenza) return false; if (f.scad === 'senza' && n.scadenza) return false; }
+    if (f.q) { const q = norm(f.q); if (!(norm(testoNodo(n)).includes(q) || antenati(n).some(a => norm(a.titolo).includes(q)))) return false; }
+    return true;
+  };
   const righeCheck = n => (n.checklist && Array.isArray(n.checklist.righe)) ? n.checklist.righe : [];
   const esitoRiga = (n, id) => (n.checklist_esito || {})[id] || {};
   const checkFatte = n => righeCheck(n).filter(r => esitoRiga(n, r.id).ok).length;
@@ -737,7 +765,8 @@
     let tg;
     if (lf) tg = h('span', { class: 'tg0' });
     else { tg = h('button', { class: 'tg', type: 'button', 'aria-label': aperto ? 'Comprimi' : 'Espandi' }, aperto ? '▼' : '▶'); tg.addEventListener('click', () => { if (aperto) S.collassati.add(n.id); else S.collassati.delete(n.id); renderStruttura(); }); }
-    const row = h('div', { class: 'tn cmp' + (lf ? '' : ' br') + (det ? ' op' : ''), tabindex: '0', role: 'button', 'aria-expanded': det ? 'true' : 'false' }, handle, tg,
+    const ca = lf ? colArea(n.area) : null;
+    const row = h('div', { class: 'tn cmp' + (lf ? '' : ' br') + (det ? ' op' : ''), ...(ca ? { style: 'background:color-mix(in srgb,' + ca + ' 22%,var(--card));border-left:5px solid ' + ca } : {}), tabindex: '0', role: 'button', 'aria-expanded': det ? 'true' : 'false' }, handle, tg,
       h('span', { class: 'num' }, numTxt(n)),
       h('div', { class: 'tt2' }, h('b', { title: n.titolo }, n.titolo), n.descrizione ? h('span', { class: 'ds' }, n.descrizione) : ''), meta, btns);
     const commuta = () => { if (S.aperti.has(n.id)) S.aperti.delete(n.id); else S.aperti.add(n.id); renderStruttura(); };
@@ -745,7 +774,7 @@
     row.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === row) commuta(); });
     const li = h('li', { 'data-id': n.id }, row);
     if (det) li.append(dettagliNodo(n));
-    if (!lf && aperto) { const ul = h('ul', { class: 'trl', 'data-parent': n.id }); figli(n.id).filter(passaArea).forEach(c => ul.append(rigaNodo(c))); li.append(ul); }
+    if (!lf && aperto) { const ul = h('ul', { class: 'trl', 'data-parent': n.id }); figli(n.id).filter(passaFiltri).forEach(c => ul.append(rigaNodo(c))); li.append(ul); }
     else if (lf && S.mod) li.append(h('ul', { class: 'trl vuoto', 'data-parent': n.id }));
     return li;
   }
@@ -764,10 +793,22 @@
     if (S.areaF && !ar.includes(S.areaF)) S.areaF = '';
     if (sa) { sa.classList.toggle('hidden', !ar.length);
       sa.replaceChildren(h('option', { value: '' }, 'Tutte le aree'), ...ar.map(a => h('option', { value: a }, a))); sa.value = S.areaF; }
+    const sp = $('#fPers');
+    if (sp) {
+      const ids = new Set(); S.nodi.forEach(n => { if (n.responsabile_id) ids.add(n.responsabile_id); (S.inc[n.id] || []).forEach(x => ids.add(x.persona_id)); });
+      if (S.f.pers && S.f.pers !== '__no' && !ids.has(S.f.pers)) S.f.pers = '';
+      sp.replaceChildren(h('option', { value: '' }, 'Tutte le persone'), h('option', { value: '__no' }, 'Senza incaricati'), ...[...ids].sort((a, b) => nomeP(a).localeCompare(nomeP(b))).map(id => h('option', { value: id }, nomeP(id))));
+      sp.value = S.f.pers;
+      $('#fQ').value = S.f.q; $('#fStato').value = S.f.stato; $('#fScad').value = S.f.scad;
+      const foglieTot = S.nodi.filter(isLeaf), foglieOk = foglieTot.filter(passaFiltri);
+      $('#fCnt').textContent = filtriAttivi() && !S.mod ? foglieOk.length + ' attività su ' + foglieTot.length : '';
+      $('#fReset').classList.toggle('hidden', !filtriAttivi());
+      $('#strFiltri').classList.toggle('hidden', !S.nodi.length);
+    }
     S.sort.forEach(x => x.destroy()); S.sort = [];
     const nuovo = adm && S.mod ? h('div', { style: 'margin-bottom:10px' }, (() => { const b = h('button', { class: 'btn need-net', type: 'button' }, '+ Nuovo ramo di primo livello'); b.addEventListener('click', () => apriNodo(null, null)); return b; })()) : '';
     const radice = h('ul', { class: 'trl' });
-    figli(null).filter(passaArea).forEach(n => radice.append(rigaNodo(n)));
+    figli(null).filter(passaFiltri).forEach(n => radice.append(rigaNodo(n)));
     lista.replaceChildren(...[nuovo, S.nodi.length ? radice : h('p', { class: 'sec' }, adm ? 'Nessun ramo: crea il primo con "Modifica struttura".' : 'Nessuna attività assegnata per questo evento.')].filter(Boolean));
     if (S.mod && window.Sortable) lista.querySelectorAll('ul.trl').forEach(ul => S.sort.push(new window.Sortable(ul, {
       group: 'albero', handle: '.hd', animation: 150, forceFallback: true, fallbackOnBody: true, swapThreshold: 0.65, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
@@ -1854,7 +1895,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#perForm').addEventListener('submit', salvaPersona);
     $('#evForm').addEventListener('submit', salvaEvento);
     $('#eAnnulla').onclick = chiudiEvento; $('#eDel').onclick = eliminaEvento;
-    if ($('#eAreaAdd')) $('#eAreaAdd').onclick = () => { if (EA.length >= 10) return; EA.push({ orig: null, val: '' }); renderAreeEv(); const l = $('#eAree').querySelectorAll('input'); if (l.length) l[l.length - 1].focus(); };
+    if ($('#eAreaAdd')) $('#eAreaAdd').onclick = () => { if (EA.length >= 10) return; EA.push({ orig: null, val: '', col: prossimoColore(EA.map(a => a.col)) }); renderAreeEv(); const l = $('#eAree').querySelectorAll('input'); if (l.length) l[l.length - 1].focus(); };
     $('#evNuovo').onclick = () => apriEvento(null);
     $$('.lnkPriv').forEach(e => e.addEventListener('click', apriInformativa)); $('#privChiudi').onclick = () => $('#modPriv').classList.add('hidden');
     $('#infoOk').onclick = confermaInformativa; $('#iDati').onclick = () => scaricaDatiPersona(null);
@@ -1879,6 +1920,13 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#strModBtn').onclick = () => { S.mod = !S.mod; renderStruttura(); };
     if (window.matchMedia) window.matchMedia('(max-width:760px)').addEventListener('change', () => { renderNav(); if (isMobile() && stato.pagina === 'str') vai('home'); });
     if ($('#strArea')) $('#strArea').onchange = e => { S.areaF = e.target.value; renderStruttura(); renderHome(); };
+    if ($('#fQ')) {
+      let tq; $('#fQ').addEventListener('input', e => { clearTimeout(tq); tq = setTimeout(() => { S.f.q = e.target.value.trim(); renderStruttura(); }, 180); });
+      $('#fStato').onchange = e => { S.f.stato = e.target.value; renderStruttura(); };
+      $('#fPers').onchange = e => { S.f.pers = e.target.value; renderStruttura(); };
+      $('#fScad').onchange = e => { S.f.scad = e.target.value; renderStruttura(); };
+      $('#fReset').onclick = () => { S.f = { q: '', stato: '', pers: '', scad: '' }; S.areaF = ''; renderStruttura(); renderHome(); };
+    }
     $('#strEspandi').onclick = () => { S.collassati = new Set(); renderStruttura(); };
     $('#strComprimi').onclick = () => { S.collassati = new Set(S.nodi.filter(n => S.nodi.some(x => x.parent_id === n.id)).map(n => n.id)); renderStruttura(); };
     $('#lgFile').addEventListener('change', caricaLogo); $('#lgDel').onclick = ripristinaLogo;
