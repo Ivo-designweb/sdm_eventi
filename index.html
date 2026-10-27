@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="2.4">
+<meta name="app-version" content="2.5">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -226,12 +226,13 @@
 
     <div id="modAtt" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
       <form class="card" id="attForm" style="max-width:640px;margin:0 auto" novalidate>
+        <div class="aHd" id="aHead"><button type="button" class="aBk" id="aBack" aria-label="Indietro" title="Indietro">←</button><div class="aTt"><b id="aTit2"></b><div class="aPc" id="aPerc2"></div></div><button class="btn sv js-salva" id="aSalva2" type="submit">Salva</button></div>
         <h2 id="aTitH">Attività</h2>
         <p class="sec" id="aPerc" style="margin-top:-6px"></p>
         <div class="avviso off-only" style="margin-bottom:12px">Sei offline: puoi cambiare lo stato e la tua nota, che partiranno appena torna la rete. Per le altre modifiche serve la connessione.</div>
         <div id="aCorpo"></div>
         <div id="aErr" class="avviso hidden" style="margin-top:12px"></div>
-        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end"><button class="btn sec" id="aChiudi" type="button">Chiudi</button><button class="btn" id="aSalva" type="submit">Salva</button></div>
+        <div class="aBar" style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end"><button class="btn sec" id="aChiudi" type="button">Chiudi</button><button class="btn js-salva" id="aSalva" type="submit">Salva</button></div>
       </form>
     </div>
 

@@ -918,6 +918,7 @@
   const stab = v => JSON.stringify(v === undefined ? null : v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x)) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : 1))) : x);
   const idRiga = () => 'r' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3);
 
+  const bloccaSalva = v => $$('.js-salva').forEach(x => { x.disabled = v; });
   function campo(etich, el) { return h('div', {}, h('label', {}, etich), el); }
   function testo(v, vuoto) { return h('div', { style: 'padding:8px 0' }, v || h('span', { class: 'sec' }, vuoto || '—')); }
   function flag(id, etich, on) { const c = h('input', { type: 'checkbox', id }); c.checked = !!on; return h('label', { class: 'flag' }, c, ' ' + etich); }
@@ -977,11 +978,34 @@
           h('div', { class: 'grid2' }, campo('Cellulare', h('input', { type: 'tel', id: 'aSpCel', maxlength: '40', value: (sp && sp.cellulare) || '' })), campo('Importo del contributo (€)', h('input', { type: 'number', id: 'aSpImp', min: '0', step: '0.01', inputmode: 'decimal', value: sp && sp.importo != null ? sp.importo : '' }))))));
     }
     corpo.push(h('label', {}, 'Persone incaricate'), h('div', { id: 'aInc' }));
+    const mob = isMobile(); S.cmpt = mob;
+    if (mob && !ed) {   // smartphone: scheda compatta (informazioni in poche righe, stato a pulsanti, incaricati ripiegati)
+      corpo.length = 0;
+      const ca0 = colArea(n.area);
+      selStato.classList.add('hidden');
+      const lab = { da_fare: 'Da fare', in_corso: 'In corso', fatto: 'Fatto', finito: 'Finito' };
+      const seg = h('div', { class: 'seg2', id: 'aSeg' }, ...['da_fare', 'in_corso', 'fatto', ...(chiuso ? ['finito'] : [])].map(k => {
+        const b = h('button', { type: 'button', class: n.stato === k ? 'on' : '' }, lab[k]); b.disabled = !puoStato;
+        b.addEventListener('click', () => { selStato.value = k; seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); });
+        return b;
+      }));
+      corpo.push(h('div', { class: 'chips' }, h('span', { class: 'ar' }, ca0 ? h('i', { style: 'background:' + ca0 }) : '', n.area || 'Tutte le aree'), n.scadenza ? badgeScad(n) : '', h('span', { class: 'badge' }, '👥 ' + S.attInc.length)),
+        (n.descrizione || n.note) ? h('div', { class: 'info' }, n.descrizione ? h('div', {}, h('span', { class: 'l' }, 'Descrizione: '), n.descrizione) : '', n.note ? h('div', {}, h('span', { class: 'l' }, 'Note: '), n.note) : '') : '',
+        seg, selStato, ...(righeCheck(n).length ? [h('div', { class: 'ckfill', id: 'aCompila' })] : []), h('div', { id: 'aInc' }));
+      if (chiuso && !adm) corpo.push(h('p', { class: 'note' }, 'Attività finita: la riapre solo l\'amministratore.'));
+    }
     if (ed) corpo.push(h('div', { style: 'display:flex;gap:8px;margin-top:8px' }, h('select', { class: 'f', id: 'aIncSel', style: 'flex:1' }),
       (() => { const b = h('button', { class: 'btn sec need-net', type: 'button' }, '+ Aggiungi'); b.addEventListener('click', aggiungiIncarico); return b; })()));
+    $('#modAtt').classList.toggle('cmpt', mob);
+    const ca = colArea(n.area);
+    if ($('#aHead')) {   // intestazione compatta (smartphone): colore dell'area, titolo e percorso
+      $('#aHead').style.cssText = ca ? 'background:color-mix(in srgb,' + ca + ' 24%,var(--card));border-left:6px solid ' + ca : '';
+      $('#aTit2').textContent = (bozza ? 'Duplica: ' : (numTxt(n) ? numTxt(n) + ' ' : '')) + n.titolo;
+      $('#aPerc2').textContent = bozza ? 'Copia di: ' + percorsoTxt(orig) : percorsoTxt(n);
+    }
     $('#aTitH').textContent = bozza ? 'Duplica attività' : n.titolo;
     $('#aPerc').textContent = bozza ? 'Copia di: ' + percorsoTxt(orig) + ' — stesso livello, subito dopo l\'originale' : (numTxt(n) ? numTxt(n) + ' · ' : '') + percorsoTxt(n);
-    $('#aSalva').textContent = bozza ? 'Crea la copia' : 'Salva';
+    $$('.js-salva').forEach(x => { x.textContent = bozza ? (x.id === 'aSalva2' ? 'Crea' : 'Crea la copia') : 'Salva'; });
     $('#aCorpo').replaceChildren(...corpo); $('#aErr').classList.add('hidden');
     if (ed) {
       $('#aCkOn').addEventListener('change', e => { $('#aCkBox').classList.toggle('hidden', !e.target.checked); if (e.target.checked && !S.ckRighe.length) { S.ckRighe.push({ id: idRiga(), testo: '', qta: null }); renderCkRighe(); } });
@@ -989,7 +1013,7 @@
     }
     if (adm) $('#aSpOn').addEventListener('change', e => $('#aSpBox').classList.toggle('hidden', !e.target.checked));
     if (!navigator.onLine) $('#aCorpo').querySelectorAll('#aTit,#aDes,#aNot,#aScad,#aArea,.so input,.so select,.so button').forEach(i => { i.disabled = true; });
-    $('#aSalva').classList.toggle('hidden', !(ed || puoStato || isInc));
+    $$('.js-salva').forEach(x => x.classList.toggle('hidden', !(ed || puoStato || isInc)));
     renderIncarichi();
     if (!bozza) renderCompila(n, adm || (puoStato && (ed || isInc)));
     $('#modAtt').classList.remove('hidden');
@@ -1037,6 +1061,18 @@
 
   function renderIncarichi() {
     const n = S.att, me = stato.persona.id, ed = !!S.bozza || canEdit(n);
+    if (S.cmpt && !ed) {   // compatto: la mia nota su una riga, gli altri incaricati ripiegati
+      const mio = S.attInc.find(x => x.persona_id === me), altri = S.attInc.filter(x => x.persona_id !== me);
+      const els = [];
+      if (mio) els.push(h('div', { class: 'nota' }, h('span', { class: 'l2' }, '✎'), h('input', { type: 'text', 'data-pid': mio.persona_id, maxlength: '500', value: mio.nota || '', placeholder: 'La mia nota…' })));
+      if (altri.length) {
+        const det = h('div', { class: 'det hidden' }, ...altri.map(x => h('div', {}, h('b', {}, nomeP(x.persona_id)), ' — ', h('span', { class: 'sec' }, x.nota || 'nessuna nota'))));
+        const ln = h('div', { class: 'inc' }, '👥 Altri incaricati: ' + altri.map(x => nomeP(x.persona_id)).join(', '), h('span', { style: 'float:right' }, '›'), det);
+        ln.addEventListener('click', () => det.classList.toggle('hidden')); els.push(ln);
+      }
+      $('#aInc').replaceChildren(...els);
+      return;
+    }
     const righe = S.attInc.map(x => {
       const mia = x.persona_id === me, modif = ed || mia;
       const riga = h('div', { class: 'row', style: 'align-items:flex-start;flex-wrap:wrap' },
@@ -1090,7 +1126,7 @@
     const statoNuovo = (!st.disabled && st.value !== n.stato) ? st.value : null;
     if (bozza) {
       if (!navigator.onLine) { erroreScheda('Serve la connessione per duplicare l\'attività.'); return; }
-      const orig = S.bozza, b = $('#aSalva'); b.disabled = true;
+      const orig = S.bozza; bloccaSalva(true);
       let errore = null;
       const ins = await stato.sb.from('nodi').insert({ ...rec, evento_id: stato.evento, parent_id: orig.parent_id, responsabile_id: orig.responsabile_id, stato: st.value || 'da_fare', posizione: orig.posizione + 1 }).select('id').single();
       if (ins.error) errore = ins.error.message;
@@ -1100,7 +1136,7 @@
         if (!errore && sp) { const r = await stato.sb.from('nodi_sponsor').upsert({ nodo_id: nid, ...sp }, { onConflict: 'nodo_id' }); if (r.error) errore = r.error.message; }
         if (!errore) { const r = await stato.sb.rpc('sposta_nodo', { _nodo: nid, _padre: orig.parent_id, _indice: figli(orig.parent_id).findIndex(x => x.id === orig.id) + 1 }); if (r.error) errore = r.error.message; }
       }
-      b.disabled = false;
+      bloccaSalva(false);
       if (errore) { erroreScheda('Duplicazione non riuscita: ' + errDb(errore)); await aggiornaTutto(); return; }
       chiudiScheda(); await aggiornaTutto(); toast('Attività duplicata');
       return;
@@ -1120,7 +1156,7 @@
     }
     const strutturale = Object.keys(diff).length || tolti.length || aggiunti.length || cambiatiAltri.length || spCambia;
     if (strutturale && !navigator.onLine) { erroreScheda('Senza connessione puoi cambiare solo lo stato, la tua nota e la check-list. Per le altre modifiche serve la rete.'); return; }
-    const b = $('#aSalva'); b.disabled = true;
+    bloccaSalva(true);
     let errore = null;
     const esegui = async p => { if (errore) return; const r = await p; if (r.error) errore = r.error.message; };
     if (Object.keys(diff).length) await esegui(stato.sb.from('nodi').update(diff).eq('id', n.id));
@@ -1128,7 +1164,7 @@
     if (aggiunti.length) await esegui(stato.sb.from('incarichi').insert(aggiunti.map(w => ({ nodo_id: n.id, persona_id: w.persona_id, nota: (w.nota || '').trim() || null }))));
     for (const w of cambiatiAltri) await esegui(stato.sb.from('incarichi').update({ nota: (w.nota || '').trim() || null }).eq('id', w.id));
     if (spCambia) await esegui(sp === null ? stato.sb.from('nodi_sponsor').delete().eq('nodo_id', n.id) : stato.sb.from('nodi_sponsor').upsert({ nodo_id: n.id, ...sp, aggiornato_il: new Date().toISOString() }, { onConflict: 'nodo_id' }));
-    b.disabled = false;
+    bloccaSalva(false);
     if (errore) { erroreScheda('Salvataggio non riuscito: ' + errDb(errore)); await aggiornaTutto(); return; }
     chiudiScheda();
     if (strutturale) await aggiornaTutto();
@@ -1356,7 +1392,7 @@
         gh.addEventListener('click', () => { if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); });
         const gr = h('div', { class: 'gr' }, gh);
         if (aperto) gr.append(h('div', { class: 'det' }, ...g.l.map(n => {
-          const ln = h('div', { class: 'ln' }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, homeVista === 'persona' ? percorsoTxt(n) : (nomiInc(n).join(', ') || 'nessun incaricato'))), badgeScad(n),
+          const cL = colArea(n.area), ln = h('div', { class: 'ln', ...(cL ? { style: 'border-left:5px solid ' + cL + ';padding-left:8px' } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, homeVista === 'persona' ? percorsoTxt(n) : (nomiInc(n).join(', ') || 'nessun incaricato'))), badgeScad(n),
             ...(n.stato === 'fatto' && adm ? [(() => { const b = h('button', { class: 'bt2', type: 'button' }, '✔ Finito'); b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); }); return b; })()] : [badgeStato(n.stato)]));
           ln.addEventListener('click', () => apriScheda(n.id)); return ln;
         })));
@@ -1378,11 +1414,12 @@
         if (chiuso && !puoFin) sel.disabled = true;
         sel.addEventListener('change', () => statoRapido(n, sel.value));
         const nota = h('button', { class: 'ib', type: 'button' }, '✎ Nota' + (((S.inc[n.id] || []).find(x => x.persona_id === me) || {}).nota ? ' •' : '')); nota.addEventListener('click', () => apriScheda(n.id));
-        const t1 = h('div', { class: 't1' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), badgeScad(n)), t2 = h('div', { class: 't2' }, percorsoTxt(n) + (n.area ? ' · Area: ' + n.area : ''));
+        const t1 = h('div', { class: 't1' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), badgeScad(n)), t2 = h('div', { class: 't2' }, percorsoTxt(n) + ' ', n.area ? h('span', { class: 'ar' }, h('i', { style: 'background:' + (colArea(n.area) || '#999') }), n.area) : '');
         t1.addEventListener('click', () => apriScheda(n.id)); t2.addEventListener('click', () => apriScheda(n.id));
         const rc = righeCheck(n), ck = rc.length ? h('button', { class: 'ib ck', type: 'button', title: 'Check-list' }, '☑ ' + checkFatte(n) + '/' + rc.length) : '';
         if (ck) ck.addEventListener('click', () => apriScheda(n.id, false, true));
-        return h('div', { class: 'it' }, t1, t2, h('div', { class: 't3' }, sel, ck, nota, S.pend.has(n.id) ? h('span', { class: 'pend' }, '⏳ in attesa') : ''));
+        const cA = colArea(n.area);
+        return h('div', { class: 'it', ...(cA ? { style: 'background:color-mix(in srgb,' + cA + ' 18%,var(--card));border-left:5px solid ' + cA } : {}) }, t1, t2, h('div', { class: 't3' }, sel, ck, nota, S.pend.has(n.id) ? h('span', { class: 'pend' }, '⏳ in attesa') : ''));
       }) : [h('p', { class: 'sec', style: 'text-align:center' }, mie.length ? 'Tutte le tue attività sono finite. 🎉' : 'Non hai attività assegnate in questo evento.')]));
       if (nFin) { const a = h('a', { href: '#' }, (homeFinite ? 'Nascondi' : 'Mostra') + ' le attività finite (' + nFin + ')'); a.addEventListener('click', e => { e.preventDefault(); homeFinite = !homeFinite; renderHome(); }); out.push(h('p', { class: 'sec', style: 'text-align:center' }, a)); }
       if (op) out.push(h('p', { class: 'note', style: 'text-align:center' }, 'Tocca "Nota" per scrivere cosa hai fatto e ☑ per compilare la check-list. Le modifiche partono da sole appena c\'è rete.'));
@@ -1915,7 +1952,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#impFile').addEventListener('change', impAnalizza); $('#impOk').onclick = impEsegui; $('#impAnnulla').onclick = chiudiImport;
     $('#dupForm').addEventListener('submit', eseguiDuplica); $('#dAnnulla').onclick = () => $('#modDup').classList.add('hidden');
     $('#nodoForm').addEventListener('submit', salvaNodo);
-    $('#attForm').addEventListener('submit', salvaScheda); $('#aChiudi').onclick = chiudiScheda;
+    $('#attForm').addEventListener('submit', salvaScheda); $('#aChiudi').onclick = chiudiScheda; if ($('#aBack')) $('#aBack').onclick = chiudiScheda;
     $('#nAnnulla').onclick = chiudiNodo; $('#mvAnnulla').onclick = () => $('#modMove').classList.add('hidden');
     $('#strModBtn').onclick = () => { S.mod = !S.mod; renderStruttura(); };
     if (window.matchMedia) window.matchMedia('(max-width:760px)').addEventListener('change', () => { renderNav(); if (isMobile() && stato.pagina === 'str') vai('home'); });
