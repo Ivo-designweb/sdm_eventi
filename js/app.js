@@ -685,7 +685,7 @@
     if (navigator.onLine) {
       const NODI_BASE = 'id, parent_id, livello, posizione, titolo, descrizione, note, scadenza, stato, responsabile_id';
       const qNodi = async () => {
-        const r = await stato.sb.from('nodi').select(NODI_BASE + ', area, checklist, checklist_esito').eq('evento_id', stato.evento);
+        const r = await stato.sb.from('nodi').select(NODI_BASE + ', area, checklist, checklist_esito, data_chiusura').eq('evento_id', stato.evento);
         return r.error ? stato.sb.from('nodi').select(NODI_BASE).eq('evento_id', stato.evento) : r;   // database non ancora aggiornato
       };
       const [n, i, pe, pa, nu, sp] = await Promise.all([
@@ -731,7 +731,7 @@
     const lf = isLeaf(n), inc = S.inc[n.id] || [], sp = isAdmin() ? S.sponsor[n.id] : null;
     const dr = (et, v) => (v ? h('div', { class: 'dr' }, h('span', { class: 'dl' }, et), h('div', { class: 'dv' }, v)) : '');
     const els = [dr('Descrizione', n.descrizione), dr('Note', n.note), dr('Responsabile', lf ? '' : (() => { const r = respEff(n); return r.id ? nomeP(r.id) + (r.ered ? ' (ereditato)' : '') : ''; })()),
-      lf ? dr('Scadenza', n.scadenza ? fmtData(n.scadenza) : '') : '', lf ? dr('Area', n.area || 'Tutte') : ''];
+      lf ? dr('Scadenza', n.scadenza ? fmtData(n.scadenza) : '') : '', lf && n.data_chiusura && (n.stato === 'fatto' || n.stato === 'finito') ? dr('Chiusa il', fmtDataOra(n.data_chiusura)) : '', lf ? dr('Area', n.area || 'Tutte') : ''];
     if (lf) {
       els.push(dr('Incaricati', inc.length ? h('div', {}, ...inc.map(x => h('div', {}, nomeP(x.persona_id), x.nota ? h('span', { class: 'sec' }, ' — “' + x.nota + '”') : ''))) : ''));
       const rc = righeCheck(n);
@@ -996,9 +996,14 @@
     const selStato = h('select', { class: 'f', id: 'aStato' }, ...['da_fare', 'in_corso', 'fatto', ...(adm || chiuso ? ['finito'] : [])]
       .map(k => { const o = h('option', { value: k }, STATI[k]); if (n.stato === k) o.selected = true; return o; }));
     if (!puoStato) selStato.disabled = true;
+    const chiuW = h('div', { id: 'aChiuW' }, campo('Data e ora di chiusura', h('input', { type: 'datetime-local', id: 'aChiu', value: dtLocale(n.data_chiusura || new Date()) })),
+      h('p', { class: 'note', style: 'margin-top:-4px' }, 'Proposta: adesso. Puoi cambiarla prima di salvare.'));
+    const mostraChiu = () => chiuW.classList.toggle('hidden', selStato.value !== 'fatto' || !puoStato);
+    selStato.addEventListener('change', mostraChiu); mostraChiu();
     corpo.push(h('div', { class: 'grid2' },
       campo('Scadenza', ed ? h('input', { type: 'date', id: 'aScad', value: n.scadenza || '' }) : testo(n.scadenza ? fmtData(n.scadenza) : '')),
-      campo('Stato', selStato)));
+      campo('Stato', selStato)), chiuW);
+    if (n.data_chiusura && n.stato === 'finito') corpo.push(h('p', { class: 'note' }, 'Chiusa il ' + fmtDataOra(n.data_chiusura)));
     // area
     const ar = areeEv();
     if (ed) {
@@ -1036,12 +1041,12 @@
       const lab = { da_fare: 'Da fare', in_corso: 'In corso', fatto: 'Fatto', finito: 'Finito' };
       const seg = h('div', { class: 'seg2', id: 'aSeg' }, ...['da_fare', 'in_corso', 'fatto', ...(chiuso ? ['finito'] : [])].map(k => {
         const b = h('button', { type: 'button', class: n.stato === k ? 'on' : '' }, lab[k]); b.disabled = !puoStato;
-        b.addEventListener('click', () => { selStato.value = k; seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); });
+        b.addEventListener('click', () => { selStato.value = k; seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); mostraChiu(); });
         return b;
       }));
       corpo.push(h('div', { class: 'chips' }, h('span', { class: 'ar' }, ca0 ? h('i', { style: 'background:' + ca0 }) : '', n.area || 'Tutte le aree'), n.scadenza ? badgeScad(n) : '', h('span', { class: 'badge' }, '👥 ' + S.attInc.length)),
         (n.descrizione || n.note) ? h('div', { class: 'info' }, n.descrizione ? h('div', {}, h('span', { class: 'l' }, 'Descrizione: '), n.descrizione) : '', n.note ? h('div', {}, h('span', { class: 'l' }, 'Note: '), n.note) : '') : '',
-        seg, selStato, ...(righeCheck(n).length ? [h('div', { class: 'ckfill', id: 'aCompila' })] : []), h('div', { id: 'aInc' }));
+        seg, selStato, chiuW, ...(righeCheck(n).length ? [h('div', { class: 'ckfill', id: 'aCompila' })] : []), h('div', { id: 'aInc' }));
       if (chiuso && !adm) corpo.push(h('p', { class: 'note' }, 'Attività finita: la riapre solo l\'amministratore.'));
     }
     if (ed) corpo.push(h('div', { style: 'display:flex;gap:8px;margin-top:8px' }, h('select', { class: 'f', id: 'aIncSel', style: 'flex:1' }),
@@ -1173,7 +1178,14 @@
       }
     }
     const st = $('#aStato');
-    const statoNuovo = (!st.disabled && st.value !== n.stato) ? st.value : null;
+    let chiu = null;
+    if (st.value === 'fatto' && !st.disabled) {
+      const v = $('#aChiu') && $('#aChiu').value, t = v ? new Date(v) : new Date();
+      if (t.getTime() > Date.now() + 5 * 60000) { erroreScheda('La data di chiusura non può essere nel futuro.'); return; }
+      chiu = t.toISOString();
+    }
+    const chiuCambia = !!chiu && n.stato === 'fatto' && (!n.data_chiusura || Math.abs(new Date(n.data_chiusura) - new Date(chiu)) > 59000);
+    const statoNuovo = (!st.disabled && (st.value !== n.stato || chiuCambia)) ? st.value : null;
     if (bozza) {
       if (!navigator.onLine) { erroreScheda('Serve la connessione per duplicare l\'attività.'); return; }
       const orig = S.bozza; bloccaSalva(true);
@@ -1220,7 +1232,7 @@
     if (strutturale) await aggiornaTutto();
     // stato e propria nota passano dalla coda: funzionano anche offline
     if (miaNota) accodaModifica('incarico_nota', miaNota.id, (miaNota.nota || '').trim() || null, { nodo: n.id, titolo: n.titolo, percorso: percorsoTxt(n), etichetta: 'Nota' });
-    if (statoNuovo) accodaStato(n, statoNuovo);
+    if (statoNuovo) accodaStato(n, statoNuovo, chiu);
   }
 
   // ---------- sincronizzazione offline ----------
@@ -1253,7 +1265,7 @@
   }
 
   function applicaOpLocale(o) {
-    if (o.tipo === 'nodo_stato') { const n = S.nodi.find(x => x.id === o.id); if (n) n.stato = o.valore; }
+    if (o.tipo === 'nodo_stato') { const n = S.nodi.find(x => x.id === o.id); if (n) { n.stato = o.valore; if (o.valore === 'fatto') n.data_chiusura = o.chiusura || n.data_chiusura || o.ts; else if (o.valore !== 'finito') n.data_chiusura = null; } }
     else if (o.tipo === 'nodo_check') { const n = S.nodi.find(x => x.id === o.id); if (n) n.checklist_esito = { ...(n.checklist_esito || {}), [o.sub]: { ...o.valore, ts: o.ts } }; }
     else Object.values(S.inc).forEach(l => { const x = l.find(i => i.id === o.id); if (x) x.nota = o.valore; });
   }
@@ -1270,8 +1282,8 @@
     sincronizza();
   }
 
-  function accodaStato(n, v) {
-    accodaModifica('nodo_stato', n.id, v, { nodo: n.id, titolo: n.titolo, percorso: percorsoTxt(n), etichetta: 'Stato' });
+  function accodaStato(n, v, chiusura) {
+    accodaModifica('nodo_stato', n.id, v, { nodo: n.id, titolo: n.titolo, percorso: percorsoTxt(n), etichetta: 'Stato', ...(v === 'fatto' ? { chiusura: chiusura || new Date().toISOString() } : {}) });
     toast(navigator.onLine ? 'Stato aggiornato' : 'Salvato sul dispositivo: partirà appena c\'è rete');
   }
 
@@ -1379,7 +1391,27 @@
   const card = (titolo, ...figli) => h('div', { class: 'card' }, titolo ? h('h2', {}, titolo) : '', ...figli);
   const tile = (n, etich, cl) => h('div', { class: 'tile ' + (n ? cl : '') }, h('b', {}, String(n)), h('span', { class: 'sec' }, etich));
 
-  const statoRapido = (n, v) => accodaStato(n, v);
+  // data e ora di chiusura: proposta adesso, modificabile prima di salvare
+  const dtLocale = d => { const x = new Date(d), p = k => String(k).padStart(2, '0'); return x.getFullYear() + '-' + p(x.getMonth() + 1) + '-' + p(x.getDate()) + 'T' + p(x.getHours()) + ':' + p(x.getMinutes()); };
+  const fmtDataOra = d => new Date(d).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  function chiediChiusura(n) {
+    return new Promise(res => {
+      $('#chTit').textContent = n.titolo; $('#chData').value = dtLocale(new Date()); $('#chErr').classList.add('hidden');
+      const m = $('#modChiu'); m.classList.remove('hidden');
+      const fine = v => { m.classList.add('hidden'); $('#chForm').onsubmit = null; $('#chAnnulla').onclick = null; res(v); };
+      $('#chAnnulla').onclick = () => fine(null);
+      $('#chForm').onsubmit = ev => {
+        ev.preventDefault();
+        const v = $('#chData').value, t = v ? new Date(v) : new Date();
+        if (t.getTime() > Date.now() + 5 * 60000) { $('#chErr').textContent = 'La data di chiusura non può essere nel futuro.'; $('#chErr').classList.remove('hidden'); return; }
+        fine(t.toISOString());
+      };
+    });
+  }
+  async function statoRapido(n, v) {
+    if (v === 'fatto' && n.stato !== 'fatto') { const c = await chiediChiusura(n); if (!c) { renderHome(); renderStruttura(); return; } accodaStato(n, v, c); return; }
+    accodaStato(n, v);
+  }
 
   let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null, homeStatoF = '', homeLuce = '';
   const passaStatoHome = n => !homeStatoF || (homeStatoF === 'fatte' ? (n.stato === 'fatto' || n.stato === 'finito') : homeStatoF === 'scad' ? !!scadClasse(n) : n.stato === homeStatoF);
@@ -1490,7 +1522,7 @@
         const sel = h('select', { class: 'st' }, ...['da_fare', 'in_corso', 'fatto', ...(puoFin || chiuso ? ['finito'] : [])].map(k => { const o = h('option', { value: k }, STATI[k].replace(' (confermato dall\'amministratore)', '')); if (n.stato === k) o.selected = true; if (chiuso && !puoFin && k !== 'finito') o.disabled = true; return o; }));
         if (chiuso && !puoFin) sel.disabled = true;
         sel.addEventListener('change', () => statoRapido(n, sel.value));
-        const nota = h('button', { class: 'ib', type: 'button' }, '✎ Nota' + (((S.inc[n.id] || []).find(x => x.persona_id === me) || {}).nota ? ' •' : '')); nota.addEventListener('click', () => apriScheda(n.id));
+        const nota = h('button', { class: 'ib', type: 'button' }, '📝 Consuntiva' + (((S.inc[n.id] || []).find(x => x.persona_id === me) || {}).nota ? ' •' : '')); nota.addEventListener('click', () => apriScheda(n.id));
         const t1 = h('div', { class: 't1' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), badgeScad(n)), t2 = h('div', { class: 't2' }, percorsoTxt(n) + ' ', n.area ? h('span', { class: 'ar' }, h('i', { style: 'background:' + (colArea(n.area) || '#999') }), n.area) : '');
         t1.addEventListener('click', () => apriScheda(n.id)); t2.addEventListener('click', () => apriScheda(n.id));
         const rc = righeCheck(n), ck = rc.length ? h('button', { class: 'ib ck', type: 'button', title: 'Check-list' }, '☑ ' + checkFatte(n) + '/' + rc.length) : '';
@@ -1505,7 +1537,7 @@
         return h('div', { class: 'it', ...(cA ? { style: 'background:color-mix(in srgb,' + cA + ' 18%,var(--card));border-left:5px solid ' + cA } : {}) }, t1, t2, h('div', { class: 't3' }, sel, ck, nota, S.pend.has(n.id) ? h('span', { class: 'pend' }, '⏳ in attesa') : ''));
       }) : [h('p', { class: 'sec', style: 'text-align:center' }, mie.length ? 'Tutte le tue attività sono finite. 🎉' : 'Non hai attività assegnate in questo evento.')]));
       if (nFin) { const a = h('a', { href: '#' }, (homeFinite ? 'Nascondi' : 'Mostra') + ' le attività finite (' + nFin + ')'); a.addEventListener('click', e => { e.preventDefault(); homeFinite = !homeFinite; renderHome(); }); out.push(h('p', { class: 'sec', style: 'text-align:center' }, a)); }
-      if (op) out.push(h('p', { class: 'note', style: 'text-align:center' }, 'Tocca "Nota" per scrivere cosa hai fatto e ☑ per compilare la check-list. Le modifiche partono da sole appena c\'è rete.'));
+      if (op) out.push(h('p', { class: 'note', style: 'text-align:center' }, 'Tocca "Consuntiva" per registrare cosa hai fatto, la nota e la check-list. Le modifiche partono da sole appena c\'è rete.'));
     }
     box.replaceChildren(...out);
   }

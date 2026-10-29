@@ -493,3 +493,10 @@ body.drg{cursor:grabbing}
   .bottom button span{font-size:17px;line-height:1.15}
   main{padding-bottom:calc(58px + env(safe-area-inset-bottom))}
 }
+
+/* v3.8: finestre sopra la barra in basso; barra dei pulsanti della scheda più alta su smartphone */
+@media (max-width:760px), (pointer:coarse) and (max-height:500px){
+  #modAtt.cmpt .aBar{padding:12px 12px calc(16px + env(safe-area-inset-bottom))}
+  #modAtt.cmpt .aBar .btn{padding:13px 10px;font-size:15px}
+  #modAtt.cmpt #aCorpo{padding-bottom:12px}
+}

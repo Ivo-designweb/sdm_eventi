@@ -1,6 +1,6 @@
 // Service worker: l'app si apre anche senza rete.
 // Ad ogni nuova versione dell'app cambiare VERSIONE (stesso numero di index.html).
-const VERSIONE = '3.7';
+const VERSIONE = '3.8';
 const CACHE = 'sdm-eventi-' + VERSIONE;
 const SHELL = [
   './', 'index.html', 'assets/app.css', 'js/config.js', 'js/app.js', 'vendor/supabase.js', 'vendor/sortable.min.js', 'vendor/xlsx.mini.min.js',
