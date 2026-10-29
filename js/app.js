@@ -251,13 +251,13 @@
     const nav = $('#bottomNav'); if (!nav) return;
     const op = !!stato.persona && isOperatore();
     const v = op ? [['home', '📋', 'Attività'], ['eventi', '📅', 'Eventi'], ['altro', '☰', 'Altro']]
-      : [['home', '🏠', 'Home'], ['persone', '👥', 'Persone'], ['eventi', '📅', 'Eventi'], ['altro', '☰', 'Altro']];
+      : [['home', '🏠', 'Home'], ['persone', '👥', 'Persone'], ['eventi', '📅', 'Eventi'], ...(isAdmin() ? [['str', '🌳', 'Struttura']] : []), ['altro', '☰', 'Altro']];
     nav.replaceChildren(...v.map(x => { const b = h('button', { type: 'button', 'data-p': x[0] }, h('span', {}, x[1]), x[2]); b.addEventListener('click', () => vai(x[0])); return b; }));
     segnaNav(stato.pagina);
   }
   function segnaNav(p) {
     const op = !!stato.persona && isOperatore();
-    const k = (p === 'home' || p === 'eventi' || (!op && p === 'persone')) ? p : 'altro';
+    const k = (p === 'home' || p === 'eventi' || (p === 'str' && isAdmin()) || (!op && p === 'persone')) ? p : 'altro';
     $$('.nv').forEach(b => b.classList.toggle('on', b.dataset.p === p));
     $$('.bottom button').forEach(b => b.classList.toggle('on', b.dataset.p === k));
   }
@@ -267,7 +267,6 @@
     if ($('#altroEvento')) $('#altroEvento').textContent = eventoCorrente() ? eventoCorrente().titolo : 'nessun evento selezionato';
     $('#altroLista').replaceChildren(...[
       op ? voce('👥', 'Persone dell\'evento', () => vai('persone')) : '',
-      stato.evento !== null ? voce('🌳', 'Struttura', () => vai('str')) : '',
       voce('🔔', 'Da rivedere', () => vai('rev'), r ? h('span', { class: 'badge e' }, String(r)) : ''),
       voce('⚙️', 'Impostazioni', () => vai('imp')),
       isSuper() ? voce('🎛️', 'Parametri', () => vai('par')) : '',
@@ -279,6 +278,7 @@
   function vai(p) {
     if ((p === 'home' || p === 'str') && stato.evento === null && stato.persona) p = 'eventi';
     if (p === 'par' && !isSuper()) p = 'home';
+    if (p === 'str' && isMobile() && !isAdmin()) p = 'home';   // su smartphone la Struttura è solo dell'amministratore
     stato.pagina = p;
     $$('.pg').forEach(e => e.classList.add('hidden'));
     $('#p-' + p).classList.remove('hidden');
@@ -354,7 +354,7 @@
       const az = h('div', { style: 'display:flex;gap:6px;align-items:center;flex-wrap:wrap' },
         p.iscritto ? h('span', { class: 'badge ok' }, 'iscritto ' + (p.numero_iscritto || '')) : h('span', { class: 'badge' }, 'non iscritto'),
         p.ruolo === 'admin' ? h('span', { class: 'badge w' }, 'admin') : '',
-        P.resp[p.id] ? h('span', { class: 'badge', title: P.resp[p.id].join(', ') }, 'Responsabile: ' + P.resp[p.id].slice(0, 2).join(', ') + (P.resp[p.id].length > 2 ? ' +' + (P.resp[p.id].length - 2) : '')) : '');
+        P.resp[p.id] ? h('span', { class: 'badge', title: 'Responsabile di: ' + P.resp[p.id].join(', ') }, '👤 ' + P.resp[p.id].slice(0, 2).join(', ') + (P.resp[p.id].length > 2 ? ' +' + (P.resp[p.id].length - 2) : '')) : '');
       const btn = (href, txt, titolo) => h('a', { class: 'btn sec xm', style: 'padding:4px 10px', href, title: titolo, 'aria-label': titolo }, txt);
       const voci = [];
       if (p.cellulare) {
@@ -1404,7 +1404,7 @@
       if (!celle.some(x => x[0] === homeStatoF)) homeStatoF = '';   // la cella "Tutte" toglie qualsiasi filtro
       out.push(h('div', { class: 'tot', role: 'group', 'aria-label': 'Filtra le attività per stato' }, ...celle.map(([k, et, n, cl]) => {
         const b = h('button', { type: 'button', class: 'tt-c ' + cl + (homeStatoF === k ? ' act' : ''), 'aria-pressed': homeStatoF === k ? 'true' : 'false',
-          title: k === 'scad' ? (sc.length + ' scadute, ' + pr.length + ' entro ' + gg + ' giorni') : et }, h('b', {}, String(n)), k === 'scad' ? h('span', {}, h('em', { class: 'lg' }, 'In scadenza'), h('em', { class: 'sh' }, 'Scadenza')) : h('span', {}, et), k === 'scad' && sc.length ? h('small', {}, sc.length + (sc.length === 1 ? ' scaduta' : ' scadute')) : '');
+          title: k === 'scad' ? (sc.length + ' scadute, ' + pr.length + ' entro ' + gg + ' giorni') : et }, h('b', {}, String(n)), k === 'scad' ? h('span', {}, h('em', { class: 'lg' }, 'In scadenza'), h('em', { class: 'sh' }, 'Scadenza')) : h('span', {}, et));
         b.addEventListener('click', () => { homeStatoF = (homeStatoF === k || !k) ? '' : k; renderHome(); });
         return b;
       })));
@@ -2027,7 +2027,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#nodoForm').addEventListener('submit', salvaNodo);
     $('#attForm').addEventListener('submit', salvaScheda); $('#aChiudi').onclick = chiudiScheda; if ($('#aBack')) $('#aBack').onclick = chiudiScheda;
     $('#nAnnulla').onclick = chiudiNodo;
-    if (window.matchMedia) window.matchMedia('(max-width:760px)').addEventListener('change', () => { renderNav(); if (isMobile() && stato.pagina === 'str') vai('home'); });
+    if (window.matchMedia) window.matchMedia('(max-width:760px)').addEventListener('change', () => { renderNav(); if (isMobile() && !isAdmin() && stato.pagina === 'str') vai('home'); });
     if ($('#strArea')) $('#strArea').onchange = e => { S.areaF = e.target.value; renderStruttura(); renderHome(); };
     if ($('#fQ')) {
       let tq; $('#fQ').addEventListener('input', e => { clearTimeout(tq); tq = setTimeout(() => { S.f.q = e.target.value.trim(); renderStruttura(); }, 180); });
