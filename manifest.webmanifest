@@ -3,6 +3,7 @@
   "short_name": "SDM Eventi",
   "description": "Gestione degli eventi sportivi: attività, incaricati e avanzamento.",
   "lang": "it",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
