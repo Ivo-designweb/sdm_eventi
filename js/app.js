@@ -486,7 +486,7 @@
   }
 
   function selezionaEvento(id, vaiHome) {
-    stato.evento = id; S.collassati = new Set(); S.aperti = new Set(); S.areaF = ''; S.f = { q: '', stato: '', pers: '', scad: '' }; S.nodi = []; S.inc = {}; S.num = {}; S.sponsor = {}; homeAvv = ''; homeAperti = new Set();
+    stato.evento = id; S.undo = []; S.collassati = new Set(); S.aperti = new Set(); S.areaF = ''; S.f = { q: '', stato: '', pers: '', scad: '' }; S.nodi = []; S.inc = {}; S.num = {}; S.sponsor = {}; homeAvv = ''; homeAperti = new Set();
     LS.set('sdm_evento', { uid: stato.persona.uid, id });
     renderEvBar(); renderEventi();
     if (vaiHome) vai('home');
@@ -709,7 +709,7 @@
       }
     }
     if (!ok) { const c = LS.get(chiave); if (c) { S.nodi = c.n; S.inc = c.i; S.nomi = c.m; S.assegnabili = c.a || []; S.num = c.u || {}; S.sponsor = c.s || {}; } else S.nodi = []; sovrapponiCoda(); }
-    renderStruttura(); renderHome(); renderEvBar(); renderNav();
+    renderStruttura(); renderHome(); renderEvBar(); renderNav(); aggiornaUndo();
   }
 
   function badgeStato(st) {
@@ -741,7 +741,7 @@
     }
     const pan = h('div', { class: 'dett' }, ...els.filter(Boolean));
     if (!pan.children.length) pan.append(h('span', { class: 'sec' }, 'Nessun dettaglio.'));
-    if (lf) { const b = h('button', { class: 'btn sec', type: 'button', style: 'padding:4px 12px;margin-top:6px' }, 'Apri scheda'); b.addEventListener('click', () => apriScheda(n.id)); pan.append(b); }
+    if (lf) { const b = h('button', { class: 'btn sec xs', type: 'button', style: 'padding:4px 12px;margin-top:6px' }, 'Apri scheda'); b.addEventListener('click', () => apriScheda(n.id)); pan.append(b); }
     return pan;
   }
 
@@ -768,7 +768,7 @@
     const padre = n.parent_id ? nodo(n.parent_id) : null;
     const vAdd = canAdd(n) && lv < maxLivelli(), vDup = canDup(), vEd = canEdit(n), vDel = canDel(n);
     const ac = [];
-    if (vEd) btns.append(ib('✎', 'Modifica', () => apriNodo(n.id, null)));
+    if (vEd) btns.append(ib('✎', 'Modifica', () => (lf ? apriScheda(n.id) : apriNodo(n.id, null))));
     if (vAdd) { btns.append(ib('＋', 'Aggiungi sotto', () => apriNodo(null, n.id), 'xm')); ac.push(['＋ Aggiungi sotto', () => apriNodo(null, n.id)]); }
     if (vDup) { btns.append(ib('⧉', 'Duplica', () => apriDuplicaRamo(n.id), 'xm')); ac.push(['⧉ Duplica', () => apriDuplicaRamo(n.id)]); }
     if (vDel) { btns.append(ib('🗑', 'Elimina', () => eliminaNodo(n.id), 'dn xm')); ac.push(['🗑 Elimina', () => eliminaNodo(n.id), 'dn']); }
@@ -848,12 +848,22 @@
     return '';
   }
 
-  async function spostaNodo(id, padre, indice) {
+  // "Annulla": ricorda gli ultimi 3 spostamenti (nodo, ramo e posizione di partenza)
+  S.undo = [];
+  const aggiornaUndo = () => { const b = $('#strUndo'); if (!b) return; b.disabled = !S.undo.length || !navigator.onLine; b.textContent = '↶ Annulla' + (S.undo.length ? ' (' + S.undo.length + ')' : ''); };
+  async function annullaSpostamento() {
+    const u = S.undo.pop(); aggiornaUndo(); if (!u) return;
+    if (!nodo(u.id)) { toast('Elemento non più presente'); return; }
+    await spostaNodo(u.id, u.padre && nodo(u.padre) ? u.padre : null, u.indice, true);
+  }
+  async function spostaNodo(id, padre, indice, eUndo) {
     if (!navigator.onLine) { alert('Serve la connessione per spostare.'); await caricaStruttura(); return; }
+    const n0 = nodo(id), partenza = n0 ? { id, padre: n0.parent_id || null, indice: figli(n0.parent_id).findIndex(x => x.id === id) } : null;
     const { error } = await stato.sb.rpc('sposta_nodo', { _nodo: id, _padre: padre, _indice: indice });
     if (error) alert(/find the function|schema cache/i.test(error.message || '')
       ? 'Spostamento non possibile: il database non è aggiornato. Riesegui lo script db/01_schema_sdm_eventi.sql nell\'SQL Editor di Supabase e riprova.'
       : 'Spostamento non riuscito: ' + error.message);
+    else if (!eUndo && partenza) { S.undo.push(partenza); if (S.undo.length > 3) S.undo.shift(); }
     if (padre) S.collassati.delete(padre);
     await caricaStruttura();
   }
@@ -2036,6 +2046,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
       $('#fScad').onchange = e => { S.f.scad = e.target.value; renderStruttura(); };
       $('#fReset').onclick = () => { S.f = { q: '', stato: '', pers: '', scad: '' }; S.areaF = ''; renderStruttura(); renderHome(); };
     }
+    $('#strUndo').onclick = annullaSpostamento;
     $('#strEspandi').onclick = () => { S.collassati = new Set(); renderStruttura(); };
     $('#strComprimi').onclick = () => { S.collassati = new Set(S.nodi.filter(n => S.nodi.some(x => x.parent_id === n.id)).map(n => n.id)); renderStruttura(); };
     $('#lgFile').addEventListener('change', caricaLogo); $('#lgDel').onclick = ripristinaLogo;
