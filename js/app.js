@@ -1381,7 +1381,7 @@
 
   const statoRapido = (n, v) => accodaStato(n, v);
 
-  let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null, homeStatoF = '';
+  let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null, homeStatoF = '', homeLuce = '';
   const passaStatoHome = n => !homeStatoF || (homeStatoF === 'fatte' ? (n.stato === 'fatto' || n.stato === 'finito') : homeStatoF === 'scad' ? !!scadClasse(n) : n.stato === homeStatoF);
   const radice = n => { const a = antenati(n); return a.length ? a[a.length - 1] : n; };
   const nomiInc = n => (S.inc[n.id] || []).map(x => nomeP(x.persona_id));
@@ -1412,11 +1412,12 @@
       const gg = parseInt(stato.parametri.giorni_preavviso_scadenza, 10) || 7;
       // totalizzatore in grande: ogni cella è anche un filtro per l'elenco per persona / per ramo qui sotto
       const celle = [['', 'Tutte', c.tot, 'all'], ['da_fare', 'Da fare', c.da_fare, 'dar'], ['in_corso', 'In corso', c.in_corso, 'cor'], ['fatte', 'Fatte', c.fatto + c.finito, 'fin'], ['scad', 'In scadenza', sc.length + pr.length, sc.length ? 'e' : 'w']];
-      if (!celle.some(x => x[0] === homeStatoF)) homeStatoF = '';   // la cella "Tutte" toglie qualsiasi filtro
+      if (!celle.some(x => x[0] === homeStatoF)) homeStatoF = '';
+      const luce = homeLuce; homeLuce = '';   // la luce gira solo subito dopo la scelta della cella, non a ogni aggiornamento   // la cella "Tutte" toglie qualsiasi filtro
       out.push(h('div', { class: 'tot', role: 'group', 'aria-label': 'Filtra le attività per stato' }, ...celle.map(([k, et, n, cl]) => {
-        const b = h('button', { type: 'button', class: 'tt-c ' + cl + (homeStatoF === k ? ' act' : ''), 'aria-pressed': homeStatoF === k ? 'true' : 'false',
+        const b = h('button', { type: 'button', class: 'tt-c ' + cl + (homeStatoF === k ? ' act' : '') + (luce && luce === k && homeStatoF === k ? ' run' : ''), 'aria-pressed': homeStatoF === k ? 'true' : 'false', ...({}),
           title: k === 'scad' ? (sc.length + ' scadute, ' + pr.length + ' entro ' + gg + ' giorni') : et }, h('b', {}, String(n)), k === 'scad' ? h('span', {}, h('em', { class: 'lg' }, 'In scadenza'), h('em', { class: 'sh' }, 'Scadenza')) : h('span', {}, et));
-        b.addEventListener('click', () => { homeStatoF = (homeStatoF === k || !k) ? '' : k; renderHome(); });
+        b.addEventListener('click', () => { homeStatoF = (homeStatoF === k || !k) ? '' : k; homeLuce = homeStatoF; renderHome(); });
         return b;
       })));
       out.push(h('div', { class: 'card sum sm' }, h('div', { class: 'big' }, c.perc + '%'),
