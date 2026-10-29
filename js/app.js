@@ -246,7 +246,8 @@
   }
 
   // La Struttura (albero, modifica, spostamenti) si usa da PC: su smartphone non compare
-  const isMobile = () => !!(window.matchMedia && window.matchMedia('(max-width:760px)').matches);
+  const MQ_SMARTPHONE = '(max-width:760px), (pointer:coarse) and (max-height:500px)';   // schermo stretto, oppure telefono in orizzontale
+  const isMobile = () => !!(window.matchMedia && window.matchMedia(MQ_SMARTPHONE).matches);
   function renderNav() {
     const nav = $('#bottomNav'); if (!nav) return;
     const op = !!stato.persona && isOperatore();
@@ -800,12 +801,12 @@
     const ar = areeEv(), sa = $('#strArea');
     if (S.areaF && !ar.includes(S.areaF)) S.areaF = '';
     if (sa) { sa.classList.toggle('hidden', !ar.length);
-      sa.replaceChildren(h('option', { value: '' }, 'Tutte le aree'), ...ar.map(a => h('option', { value: a }, a))); sa.value = S.areaF; }
+      sa.replaceChildren(h('option', { value: '' }, 'Area'), ...ar.map(a => h('option', { value: a }, a))); sa.value = S.areaF; }
     const sp = $('#fPers');
     if (sp) {
       const ids = new Set(); S.nodi.forEach(n => { if (n.responsabile_id) ids.add(n.responsabile_id); (S.inc[n.id] || []).forEach(x => ids.add(x.persona_id)); });
       if (S.f.pers && S.f.pers !== '__no' && !ids.has(S.f.pers)) S.f.pers = '';
-      sp.replaceChildren(h('option', { value: '' }, 'Tutte le persone'), h('option', { value: '__no' }, 'Senza incaricati'), ...[...ids].sort((a, b) => nomeP(a).localeCompare(nomeP(b))).map(id => h('option', { value: id }, nomeP(id))));
+      sp.replaceChildren(h('option', { value: '' }, 'Persona'), h('option', { value: '__no' }, 'Senza incaricati'), ...[...ids].sort((a, b) => nomeP(a).localeCompare(nomeP(b))).map(id => h('option', { value: id }, nomeP(id))));
       sp.value = S.f.pers;
       $('#fQ').value = S.f.q; $('#fStato').value = S.f.stato; $('#fScad').value = S.f.scad;
       const foglieTot = S.nodi.filter(isLeaf), foglieOk = foglieTot.filter(passaFiltri);
@@ -850,7 +851,8 @@
 
   // "Annulla": ricorda gli ultimi 3 spostamenti (nodo, ramo e posizione di partenza)
   S.undo = [];
-  const aggiornaUndo = () => { const b = $('#strUndo'); if (!b) return; b.disabled = !S.undo.length || !navigator.onLine; b.textContent = '↶ Annulla' + (S.undo.length ? ' (' + S.undo.length + ')' : ''); };
+  const ICONA_UNDO = '<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 14L4 9l5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const aggiornaUndo = () => { const b = $('#strUndo'); if (!b) return; b.disabled = !S.undo.length || !navigator.onLine; b.innerHTML = ICONA_UNDO + '<span>Annulla spostamento' + (S.undo.length ? ' (' + S.undo.length + ')' : '') + '</span>'; };
   async function annullaSpostamento() {
     const u = S.undo.pop(); aggiornaUndo(); if (!u) return;
     if (!nodo(u.id)) { toast('Elemento non più presente'); return; }
@@ -1380,7 +1382,6 @@
   const statoRapido = (n, v) => accodaStato(n, v);
 
   let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null, homeStatoF = '';
-  const g_tot = gv => gv.reduce((a, g) => a + g.lf.length, 0);
   const passaStatoHome = n => !homeStatoF || (homeStatoF === 'fatte' ? (n.stato === 'fatto' || n.stato === 'finito') : homeStatoF === 'scad' ? !!scadClasse(n) : n.stato === homeStatoF);
   const radice = n => { const a = antenati(n); return a.length ? a[a.length - 1] : n; };
   const nomiInc = n => (S.inc[n.id] || []).map(x => nomeP(x.persona_id));
@@ -1459,7 +1460,6 @@
         figli(null).forEach(r => { const l = gestisco.filter(n => radice(n).id === r.id); if (l.length) gruppi.push({ k: 'r' + r.id, nome: r.titolo, l }); });
       }
       const seg = h('div', { class: 'seg' }, ...[['persona', 'Per persona'], ['ramo', 'Per ramo']].map(([k, t]) => { const b = h('button', { type: 'button', class: homeVista === k ? 'on' : '' }, t); b.addEventListener('click', () => { homeVista = k; renderHome(); }); return b; }));
-      const NOMI_F = { da_fare: 'Da fare', in_corso: 'In corso', fatte: 'Fatte', scad: 'In scadenza' };
       const gv = gruppi.map(g => ({ ...g, lf: g.l.filter(passaStatoHome) })).filter(g => g.lf.length);
       const righe = gv.map(g => {
         const cc = conteggio(g.l), aperto = homeAperti.has(g.k) || !!homeStatoF, nf = g.l.filter(n => n.stato === 'fatto').length;
@@ -1473,8 +1473,7 @@
         })));
         return gr;
       });
-      const fb = homeStatoF ? (() => { const x = h('button', { type: 'button', class: 'ch2 act fl' }, 'Filtro: ' + NOMI_F[homeStatoF] + ' · ' + g_tot(gv) + ' ✕'); x.addEventListener('click', () => { homeStatoF = ''; renderHome(); }); return x; })() : '';
-      out.push(h('div', { class: 'card' }, seg, fb, ...(righe.length ? righe : [h('p', { class: 'sec' }, 'Nessuna attività.')]),
+      out.push(h('div', { class: 'card' }, seg, ...(righe.length ? righe : [h('p', { class: 'sec' }, 'Nessuna attività.')]),
         h('p', { class: 'note', style: 'margin:8px 0 0;text-align:center' }, 'Tocca una riga per vedere le attività. ✔ n = da confermare.')));
     }
     // le mie attività
@@ -2037,7 +2036,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#nodoForm').addEventListener('submit', salvaNodo);
     $('#attForm').addEventListener('submit', salvaScheda); $('#aChiudi').onclick = chiudiScheda; if ($('#aBack')) $('#aBack').onclick = chiudiScheda;
     $('#nAnnulla').onclick = chiudiNodo;
-    if (window.matchMedia) window.matchMedia('(max-width:760px)').addEventListener('change', () => { renderNav(); if (stato.pagina === 'str') renderStruttura(); if (isMobile() && !isAdmin() && stato.pagina === 'str') vai('home'); });
+    if (window.matchMedia) window.matchMedia(MQ_SMARTPHONE).addEventListener('change', () => { renderNav(); if (stato.pagina === 'str') renderStruttura(); if (isMobile() && !isAdmin() && stato.pagina === 'str') vai('home'); });
     if ($('#strArea')) $('#strArea').onchange = e => { S.areaF = e.target.value; renderStruttura(); renderHome(); };
     if ($('#fQ')) {
       let tq; $('#fQ').addEventListener('input', e => { clearTimeout(tq); tq = setTimeout(() => { S.f.q = e.target.value.trim(); renderStruttura(); }, 180); });

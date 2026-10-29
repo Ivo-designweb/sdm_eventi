@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.2">
+<meta name="app-version" content="3.5">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -84,7 +84,7 @@
     </header>
 
     <div id="p-home" class="pg">
-      <div class="top" id="homeTop"><div><h1>Ciao, <span id="saluto"></span></h1><span class="sec" id="sottoSaluto"></span></div></div>
+      <div class="top" id="homeTop"><div class="hh"><h1>Ciao, <span id="saluto"></span></h1><span class="sec" id="sottoSaluto"></span></div></div>
       <div class="avviso off-only">Sei offline: stai vedendo l'ultima copia salvata sul dispositivo.</div>
       <div id="homeCorpo"></div>
       <footer class="fine">Versione <span class="vers"></span><span class="lnkPrivSep hidden"> · </span><a href="#" class="lnkPriv hidden">Informativa privacy</a></footer>
@@ -193,17 +193,17 @@
     <div id="p-str" class="pg hidden">
       <div class="top"><div><h1>Struttura</h1><p class="sec" id="strInfo" style="margin:4px 0 0"></p></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn sec need-net" id="strUndo" type="button" disabled>↶ Annulla</button>
-          <button class="btn sec" id="strEspandi" type="button">Espandi tutto</button>
-          <button class="btn sec" id="strComprimi" type="button">Comprimi tutto</button>
+          <button class="btn sec need-net" id="strUndo" type="button" disabled aria-label="Annulla l'ultimo spostamento" title="Annulla l'ultimo spostamento"></button>
+          <button class="btn sec" id="strEspandi" type="button">Espandi</button>
+          <button class="btn sec" id="strComprimi" type="button">Comprimi</button>
         </div></div>
       <div class="avviso off-only">Sei offline: puoi consultare la struttura ma non modificarla.</div>
       <div class="fbar hidden" id="strFiltri">
-        <input type="search" id="fQ" placeholder="Cerca: titolo, descrizione, note, persone…" aria-label="Cerca">
-        <select class="f" id="fStato" aria-label="Stato"><option value="">Tutti gli stati</option><option value="da_fare">Da fare</option><option value="in_corso">In corso</option><option value="fatto">Fatto</option><option value="finito">Finito</option></select>
+        <input type="search" id="fQ" placeholder="Cerca…" aria-label="Cerca">
+        <select class="f" id="fStato" aria-label="Stato"><option value="">Stato</option><option value="da_fare">Da fare</option><option value="in_corso">In corso</option><option value="fatto">Fatto</option><option value="finito">Finito</option></select>
         <select class="f hidden" id="strArea" aria-label="Area"></select>
         <select class="f" id="fPers" aria-label="Persona"></select>
-        <select class="f" id="fScad" aria-label="Scadenza"><option value="">Tutte le scadenze</option><option value="e">Scadute</option><option value="w">In scadenza</option><option value="con">Con scadenza</option><option value="senza">Senza scadenza</option></select>
+        <select class="f" id="fScad" aria-label="Scadenza"><option value="">Scadenza</option><option value="e">Scadute</option><option value="w">In scadenza</option><option value="con">Con scadenza</option><option value="senza">Senza scadenza</option></select>
         <button class="btn sec hidden" id="fReset" type="button">✕ Azzera</button>
         <span class="sec" id="fCnt"></span>
       </div>
