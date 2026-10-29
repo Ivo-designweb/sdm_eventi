@@ -473,3 +473,11 @@ body.drg{cursor:grabbing}
   #p-str .top>div:last-child{width:100%;flex-wrap:nowrap!important;gap:6px!important}
   #p-str .top>div:last-child .btn{flex:1 1 0;min-width:0;padding:6px 6px;font-size:12.5px;white-space:nowrap}
 }
+
+/* v3.5: Annulla spostamento: icona sopra, scritta più piccola sotto */
+#strUndo{flex-direction:column;gap:1px;padding:4px 8px;line-height:1.1;text-align:center}
+#strUndo span{font-size:10.5px;font-weight:600;white-space:nowrap}
+@media (max-width:760px), (pointer:coarse) and (max-height:500px){
+  #p-str .top>div:last-child #strUndo{flex:1.5 1 0;padding:3px 4px}
+  #strUndo span{font-size:10px}
+}
