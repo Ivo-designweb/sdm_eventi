@@ -1400,12 +1400,12 @@
       const sc = gestisco.filter(n => scadClasse(n) === 'e'), pr = gestisco.filter(n => scadClasse(n) === 'w'), sn = gestisco.filter(n => !nIncarichi(n) && n.stato !== 'finito');
       const gg = parseInt(stato.parametri.giorni_preavviso_scadenza, 10) || 7;
       // totalizzatore in grande: ogni cella è anche un filtro per l'elenco per persona / per ramo qui sotto
-      const celle = [['da_fare', 'Da fare', c.da_fare, 'dar'], ['in_corso', 'In corso', c.in_corso, 'cor'], ['fatte', 'Fatte', c.fatto + c.finito, 'fin'], ['scad', 'In scadenza', sc.length + pr.length, sc.length ? 'e' : 'w']];
-      if (!celle.some(x => x[0] === homeStatoF)) homeStatoF = '';
+      const celle = [['', 'Tutte', c.tot, 'all'], ['da_fare', 'Da fare', c.da_fare, 'dar'], ['in_corso', 'In corso', c.in_corso, 'cor'], ['fatte', 'Fatte', c.fatto + c.finito, 'fin'], ['scad', 'In scadenza', sc.length + pr.length, sc.length ? 'e' : 'w']];
+      if (!celle.some(x => x[0] === homeStatoF)) homeStatoF = '';   // la cella "Tutte" toglie qualsiasi filtro
       out.push(h('div', { class: 'tot', role: 'group', 'aria-label': 'Filtra le attività per stato' }, ...celle.map(([k, et, n, cl]) => {
         const b = h('button', { type: 'button', class: 'tt-c ' + cl + (homeStatoF === k ? ' act' : ''), 'aria-pressed': homeStatoF === k ? 'true' : 'false',
-          title: k === 'scad' ? (sc.length + ' scadute, ' + pr.length + ' entro ' + gg + ' giorni') : et }, h('b', {}, String(n)), h('span', {}, et), k === 'scad' && sc.length ? h('small', {}, sc.length + (sc.length === 1 ? ' scaduta' : ' scadute')) : '');
-        b.addEventListener('click', () => { homeStatoF = homeStatoF === k ? '' : k; renderHome(); });
+          title: k === 'scad' ? (sc.length + ' scadute, ' + pr.length + ' entro ' + gg + ' giorni') : et }, h('b', {}, String(n)), k === 'scad' ? h('span', {}, h('em', { class: 'lg' }, 'In scadenza'), h('em', { class: 'sh' }, 'Scadenza')) : h('span', {}, et), k === 'scad' && sc.length ? h('small', {}, sc.length + (sc.length === 1 ? ' scaduta' : ' scadute')) : '');
+        b.addEventListener('click', () => { homeStatoF = (homeStatoF === k || !k) ? '' : k; renderHome(); });
         return b;
       })));
       out.push(h('div', { class: 'card sum sm' }, h('div', { class: 'big' }, c.perc + '%'),
