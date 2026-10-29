@@ -777,11 +777,11 @@
     if (lf) tg = h('span', { class: 'tg0' });
     else { tg = h('button', { class: 'tg', type: 'button', 'aria-label': aperto ? 'Comprimi' : 'Espandi' }, aperto ? '▼' : '▶'); tg.addEventListener('click', () => { if (aperto) S.collassati.add(n.id); else S.collassati.delete(n.id); renderStruttura(); }); }
     const ca = lf ? colArea(n.area) : null;
-    const row = h('div', { class: 'tn cmp' + (lf ? '' : ' br') + (det ? ' op' : '') + (n.id === S.menuId ? ' mn' : ''), ...(ca ? { style: 'background:color-mix(in srgb,' + ca + ' 22%,var(--card));border-left:5px solid ' + ca } : {}), tabindex: '0', role: 'button', 'aria-expanded': det ? 'true' : 'false' }, tg,
-      h('span', { class: 'num' }, numTxt(n)),
+    const row = h('div', { class: 'tn cmp' + (lf ? '' : ' br') + (det ? ' op' : '') + (n.id === S.menuId ? ' mn' : ''), ...(ca ? { style: 'background:color-mix(in srgb,' + ca + ' 22%,var(--card));border-left:5px solid ' + ca } : {}), tabindex: '0', role: 'button', 'aria-expanded': det ? 'true' : 'false' }, canEdit(n) ? h('span', { class: 'dgh', title: 'Trascina', 'aria-label': 'Trascina' }, '⋮⋮') : '', tg,
+      h('span', { class: 'num nf' }, numTxt(n)), h('span', { class: 'num nc' }, (p => p.length > 2 ? '…' + p.slice(-2).join('.') : p.join('.'))(numTxt(n).split('.'))),
       h('div', { class: 'tt2' }, h('b', { title: n.titolo }, n.titolo), n.descrizione ? h('span', { class: 'ds' }, n.descrizione) : ''), meta, btns);
     const commuta = () => { if (S.aperti.has(n.id)) S.aperti.delete(n.id); else S.aperti.add(n.id); renderStruttura(); };
-    row.addEventListener('click', e => { if (e.target.closest('button,a,input,select') || Date.now() - (S.dragFine || 0) < 400) return; commuta(); });
+    row.addEventListener('click', e => { if (e.target.closest('button,a,input,select,.dgh') || Date.now() - (S.dragFine || 0) < 400) return; commuta(); });
     row.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === row) commuta(); });
     const li = h('li', { 'data-id': n.id, class: canEdit(n) ? 'mvb' : '' }, row);
     if (det) li.append(dettagliNodo(n));
@@ -821,8 +821,8 @@
     // si trascina prendendo la riga in un punto qualsiasi e tenendola premuta un attimo (più a lungo su smartphone)
     const touch = isMobile() || !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
     if (navigator.onLine && window.Sortable) lista.querySelectorAll('ul.trl').forEach(ul => S.sort.push(new window.Sortable(ul, {
-      group: 'albero', draggable: 'li.mvb', filter: 'button,a,input,select', preventOnFilter: false, animation: 150, forceFallback: true, fallbackOnBody: true, swapThreshold: 0.65, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
-      delay: touch ? (cfg.DRAG_DELAY_TOUCH_MS || 700) : (cfg.DRAG_DELAY_MS === undefined ? 250 : cfg.DRAG_DELAY_MS), delayOnTouchOnly: false, touchStartThreshold: 8,
+      group: 'albero', draggable: 'li.mvb', handle: isMobile() ? '.dgh' : undefined, filter: 'button,a,input,select', preventOnFilter: false, animation: 150, forceFallback: true, fallbackOnBody: true, swapThreshold: 0.65, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
+      delay: isMobile() ? 0 : touch ? (cfg.DRAG_DELAY_TOUCH_MS || 700) : (cfg.DRAG_DELAY_MS === undefined ? 250 : cfg.DRAG_DELAY_MS), delayOnTouchOnly: false, touchStartThreshold: 8,
       onStart: () => { document.body.classList.add('drg'); if (navigator.vibrate) navigator.vibrate(25); },
       onMove: e => {
         const n = nodo(e.dragged.dataset.id), d = e.to.dataset.parent ? nodo(e.to.dataset.parent) : null, no = !!motivoNo(n, d);
@@ -2037,7 +2037,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#nodoForm').addEventListener('submit', salvaNodo);
     $('#attForm').addEventListener('submit', salvaScheda); $('#aChiudi').onclick = chiudiScheda; if ($('#aBack')) $('#aBack').onclick = chiudiScheda;
     $('#nAnnulla').onclick = chiudiNodo;
-    if (window.matchMedia) window.matchMedia('(max-width:760px)').addEventListener('change', () => { renderNav(); if (isMobile() && !isAdmin() && stato.pagina === 'str') vai('home'); });
+    if (window.matchMedia) window.matchMedia('(max-width:760px)').addEventListener('change', () => { renderNav(); if (stato.pagina === 'str') renderStruttura(); if (isMobile() && !isAdmin() && stato.pagina === 'str') vai('home'); });
     if ($('#strArea')) $('#strArea').onchange = e => { S.areaF = e.target.value; renderStruttura(); renderHome(); };
     if ($('#fQ')) {
       let tq; $('#fQ').addEventListener('input', e => { clearTimeout(tq); tq = setTimeout(() => { S.f.q = e.target.value.trim(); renderStruttura(); }, 180); });
