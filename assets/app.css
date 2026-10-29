@@ -22,7 +22,7 @@ input[type=text],input[type=email],input[type=number],input[type=search],select.
 .msg{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:8px;padding:12px;margin-top:16px;font-size:14px}
 
 /* app */
-.app{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 40px)}
+.app{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:calc(100vh - 40px)}
 nav.side{background:var(--card);border-right:1px solid var(--bordo);padding:16px;display:flex;flex-direction:column;gap:4px}
 nav.side .brand{display:flex;align-items:center;gap:10px;font-weight:700;margin-bottom:14px}
 nav.side .brand .logo{width:34px;height:34px;font-size:13px;margin:0;border-radius:9px}
@@ -31,7 +31,7 @@ nav.side .brand .logo{width:34px;height:34px;font-size:13px;margin:0;border-radi
 .nv.lock::after{content:"admin";margin-left:auto;font-size:11px;background:#eef;border-radius:99px;padding:1px 8px;color:var(--sec)}
 .spacer{flex:1}
 .utente{font-size:13px;color:var(--sec);border-top:1px solid var(--bordo);padding-top:12px}
-main{padding:24px;max-width:900px;width:100%}
+main{padding:24px;max-width:900px;width:100%;min-width:0}
 .top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:16px}
 .card{background:var(--card);border:1px solid var(--bordo);border-radius:12px;padding:18px;margin-bottom:16px}
 .row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--bordo);align-items:center}
@@ -82,7 +82,7 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 /* telefono */
 .bottom{display:none}
 @media (max-width:760px){
-  .app{grid-template-columns:1fr}
+  .app{grid-template-columns:minmax(0,1fr)}
   nav.side{display:none}
   main{padding:16px 16px 90px}
   .grid2{grid-template-columns:1fr}
@@ -408,3 +408,27 @@ body.drg{cursor:grabbing}
   .tn.cmp .ds{display:block;flex:1 1 100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11.5px}
   .dett .xs{display:none}
 }
+
+/* v3.2: smartphone in verticale - niente scorrimento a destra, testi un po' più piccoli, maniglia di trascinamento a sinistra */
+.dgh{display:none}
+@media (max-width:760px){
+  html,body{overflow-x:hidden}
+  body{font-size:15px}
+  main{padding:14px 12px 90px}
+  .tn.cmp{font-size:14px}
+  .tn.cmp .tt2{flex:1 1 120px;min-width:0}
+  .tn.cmp .tt2 b{overflow-wrap:break-word}
+  ul.trl ul.trl{margin-left:5px;padding-left:3px}
+  .tn.cmp .num{font-size:10.5px}
+  .tn.cmp .num.nf{display:none}
+  .tn.cmp .num.nc{display:inline}
+  .tn.cmp .dgh{display:flex;align-items:center;justify-content:center;flex:none;width:30px;align-self:stretch;margin:-5px 0 -5px -6px;border-right:1px solid var(--bordo);border-radius:9px 0 0 9px;background:color-mix(in srgb,var(--primario) 8%,transparent);color:var(--sec);font-size:15px;letter-spacing:-2px;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+  .tn.cmp .meta{padding-left:34px}
+  .ln.mia .tt small,.blk .ln .tt small{font-size:10.5px}
+}
+.tn .num.nc{display:none}
+@media (max-width:760px){
+  .hd{margin:-14px -12px 12px}
+  .ln.mia .tt small{white-space:normal;overflow:visible}
+}
+@media (max-width:760px){.tn.cmp .azn{margin-left:auto}}
