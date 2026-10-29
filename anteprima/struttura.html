@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="app-version" content="1.0">
+<title>SDM Eventi - Anteprima Struttura con modifica diretta</title>
+<style>
+:root{--primario:#1d4ed8;--bg:#f4f6fa;--card:#fff;--testo:#1c2333;--sec:#5b6578;--bordo:#dde2ec;--ok:#15803d;--warn:#b45309;--err:#b91c1c}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#cfd5e1;color:var(--testo)}
+button,input,select,textarea{font:inherit}
+.hidden{display:none!important}
+.demo{background:#111827;color:#e5e7eb;padding:8px 14px;font-size:13px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:50}
+.demo button{background:#1f2937;color:#fff;border:1px solid #374151;border-radius:6px;padding:4px 12px;cursor:pointer}
+.demo button.on{background:#2563eb;border-color:#2563eb}
+.demo span{opacity:.75}
+.vista{background:var(--bg);margin:0 auto;max-width:980px;min-height:calc(100vh - 44px);padding:18px}
+.vista.phone{max-width:390px;padding:10px;box-shadow:0 0 0 1px #b8c0d0}
+h1{font-size:22px;margin:0 0 2px}
+.sec{color:var(--sec);font-size:13px}
+.btn{background:var(--primario);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
+.btn.sec{background:transparent;color:var(--primario);border:1px solid var(--primario)}
+.top{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:10px}
+.badge{font-size:11px;border-radius:99px;padding:1px 8px;background:#eef2ff;color:var(--primario);font-weight:600;white-space:nowrap}
+.badge.ok{background:#dcfce7;color:var(--ok)}.badge.w{background:#fef3c7;color:var(--warn)}.badge.e{background:#fee2e2;color:var(--err)}
+
+/* albero */
+ul.trl{list-style:none;margin:0;padding:0}
+ul.trl ul.trl{margin-left:20px;border-left:2px solid var(--bordo);padding-left:8px}
+ul.trl.vuoto{min-height:6px}
+.tn{display:flex;align-items:center;gap:6px;padding:5px 8px;min-height:38px;border:1px solid var(--bordo);border-radius:10px;margin-bottom:3px;background:var(--card);cursor:grab}
+.tn.br{background:color-mix(in srgb,var(--primario) 5%,var(--card))}
+.tn:hover{border-color:var(--primario)}
+.tn .tg{width:22px;height:26px;border:0;background:none;cursor:pointer;font-size:12px;color:var(--sec);flex:none;padding:0}
+.tn .tg0{width:22px;flex:none}
+.tn .num{font-size:11px;color:var(--sec);font-weight:700;flex:none;min-width:34px}
+.tn .tt2{flex:1 1 auto;min-width:0;display:flex;align-items:baseline;gap:8px;overflow:hidden;white-space:nowrap}
+.tn .tt2 b{flex:none;max-width:48%;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+.tn .ds{color:var(--sec);font-size:12px;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tn .meta{display:flex;gap:5px;align-items:center;flex:none}
+.tn .resp{font-size:12px;color:var(--testo);white-space:nowrap}
+.tn .resp.ered{color:var(--sec);font-style:italic}
+.mini{display:inline-block;width:46px;height:5px;background:var(--bordo);border-radius:99px;overflow:hidden;vertical-align:middle}
+.mini i{display:block;height:100%;background:var(--ok)}
+.azn{display:flex;gap:2px;flex:none}
+.ib{border:1px solid var(--bordo);background:var(--card);border-radius:7px;padding:2px 7px;font-size:14px;cursor:pointer;line-height:1.3}
+.ib:hover{border-color:var(--primario)}.ib.dn:hover{border-color:var(--err);color:var(--err)}
+.sortable-ghost{opacity:.35}
+.dett{margin:0 0 6px 28px;padding:8px 12px;background:var(--card);border:1px solid var(--bordo);border-radius:8px;font-size:13px}
+
+/* smartphone: dati compatti sulla riga, il resto va sotto */
+.phone .tn{flex-wrap:wrap;row-gap:2px;padding:6px 6px}
+.phone .tn .num{min-width:0}
+.phone .tn .tt2{flex:1 1 90px}
+.phone .tn .tt2 b{max-width:100%}
+.phone .tn .ds{display:none}
+.phone .tn .meta{flex:1 0 100%;order:5;padding-left:28px;flex-wrap:wrap;font-size:12px}
+.phone .tn .azn .xm{display:none}
+.phone ul.trl ul.trl{margin-left:10px;padding-left:5px}
+.phone .dett{margin-left:12px}
+.menu{position:absolute;right:6px;background:var(--card);border:1px solid var(--bordo);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.18);z-index:40;padding:4px;min-width:170px}
+.menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:9px 10px;border-radius:7px;cursor:pointer}
+.menu button:hover{background:#eef2ff}
+.azn .xk{display:none}.phone .azn .xk{display:inline-block}
+
+/* finestre */
+.ovl{position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:60;overflow:auto;padding:16px}
+.dlg{background:var(--card);border-radius:12px;max-width:480px;margin:30px auto;padding:16px}
+.dlg label{display:block;font-size:13px;font-weight:600;margin:10px 0 3px}
+.dlg input[type=text],.dlg select,.dlg textarea{width:100%;padding:8px 10px;border:1px solid var(--bordo);border-radius:8px;background:#fff}
+.dlg .bar{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.flag{display:flex;gap:8px;align-items:center;font-weight:600;margin-top:12px}
+.note2{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 10px;font-size:13px;margin-top:8px}
+.leg{font-size:12px;color:var(--sec);margin:8px 0 12px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="demo"><b>Anteprima Struttura</b>
+  <span>Vista:</span><button id="vPc" class="on">PC</button><button id="vPh">Smartphone</button>
+  <span>· dati finti, prova a trascinare, ✎, ＋, ⧉, 🗑</span></div>
+
+<div class="vista" id="vista">
+  <div class="top"><div><h1>Struttura</h1><div class="sec">Albero completo dell'evento · max 10 livelli</div></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn" id="bNuovo">＋ Ramo primo livello</button>
+      <button class="btn sec" id="bEsp">Espandi</button><button class="btn sec" id="bCom">Comprimi</button>
+    </div></div>
+  <div class="leg" id="leg"></div>
+  <div id="lista"></div>
+</div>
+
+<div class="ovl hidden" id="ovl"><div class="dlg" id="dlg"></div></div>
+
+<script src="../vendor/sortable.min.js"></script>
+<script>
+const PERS={a:'Rossi Anna',b:'Bianchi Marco',c:'Verdi Luca'};
+let ID=100;
+// stato: da_fare | in_corso | fatto | finito  (le foglie sono le attività)
+let nodi=[
+ {id:1,p:null,t:'Logistica',d:'Tutto il campo gara',r:'a'},
+ {id:2,p:1,t:'Campo',d:'Allestimento',r:null},
+ {id:3,p:2,t:'Montaggio gazebo',d:'8 gazebo bianchi',r:null,st:'fatto'},
+ {id:4,p:2,t:'Segnaletica',d:'Frecce e cartelli',r:'c',st:'in_corso'},
+ {id:5,p:2,t:'Controllo campo',d:'',r:null,st:'finito'},
+ {id:6,p:1,t:'Trasporti',d:'Navette atleti',r:'b',st:'da_fare'},
+ {id:7,p:null,t:'Ristoro',d:'Bar e cucina',r:'b'},
+ {id:8,p:7,t:'Rifornimento bar',d:'',r:null,st:'fatto'},
+ {id:9,p:7,t:'Ghiaccio',d:'Ordine entro venerdì',r:'c',st:'da_fare'},
+ {id:10,p:null,t:'Servizi',d:'',r:null},
+ {id:11,p:10,t:'Pulizia finale',d:'',r:null,st:'da_fare'},
+];
+const coll=new Set(), aperti=new Set();
+let sorters=[];
+const $=s=>document.querySelector(s);
+const fig=id=>nodi.filter(n=>n.p===id);
+const nodo=id=>nodi.find(n=>n.id===id);
+const leaf=n=>!fig(n.id).length;
+const sub=n=>fig(n.id).flatMap(c=>[c,...sub(c)]);
+const foglie=n=>leaf(n)?[n]:fig(n.id).flatMap(foglie);
+// responsabile effettivo: il proprio, altrimenti quello del ramo sopra
+function respEff(n){let x=n,ered=false;while(x){if(x.r)return{id:x.r,ered};x=x.p?nodo(x.p):null;ered=true}return{id:null,ered:false}}
+function numero(n){const s=fig(n.p),i=s.indexOf(n)+1,t=String(i).padStart(2,'0');return n.p?numero(nodo(n.p))+'.'+t:t}
+const phone=()=>$('#vista').classList.contains('phone');
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function riga(n){
+  const lf=leaf(n),re=respEff(n),open=!coll.has(n.id),det=aperti.has(n.id);
+  let meta='';
+  if(lf){meta+=`<span class="badge ${{fatto:'ok',finito:'ok',in_corso:'w'}[n.st]||''}">${{da_fare:'da fare',in_corso:'in corso',fatto:'fatto',finito:'✔ finito'}[n.st]}</span>`;}
+  else{const f=foglie(n),k=f.filter(x=>x.st==='finito').length,p=Math.round(100*k/f.length);
+    meta+=`<span class="sec">${fig(n.id).length} sotto · ${k}/${f.length} fatte <span class="mini"><i style="width:${p}%"></i></span> ${p}%</span>`;}
+  if(re.id)meta+=`<span class="resp ${re.ered?'ered':''}" title="${re.ered?'Ereditato dal ramo sopra':'Impostato su questo ramo'}">${re.ered?'↳ ':'👤 '}${PERS[re.id]}</span>`;
+  else meta+=`<span class="resp ered">— nessun responsabile</span>`;
+  return `<li data-id="${n.id}"><div class="tn ${lf?'':'br'}" data-id="${n.id}">
+    ${lf?'<span class="tg0"></span>':`<button class="tg" data-a="tg">${open?'▼':'▶'}</button>`}
+    <span class="num">${numero(n)}</span>
+    <div class="tt2"><b title="${esc(n.t)}">${esc(n.t)}</b>${n.d?`<span class="ds">${esc(n.d)}</span>`:''}</div>
+    <div class="meta">${meta}</div>
+    <div class="azn" style="position:relative">
+      <button class="ib" data-a="ed" title="Modifica">✎</button>
+      <button class="ib xm" data-a="add" title="Aggiungi sotto">＋</button>
+      <button class="ib xm" data-a="dup" title="Duplica">⧉</button>
+      <button class="ib xm dn" data-a="del" title="Elimina">🗑</button>
+      <button class="ib xk" data-a="mn" title="Altro">⋯</button>
+    </div></div>
+    ${det?`<div class="dett"><b>Descrizione:</b> ${esc(n.d)||'—'}<br><b>Responsabile:</b> ${re.id?PERS[re.id]+(re.ered?' (ereditato)':''):'—'}</div>`:''}
+    ${!lf&&open?`<ul class="trl" data-p="${n.id}">${fig(n.id).map(riga).join('')}</ul>`:`<ul class="trl vuoto" data-p="${n.id}"></ul>`}
+  </li>`;
+}
+function render(){
+  sorters.forEach(s=>s.destroy());sorters=[];
+  $('#lista').innerHTML=`<ul class="trl" data-p="">${fig(null).map(riga).join('')}</ul>`;
+  $('#leg').innerHTML='<b>👤 Nome</b> = responsabile impostato sul ramo · <b>↳ Nome</b> = ereditato dal ramo sopra · tocca la riga per i dettagli · trascina la riga per spostarla (anche dentro un altro ramo)';
+  document.querySelectorAll('#lista ul.trl').forEach(ul=>sorters.push(new Sortable(ul,{group:'albero',animation:150,filter:'.ib,.tg',preventOnFilter:false,
+    delay:phone()?400:0,delayOnTouchOnly:true,fallbackOnBody:true,swapThreshold:.65,ghostClass:'sortable-ghost',
+    onMove:e=>{const d=nodo(+e.dragged.dataset.id),to=e.to.dataset.p?+e.to.dataset.p:null;return !(to&&(to===d.id||sub(d).some(x=>x.id===to)))},
+    onEnd:e=>{const id=+e.item.dataset.id,to=e.to.dataset.p?+e.to.dataset.p:null,n=nodo(id);
+      const sor=fig(to).filter(x=>x!==n);const idx=Math.min(e.newIndex,sor.length);sor.splice(idx,0,n);n.p=to;
+      nodi=[...nodi.filter(x=>x.p!==to&&x!==n),...sor];if(to)coll.delete(to);render();}})));
+}
+document.addEventListener('click',e=>{
+  const m=document.querySelector('.menu');if(m&&!e.target.closest('.menu'))m.remove();
+  const b=e.target.closest('[data-a]');const tn=e.target.closest('.tn');
+  if(b){e.stopPropagation();const n=nodo(+tn.dataset.id),a=b.dataset.a;
+    if(a==='tg'){coll.has(n.id)?coll.delete(n.id):coll.add(n.id);render();}
+    if(a==='ed')modifica(n);if(a==='add')nuovo(n.id);if(a==='dup')duplica(n);if(a==='del')elimina(n);
+    if(a==='mn'){document.querySelector('.menu')?.remove();const mn=document.createElement('div');mn.className='menu';mn.style.top='30px';
+      mn.innerHTML='<button data-a="add">＋ Aggiungi sotto</button><button data-a="dup">⧉ Duplica</button><button data-a="del" style="color:#b91c1c">🗑 Elimina</button>';
+      b.parentElement.append(mn);setTimeout(()=>{},0);}
+    return;}
+  if(tn){const id=+tn.dataset.id;aperti.has(id)?aperti.delete(id):aperti.add(id);render();}
+});
+const chiudi=()=>$('#ovl').classList.add('hidden');
+function apri(html){$('#dlg').innerHTML=html;$('#ovl').classList.remove('hidden');}
+function optResp(sel,ered){return `<option value="">${ered?'Eredita dal ramo sopra'+(ered.id?': '+PERS[ered.id]:' (nessuno)'):'— nessuno'}</option>`+Object.entries(PERS).map(([k,v])=>`<option value="${k}" ${sel===k?'selected':''}>${v}</option>`).join('')}
+function formNodo(titolo,n,pad,extra){
+  const ered=pad?respEff(pad):{id:null};
+  apri(`<h3 style="margin:0">${titolo}</h3><div class="sec">${n.id?'':'Dentro: '+(pad?esc(pad.t):'primo livello')}</div>
+   <label>Titolo</label><input type="text" id="fT" value="${esc(n.t)}">
+   <label>Descrizione</label><input type="text" id="fD" value="${esc(n.d)}">
+   <label>Responsabile</label><select id="fR">${optResp(n.r,ered)}</select>
+   <div class="sec">Se lasci vuoto, vale il responsabile del ramo sopra.</div>${extra||''}
+   <div class="bar"><button class="btn sec" id="fX">Annulla</button><button class="btn" id="fS">Salva</button></div>`);
+  $('#fX').onclick=chiudi;
+}
+function modifica(n){formNodo('Modifica',n,n.p?nodo(n.p):null);
+  $('#fS').onclick=()=>{n.t=$('#fT').value||n.t;n.d=$('#fD').value;n.r=$('#fR').value||null;chiudi();render();}}
+function nuovo(pid){const pad=pid?nodo(pid):null;
+  const liv=pid?'Aggiungi sotto «'+pad.t+'»':'Nuovo ramo di primo livello';
+  formNodo(liv,{t:'',d:'',r:null},pad,pid?'<div class="sec" style="margin-top:6px">L\'ultimo livello del ramo è un\'attività: potrai aggiungere incaricati, scadenza e check-list dalla sua scheda.</div>':'');
+  $('#fS').onclick=()=>{const t=$('#fT').value.trim();if(!t)return;nodi.push({id:++ID,p:pid,t,d:$('#fD').value,r:$('#fR').value||null,st:'da_fare'});if(pid)coll.delete(pid);chiudi();render();}}
+function duplica(n){const k=sub(n).length;
+  apri(`<h3 style="margin:0">Duplica «${esc(n.t)}»</h3>
+   <label>Descrizione della copia</label><input type="text" id="fT" placeholder="Nuova descrizione">
+   ${k?`<label class="flag"><input type="checkbox" id="fK" checked> Duplica anche tutti i sottorami (${k} elementi)</label>
+   <div class="sec">Sì: copia l'intera catena con gli stessi dati. No: solo questa riga.</div>`:''}
+   <div class="bar"><button class="btn sec" id="fX">Annulla</button><button class="btn" id="fS">Duplica</button></div>`);
+  $('#fX').onclick=chiudi;
+  $('#fS').onclick=()=>{const t=$('#fT').value.trim();if(!t){$('#fT').focus();return;}
+    const tutto=k?$('#fK').checked:false;
+    const nuovi=[];
+    const copia=(o,pid,top)=>{const c={...o,id:++ID,p:pid,t:top?t:o.t};nuovi.push(c);if(tutto)fig(o.id).forEach(f=>copia(f,c.id,false));return c;};
+    const c0=copia(n,n.p,true);
+    if(!tutto&&!leaf(n))c0.st='da_fare';   // senza sottorami la copia di un ramo è una riga sola
+    nodi.splice(nodi.indexOf(n)+1,0,...nuovi);   // subito dopo l'originale
+    chiudi();render();}}
+function elimina(n){const k=sub(n).length;
+  apri(`<h3 style="margin:0">Elimina «${esc(n.t)}»</h3><p>${k?`Verranno eliminati anche i ${k} elementi sottostanti.`:'Questa attività verrà eliminata.'} L'operazione non si può annullare.</p>
+   <div class="bar"><button class="btn sec" id="fX">Annulla</button><button class="btn" id="fS" style="background:#b91c1c">Elimina</button></div>`);
+  $('#fX').onclick=chiudi;
+  $('#fS').onclick=()=>{const dead=new Set([n.id,...sub(n).map(x=>x.id)]);nodi=nodi.filter(x=>!dead.has(x.id));chiudi();render();}}
+
+$('#bNuovo').onclick=()=>nuovo(null);
+$('#bEsp').onclick=()=>{coll.clear();render()};
+$('#bCom').onclick=()=>{nodi.filter(n=>!leaf(n)).forEach(n=>coll.add(n.id));render()};
+$('#ovl').addEventListener('click',e=>{if(e.target.id==='ovl')chiudi()});
+$('#vPc').onclick=()=>{$('#vista').classList.remove('phone');$('#vPc').classList.add('on');$('#vPh').classList.remove('on');render()};
+$('#vPh').onclick=()=>{$('#vista').classList.add('phone');$('#vPh').classList.add('on');$('#vPc').classList.remove('on');render()};
+render();
+</script>
+</body>
+</html>
