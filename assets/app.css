@@ -84,9 +84,9 @@ body.offline .need-net{opacity:.5;pointer-events:none}
 @media (max-width:760px), (pointer:coarse) and (max-height:500px){
   .app{grid-template-columns:minmax(0,1fr)}
   nav.side{display:none}
-  main{padding:16px 16px 90px}
+  main{padding:16px 16px calc(80px + env(safe-area-inset-bottom))}
   .grid2{grid-template-columns:1fr}
-  .bottom{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--bordo);z-index:5}
+  .bottom{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--bordo);z-index:50;padding-bottom:env(safe-area-inset-bottom);transform:translateZ(0)}
   .bottom button{flex:1;border:0;background:none;padding:10px 4px;font-size:12px;color:var(--sec);display:flex;flex-direction:column;align-items:center;gap:2px}
   .bottom button.on{color:var(--primario);font-weight:700}
   .bottom button span{font-size:20px}
@@ -412,9 +412,9 @@ body.drg{cursor:grabbing}
 /* v3.2: smartphone in verticale - niente scorrimento a destra, testi un po' più piccoli, maniglia di trascinamento a sinistra */
 .dgh{display:none}
 @media (max-width:760px), (pointer:coarse) and (max-height:500px){
-  html,body{overflow-x:hidden}
+  body{overflow-x:clip}   /* clip: non crea un'area di scorrimento, così la barra in basso (fixed) resta ferma */
   body{font-size:15px}
-  main{padding:14px 12px 90px}
+  main{padding:14px 12px calc(80px + env(safe-area-inset-bottom))}
   .tn.cmp{font-size:14px}
   .tn.cmp .tt2{flex:1 1 120px;min-width:0}
   .tn.cmp .tt2 b{overflow-wrap:break-word}
@@ -457,4 +457,19 @@ body.drg{cursor:grabbing}
   .tn.cmp .tt2{flex:1 1 220px}
   .tn.cmp .meta{order:0;flex:0 1 auto;max-width:48%;padding-left:0;flex-wrap:wrap;justify-content:flex-end}
   .tn.cmp .azn{margin-left:auto}
+}
+
+/* v3.4 */
+#homeTop .hh{display:flex;align-items:baseline;gap:10px;min-width:0}
+#homeTop .hh h1{margin:0;white-space:nowrap;flex:none}
+#homeTop .hh .sec{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#homeTop{flex-wrap:nowrap;margin-bottom:10px}
+#strUndo{display:inline-flex;align-items:center;gap:5px}
+#strUndo .ico{flex:none}
+@media (max-width:760px), (pointer:coarse) and (max-height:500px){
+  #homeTop .hh h1{font-size:19px}
+  #homeTop .hh .sec{font-size:12px}
+  #p-str .top{margin-bottom:8px}
+  #p-str .top>div:last-child{width:100%;flex-wrap:nowrap!important;gap:6px!important}
+  #p-str .top>div:last-child .btn{flex:1 1 0;min-width:0;padding:6px 6px;font-size:12.5px;white-space:nowrap}
 }

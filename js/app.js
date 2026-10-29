@@ -851,7 +851,8 @@
 
   // "Annulla": ricorda gli ultimi 3 spostamenti (nodo, ramo e posizione di partenza)
   S.undo = [];
-  const aggiornaUndo = () => { const b = $('#strUndo'); if (!b) return; b.disabled = !S.undo.length || !navigator.onLine; b.textContent = '↶ Annulla' + (S.undo.length ? ' (' + S.undo.length + ')' : ''); };
+  const ICONA_UNDO = '<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 14L4 9l5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const aggiornaUndo = () => { const b = $('#strUndo'); if (!b) return; b.disabled = !S.undo.length || !navigator.onLine; b.innerHTML = ICONA_UNDO + '<span>Indietro' + (S.undo.length ? ' (' + S.undo.length + ')' : '') + '</span>'; };
   async function annullaSpostamento() {
     const u = S.undo.pop(); aggiornaUndo(); if (!u) return;
     if (!nodo(u.id)) { toast('Elemento non più presente'); return; }
