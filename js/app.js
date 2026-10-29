@@ -487,7 +487,7 @@
   }
 
   function selezionaEvento(id, vaiHome) {
-    stato.evento = id; S.undo = []; S.collassati = new Set(); S.aperti = new Set(); S.areaF = ''; S.f = { q: '', stato: '', pers: '', scad: '' }; S.nodi = []; S.inc = {}; S.num = {}; S.sponsor = {}; homeAvv = ''; homeAperti = new Set();
+    stato.evento = id; homeStatoF = ''; S.undo = []; S.collassati = new Set(); S.aperti = new Set(); S.areaF = ''; S.f = { q: '', stato: '', pers: '', scad: '' }; S.nodi = []; S.inc = {}; S.num = {}; S.sponsor = {}; homeAvv = ''; homeAperti = new Set();
     LS.set('sdm_evento', { uid: stato.persona.uid, id });
     renderEvBar(); renderEventi();
     if (vaiHome) vai('home');
@@ -1456,7 +1456,8 @@
         gestisco.forEach(n => (S.inc[n.id] || []).forEach(x => { if (!m.has(x.persona_id)) m.set(x.persona_id, []); m.get(x.persona_id).push(n); }));
         m.forEach((l, id) => gruppi.push({ k: 'p' + id, nome: nomeP(id), l }));
         gruppi.sort((a, b) => (b.l.filter(n => n.stato === 'fatto').length - a.l.filter(n => n.stato === 'fatto').length) || a.nome.localeCompare(b.nome));
-        if (sn.length) gruppi.push({ k: 'senza', nome: 'Senza incaricati', l: sn });
+        const nessuno = gestisco.filter(n => !nIncarichi(n));   // tutte le attività senza incaricati, anche quelle già finite: così nessuna sparisce dall'elenco
+        if (nessuno.length) gruppi.push({ k: 'senza', nome: 'Senza incaricati', l: nessuno });
       } else {
         figli(null).forEach(r => { const l = gestisco.filter(n => radice(n).id === r.id); if (l.length) gruppi.push({ k: 'r' + r.id, nome: r.titolo, l }); });
       }
@@ -1464,7 +1465,7 @@
       const gv = gruppi.map(g => ({ ...g, lf: g.l.filter(passaStatoHome) })).filter(g => g.lf.length);
       const righe = gv.map(g => {
         const cc = conteggio(g.l), aperto = homeAperti.has(g.k) || !!homeStatoF, nf = g.l.filter(n => n.stato === 'fatto').length;
-        const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, g.nome), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, cc.finito + '/' + cc.tot), h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
+        const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, g.nome), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, (homeStatoF ? g.lf.length : cc.finito) + '/' + cc.tot), h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
         gh.addEventListener('click', () => { if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); });
         const gr = h('div', { class: 'gr' }, gh);
         if (aperto) gr.append(h('div', { class: 'det' }, ...g.lf.map(n => {
