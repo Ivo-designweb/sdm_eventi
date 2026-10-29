@@ -757,13 +757,13 @@
       if (isAdmin() && S.sponsor[n.id]) meta.append(chip('€ sponsor', 'ok', 'Sponsor: ' + (S.sponsor[n.id].fornitore || '')));
     } else {
       const ls = foglie(n), f = ls.filter(x => x.stato === 'finito').length, p = ls.length ? Math.round(100 * f / ls.length) : 0, re = respEff(n);
-      meta.append(h('span', { class: 'sec cnt' }, figli(n.id).length + ' sotto · ' + f + '/' + ls.length + ' fatte ', h('span', { class: 'mini' }, h('i', { style: 'width:' + p + '%' })), ' ' + p + '%'));
+      meta.append(h('span', { class: 'sec nsot' }, figli(n.id).length + ' sotto · ' + f + '/' + ls.length + ' fatte ', h('span', { class: 'mini' }, h('i', { style: 'width:' + p + '%' })), ' ' + p + '%'));
       if (re.id) meta.append(h('span', { class: 'resp' + (re.ered ? ' ered' : ''), title: re.ered ? 'Responsabile ereditato dal ramo sopra' : 'Responsabile del ramo' }, (re.ered ? '↳ ' : '👤 ') + nomeP(re.id)));
       else meta.append(h('span', { class: 'resp ered' }, '— nessun responsabile'));
     }
     const btns = h('div', { class: 'azn' });
     const ib = (txt, titolo, fn, cl) => { const b = h('button', { class: 'ib' + (cl ? ' ' + cl : ''), type: 'button', title: titolo, 'aria-label': titolo }, txt); b.addEventListener('click', fn); return b; };
-    // modifica diretta: matita, + sotto, duplica (solo amministratore), elimina; su PC anche "Sposta in…".
+    // modifica diretta: matita, + sotto, duplica (solo amministratore), elimina; 
     // Su smartphone ✎ resta in vista e il resto va nel menu ⋯ (niente "Sposta in…": si trascina tenendo premuto).
     const padre = n.parent_id ? nodo(n.parent_id) : null;
     const vAdd = canAdd(n) && lv < maxLivelli(), vDup = canDup(), vEd = canEdit(n), vDel = canDel(n);
@@ -771,7 +771,6 @@
     if (vEd) btns.append(ib('✎', 'Modifica', () => apriNodo(n.id, null)));
     if (vAdd) { btns.append(ib('＋', 'Aggiungi sotto', () => apriNodo(null, n.id), 'xm')); ac.push(['＋ Aggiungi sotto', () => apriNodo(null, n.id)]); }
     if (vDup) { btns.append(ib('⧉', 'Duplica', () => apriDuplicaRamo(n.id), 'xm')); ac.push(['⧉ Duplica', () => apriDuplicaRamo(n.id)]); }
-    if (vEd) btns.append(ib('⇄', 'Sposta in…', () => apriSposta(n.id), 'xm xs'));
     if (vDel) { btns.append(ib('🗑', 'Elimina', () => eliminaNodo(n.id), 'dn xm')); ac.push(['🗑 Elimina', () => eliminaNodo(n.id), 'dn']); }
     if (ac.length) { const mb = ib('⋯', 'Altre azioni', ev => { ev.stopPropagation(); menuRiga(mb, ac); }, 'xk'); btns.append(mb); }
     let tg;
@@ -784,7 +783,7 @@
     const commuta = () => { if (S.aperti.has(n.id)) S.aperti.delete(n.id); else S.aperti.add(n.id); renderStruttura(); };
     row.addEventListener('click', e => { if (e.target.closest('button,a,input,select') || Date.now() - (S.dragFine || 0) < 400) return; commuta(); });
     row.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === row) commuta(); });
-    const li = h('li', { 'data-id': n.id, class: canEdit(n) ? 'mv' : '' }, row);
+    const li = h('li', { 'data-id': n.id, class: canEdit(n) ? 'mvb' : '' }, row);
     if (det) li.append(dettagliNodo(n));
     if (!lf && aperto) { const ul = h('ul', { class: 'trl', 'data-parent': n.id }); figli(n.id).filter(passaFiltri).forEach(c => ul.append(rigaNodo(c))); li.append(ul); }
     else if (lf) li.append(h('ul', { class: 'trl vuoto', 'data-parent': n.id }));
@@ -822,11 +821,17 @@
     // si trascina prendendo la riga in un punto qualsiasi e tenendola premuta un attimo (più a lungo su smartphone)
     const touch = isMobile() || !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
     if (navigator.onLine && window.Sortable) lista.querySelectorAll('ul.trl').forEach(ul => S.sort.push(new window.Sortable(ul, {
-      group: 'albero', draggable: 'li.mv', filter: 'button,a,input,select', preventOnFilter: false, animation: 150, forceFallback: true, fallbackOnBody: true, swapThreshold: 0.65, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
+      group: 'albero', draggable: 'li.mvb', filter: 'button,a,input,select', preventOnFilter: false, animation: 150, forceFallback: true, fallbackOnBody: true, swapThreshold: 0.65, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
       delay: touch ? (cfg.DRAG_DELAY_TOUCH_MS || 700) : (cfg.DRAG_DELAY_MS === undefined ? 250 : cfg.DRAG_DELAY_MS), delayOnTouchOnly: false, touchStartThreshold: 8,
       onStart: () => { document.body.classList.add('drg'); if (navigator.vibrate) navigator.vibrate(25); },
-      onMove: e => { const n = nodo(e.dragged.dataset.id), d = e.to.dataset.parent ? nodo(e.to.dataset.parent) : null; return !motivoNo(n, d); },
-      onEnd: e => { document.body.classList.remove('drg'); S.dragFine = Date.now(); if (e.from === e.to && e.oldIndex === e.newIndex) return; spostaNodo(e.item.dataset.id, e.to.dataset.parent || null, e.newIndex); }
+      onMove: e => {
+        const n = nodo(e.dragged.dataset.id), d = e.to.dataset.parent ? nodo(e.to.dataset.parent) : null, no = !!motivoNo(n, d);
+        $$('.dest,.dest-no').forEach(x => x.classList.remove('dest', 'dest-no'));
+        const riga = e.to.closest('li') && e.to.closest('li').firstElementChild;   // il ramo che sta per ricevere la riga
+        (riga || e.to).classList.add(no ? 'dest-no' : 'dest');
+        return !no;
+      },
+      onEnd: e => { document.body.classList.remove('drg'); $$('.dest,.dest-no').forEach(x => x.classList.remove('dest', 'dest-no')); S.dragFine = Date.now(); if (e.from === e.to && e.oldIndex === e.newIndex) return; spostaNodo(e.item.dataset.id, e.to.dataset.parent || null, e.newIndex); }
     })));
   }
 
@@ -889,23 +894,6 @@
     b.disabled = false;
     if (error) return er('Duplicazione non riuscita: ' + errDb(error.message));
     $('#modDupR').classList.add('hidden'); await aggiornaTutto(); toast('Duplicato');
-  }
-
-  function apriSposta(id) {
-    const n = nodo(id);
-    $('#mvDa').textContent = 'Elemento: ' + percorsoTxt(n);
-    const out = [];
-    const voce = (dest, etich, lv) => {
-      const m = motivoNo(n, dest);
-      const b = h('button', { class: 'btn sec', type: 'button', style: 'padding:4px 12px' }, 'Qui'); if (m) b.disabled = true;
-      b.addEventListener('click', async () => { $('#modMove').classList.add('hidden'); await spostaNodo(id, dest ? dest.id : null, 9999); });
-      out.push(h('div', { class: 'mv' + (m ? ' no' : ''), style: 'margin-left:' + (lv * 18) + 'px' }, b, h('span', {}, etich, m ? h('span', { class: 'sec' }, ' · ' + m) : '')));
-    };
-    voce(null, 'Primo livello', 0);
-    const giu = (pid, lv) => figli(pid).forEach(x => { voce(x, x.titolo, lv); giu(x.id, lv + 1); });
-    giu(null, 1);
-    $('#mvLista').replaceChildren(...out);
-    $('#modMove').classList.remove('hidden');
   }
 
   function apriNodo(id, padre) {
@@ -1381,7 +1369,9 @@
 
   const statoRapido = (n, v) => accodaStato(n, v);
 
-  let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null;
+  let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null, homeStatoF = '';
+  const g_tot = gv => gv.reduce((a, g) => a + g.lf.length, 0);
+  const passaStatoHome = n => !homeStatoF || (homeStatoF === 'fatte' ? (n.stato === 'fatto' || n.stato === 'finito') : homeStatoF === 'scad' ? !!scadClasse(n) : n.stato === homeStatoF);
   const radice = n => { const a = antenati(n); return a.length ? a[a.length - 1] : n; };
   const nomiInc = n => (S.inc[n.id] || []).map(x => nomeP(x.persona_id));
   const isOperatore = () => !!stato.persona && !isAdmin() && !S.nodi.some(n => n.responsabile_id === stato.persona.id);
@@ -1407,17 +1397,25 @@
     }
     if (!op) {
       const c = conteggio(gestisco);
-      out.push(h('div', { class: 'card sum sm' }, h('div', { class: 'big' }, c.perc + '%'),
-        h('div', { class: 'r' }, barraStack(c), h('div', { class: 'cnts' }, h('span', { style: '--c:#15803d' }, c.finito + ' finite'), h('span', { style: '--c:#86efac' }, c.fatto + ' da conf.'), h('span', { style: '--c:#60a5fa' }, c.in_corso + ' in corso'), h('span', { style: '--c:#cbd5e1' }, c.da_fare + ' da fare')))));
-      // avvisi
       const sc = gestisco.filter(n => scadClasse(n) === 'e'), pr = gestisco.filter(n => scadClasse(n) === 'w'), sn = gestisco.filter(n => !nIncarichi(n) && n.stato !== 'finito');
       const gg = parseInt(stato.parametri.giorni_preavviso_scadenza, 10) || 7;
+      // totalizzatore in grande: ogni cella è anche un filtro per l'elenco per persona / per ramo qui sotto
+      const celle = [['da_fare', 'Da fare', c.da_fare, 'dar'], ['in_corso', 'In corso', c.in_corso, 'cor'], ['fatte', 'Fatte', c.fatto + c.finito, 'fin'], ['scad', 'In scadenza', sc.length + pr.length, sc.length ? 'e' : 'w']];
+      if (!celle.some(x => x[0] === homeStatoF)) homeStatoF = '';
+      out.push(h('div', { class: 'tot', role: 'group', 'aria-label': 'Filtra le attività per stato' }, ...celle.map(([k, et, n, cl]) => {
+        const b = h('button', { type: 'button', class: 'tt-c ' + cl + (homeStatoF === k ? ' act' : ''), 'aria-pressed': homeStatoF === k ? 'true' : 'false',
+          title: k === 'scad' ? (sc.length + ' scadute, ' + pr.length + ' entro ' + gg + ' giorni') : et }, h('b', {}, String(n)), h('span', {}, et), k === 'scad' && sc.length ? h('small', {}, sc.length + (sc.length === 1 ? ' scaduta' : ' scadute')) : '');
+        b.addEventListener('click', () => { homeStatoF = homeStatoF === k ? '' : k; renderHome(); });
+        return b;
+      })));
+      out.push(h('div', { class: 'card sum sm' }, h('div', { class: 'big' }, c.perc + '%'),
+        h('div', { class: 'r' }, barraStack(c), h('div', { class: 'cnts' }, h('span', { style: '--c:#15803d' }, c.finito + ' finite'), h('span', { style: '--c:#86efac' }, c.fatto + ' da conf.'), h('span', { style: '--c:#60a5fa' }, c.in_corso + ' in corso'), h('span', { style: '--c:#cbd5e1' }, c.da_fare + ' da fare')))));
       const chip = (cl, k, txt, lista) => { if (!lista.length) return ''; const b = h('button', { class: 'ch2 ' + cl + (homeAvv === k ? ' act' : ''), type: 'button' }, txt); b.addEventListener('click', () => { homeAvv = homeAvv === k ? '' : k; renderHome(); }); return b; };
-      const chips = [chip('e', 'scad', '⚠ ' + sc.length + (sc.length > 1 ? ' scadute' : ' scaduta'), sc), chip('w', 'prox', '⏰ ' + pr.length + ' in scadenza (' + gg + ' gg)', pr), chip('w', 'senza', '👤 ' + sn.length + ' senza incaricati', sn)].filter(Boolean);
-      out.push(h('div', { class: 'chips sc' }, ...(chips.length ? chips : [h('span', { class: 'sec nocrit' }, 'Nessuna scadenza critica ✓')]), selArea || ''));
-      const elenco = { scad: sc, prox: pr, senza: sn }[homeAvv] || [];
+      const chips = [chip('w', 'senza', '👤 ' + sn.length + ' senza incaricati', sn)].filter(Boolean);
+      if (chips.length || selArea) out.push(h('div', { class: 'chips sc' }, ...chips, selArea || ''));
+      const elenco = { senza: sn }[homeAvv] || [];
       if (homeAvv && elenco.length) out.push(h('div', { class: 'card', style: 'padding:6px 12px' }, h('div', { class: 'gr' }, h('div', { class: 'det' },
-        ...elenco.map(n => { const l = h('div', { class: 'ln', style: 'border:0' }, h('div', { class: 'tt' }, h('b', {}, n.titolo), h('small', {}, percorsoTxt(n) + (nomiInc(n).length ? ' · ' + nomiInc(n).join(', ') : ''))), badgeScad(n)); l.addEventListener('click', () => apriScheda(n.id)); return l; })))));
+        ...elenco.map(n => { const l = h('div', { class: 'ln', style: 'border:0' }, h('div', { class: 'tt' }, h('b', {}, n.titolo), h('small', {}, percorsoTxt(n))), badgeScad(n)); l.addEventListener('click', () => apriScheda(n.id)); return l; })))));
       // da confermare (admin) / in attesa di conferma (responsabile): riga ripiegabile, le righe aprono la scheda
       const dc = gestisco.filter(n => n.stato === 'fatto');
       if (dc.length) {
@@ -1451,19 +1449,22 @@
         figli(null).forEach(r => { const l = gestisco.filter(n => radice(n).id === r.id); if (l.length) gruppi.push({ k: 'r' + r.id, nome: r.titolo, l }); });
       }
       const seg = h('div', { class: 'seg' }, ...[['persona', 'Per persona'], ['ramo', 'Per ramo']].map(([k, t]) => { const b = h('button', { type: 'button', class: homeVista === k ? 'on' : '' }, t); b.addEventListener('click', () => { homeVista = k; renderHome(); }); return b; }));
-      const righe = gruppi.map(g => {
-        const cc = conteggio(g.l), aperto = homeAperti.has(g.k), nf = g.l.filter(n => n.stato === 'fatto').length;
+      const NOMI_F = { da_fare: 'Da fare', in_corso: 'In corso', fatte: 'Fatte', scad: 'In scadenza' };
+      const gv = gruppi.map(g => ({ ...g, lf: g.l.filter(passaStatoHome) })).filter(g => g.lf.length);
+      const righe = gv.map(g => {
+        const cc = conteggio(g.l), aperto = homeAperti.has(g.k) || !!homeStatoF, nf = g.l.filter(n => n.stato === 'fatto').length;
         const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, g.nome), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, cc.finito + '/' + cc.tot), h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
         gh.addEventListener('click', () => { if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); });
         const gr = h('div', { class: 'gr' }, gh);
-        if (aperto) gr.append(h('div', { class: 'det' }, ...g.l.map(n => {
-          const cL = colArea(n.area), ln = h('div', { class: 'ln', ...(cL ? { style: 'border-left:5px solid ' + cL + ';padding-left:8px' } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, homeVista === 'persona' ? percorsoTxt(n) : (nomiInc(n).join(', ') || 'nessun incaricato'))), badgeScad(n),
+        if (aperto) gr.append(h('div', { class: 'det' }, ...g.lf.map(n => {
+          const cL = colArea(n.area), ln = h('div', { class: 'ln', ...(cL ? { style: 'border-left:5px solid ' + cL + ';padding-left:8px' } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, homeVista === 'persona' ? percorsoTxt(n) : (nomiInc(n).join(', ') || 'nessun incaricato'), ar.length ? h('span', { class: 'ar', title: 'Area' }, h('i', { style: 'background:' + (colArea(n.area) || '#cbd5e1') }), n.area || 'Tutte') : '')), badgeScad(n),
             ...(n.stato === 'fatto' && adm ? [(() => { const b = h('button', { class: 'bt2', type: 'button' }, '✔ Finito'); b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); }); return b; })()] : [badgeStato(n.stato)]));
           ln.addEventListener('click', () => apriScheda(n.id)); return ln;
         })));
         return gr;
       });
-      out.push(h('div', { class: 'card' }, seg, ...(righe.length ? righe : [h('p', { class: 'sec' }, 'Nessuna attività.')]),
+      const fb = homeStatoF ? (() => { const x = h('button', { type: 'button', class: 'ch2 act fl' }, 'Filtro: ' + NOMI_F[homeStatoF] + ' · ' + g_tot(gv) + ' ✕'); x.addEventListener('click', () => { homeStatoF = ''; renderHome(); }); return x; })() : '';
+      out.push(h('div', { class: 'card' }, seg, fb, ...(righe.length ? righe : [h('p', { class: 'sec' }, 'Nessuna attività.')]),
         h('p', { class: 'note', style: 'margin:8px 0 0;text-align:center' }, 'Tocca una riga per vedere le attività. ✔ n = da confermare.')));
     }
     // le mie attività
@@ -2025,7 +2026,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#dupForm').addEventListener('submit', eseguiDuplica); $('#dAnnulla').onclick = () => $('#modDup').classList.add('hidden');
     $('#nodoForm').addEventListener('submit', salvaNodo);
     $('#attForm').addEventListener('submit', salvaScheda); $('#aChiudi').onclick = chiudiScheda; if ($('#aBack')) $('#aBack').onclick = chiudiScheda;
-    $('#nAnnulla').onclick = chiudiNodo; $('#mvAnnulla').onclick = () => $('#modMove').classList.add('hidden');
+    $('#nAnnulla').onclick = chiudiNodo;
     if (window.matchMedia) window.matchMedia('(max-width:760px)').addEventListener('change', () => { renderNav(); if (isMobile() && stato.pagina === 'str') vai('home'); });
     if ($('#strArea')) $('#strArea').onchange = e => { S.areaF = e.target.value; renderStruttura(); renderHome(); };
     if ($('#fQ')) {
