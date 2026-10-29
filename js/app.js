@@ -267,6 +267,7 @@
     if ($('#altroEvento')) $('#altroEvento').textContent = eventoCorrente() ? eventoCorrente().titolo : 'nessun evento selezionato';
     $('#altroLista').replaceChildren(...[
       op ? voce('👥', 'Persone dell\'evento', () => vai('persone')) : '',
+      stato.evento !== null ? voce('🌳', 'Struttura', () => vai('str')) : '',
       voce('🔔', 'Da rivedere', () => vai('rev'), r ? h('span', { class: 'badge e' }, String(r)) : ''),
       voce('⚙️', 'Impostazioni', () => vai('imp')),
       isSuper() ? voce('🎛️', 'Parametri', () => vai('par')) : '',
@@ -278,7 +279,6 @@
   function vai(p) {
     if ((p === 'home' || p === 'str') && stato.evento === null && stato.persona) p = 'eventi';
     if (p === 'par' && !isSuper()) p = 'home';
-    if (p === 'str' && isMobile()) p = 'home';
     stato.pagina = p;
     $$('.pg').forEach(e => e.classList.add('hidden'));
     $('#p-' + p).classList.remove('hidden');
@@ -355,13 +355,17 @@
         p.iscritto ? h('span', { class: 'badge ok' }, 'iscritto ' + (p.numero_iscritto || '')) : h('span', { class: 'badge' }, 'non iscritto'),
         p.ruolo === 'admin' ? h('span', { class: 'badge w' }, 'admin') : '',
         P.resp[p.id] ? h('span', { class: 'badge', title: P.resp[p.id].join(', ') }, 'Responsabile: ' + P.resp[p.id].slice(0, 2).join(', ') + (P.resp[p.id].length > 2 ? ' +' + (P.resp[p.id].length - 2) : '')) : '');
-      const btn = (href, txt, titolo) => h('a', { class: 'btn sec', style: 'padding:4px 10px', href, title: titolo, 'aria-label': titolo }, txt);
+      const btn = (href, txt, titolo) => h('a', { class: 'btn sec xm', style: 'padding:4px 10px', href, title: titolo, 'aria-label': titolo }, txt);
+      const voci = [];
       if (p.cellulare) {
         az.append(btn('tel:' + tel(p.cellulare), '📞', 'Chiama'), btn('https://wa.me/' + waNumero(p.cellulare), '💬', 'WhatsApp'));
         az.lastChild.setAttribute('target', '_blank'); az.lastChild.setAttribute('rel', 'noopener');
+        voci.push(['📞 Chiama', () => { location.href = 'tel:' + tel(p.cellulare); }], ['💬 WhatsApp', () => window.open('https://wa.me/' + waNumero(p.cellulare), '_blank', 'noopener')]);
       }
       az.append(btn('mailto:' + p.email, '✉️', 'Scrivi una mail'));
+      voci.push(['✉️ Scrivi una mail', () => { location.href = 'mailto:' + p.email; }]);
       az.querySelectorAll('a').forEach(a => a.addEventListener('click', e => e.stopPropagation()));
+      const mb = h('button', { class: 'ib xk', type: 'button', title: 'Contatta', 'aria-label': 'Contatta' }, '⋯'); mb.addEventListener('click', ev => { ev.stopPropagation(); menuRiga(mb, voci); }); az.append(mb);
       const riga = h('div', { class: 'row', style: 'flex-wrap:wrap;cursor:pointer', tabindex: '0' },
         h('div', { style: 'flex:1;min-width:200px' },
           h('b', {}, p.cognome + ' ' + p.nome), ' ', p.attivo ? '' : h('span', { class: 'badge e' }, 'non attivo'),
@@ -482,7 +486,7 @@
   }
 
   function selezionaEvento(id, vaiHome) {
-    stato.evento = id; S.mod = false; S.collassati = new Set(); S.aperti = new Set(); S.areaF = ''; S.f = { q: '', stato: '', pers: '', scad: '' }; S.nodi = []; S.inc = {}; S.num = {}; S.sponsor = {}; homeAvv = ''; homeAperti = new Set();
+    stato.evento = id; S.collassati = new Set(); S.aperti = new Set(); S.areaF = ''; S.f = { q: '', stato: '', pers: '', scad: '' }; S.nodi = []; S.inc = {}; S.num = {}; S.sponsor = {}; homeAvv = ''; homeAperti = new Set();
     LS.set('sdm_evento', { uid: stato.persona.uid, id });
     renderEvBar(); renderEventi();
     if (vaiHome) vai('home');
@@ -532,9 +536,11 @@
       card.addEventListener('keydown', ev => { if (ev.key === 'Enter') scegli(); });
       if (adm) {
         const acts = h('div', { class: 'acts' });
-        const m = h('button', { class: 'btn sec need-net', type: 'button' }, 'Modifica'); m.addEventListener('click', ev => { ev.stopPropagation(); apriEvento(e.id); });
-        const d = h('button', { class: 'btn sec need-net', type: 'button' }, 'Duplica'); d.addEventListener('click', ev => { ev.stopPropagation(); apriDuplica(e.id); });
-        acts.append(m, d); card.append(acts);
+        const m = h('button', { class: 'btn sec need-net xm', type: 'button' }, 'Modifica'); m.addEventListener('click', ev => { ev.stopPropagation(); apriEvento(e.id); });
+        const d = h('button', { class: 'btn sec need-net xm', type: 'button' }, 'Duplica'); d.addEventListener('click', ev => { ev.stopPropagation(); apriDuplica(e.id); });
+        const mb = h('button', { class: 'ib xk need-net', type: 'button', title: 'Altre azioni', 'aria-label': 'Altre azioni' }, '⋯');
+        mb.addEventListener('click', ev => { ev.stopPropagation(); menuRiga(mb, [['✎ Modifica', () => apriEvento(e.id)], ['⧉ Duplica', () => apriDuplica(e.id)]]); });
+        acts.append(m, d, mb); card.append(acts);
       }
       return card;
     }));
@@ -613,7 +619,7 @@
 
 
   // ---------- struttura (rami e attività) ----------
-  const S = { pend: new Set(), nodi: [], inc: {}, nomi: {}, assegnabili: [], byId: {}, byParent: {}, mod: false, collassati: new Set(), aperti: new Set(), corr: null, padre: null, sort: [], num: {}, numLoc: {}, sponsor: {}, areaF: '' };
+  const S = { pend: new Set(), nodi: [], inc: {}, nomi: {}, assegnabili: [], byId: {}, byParent: {}, collassati: new Set(), aperti: new Set(), corr: null, padre: null, sort: [], num: {}, numLoc: {}, sponsor: {}, areaF: '' };
   const maxLivelli = () => Math.min(10, Math.max(1, parseInt(stato.parametri.max_livelli, 10) || 10));
   const nomeP = id => S.nomi[id] || '—';
   const figli = id => S.byParent[id || 'root'] || [];
@@ -627,6 +633,9 @@
   const respDi = (n, incl) => { const me = stato.persona.id; return (incl && n.responsabile_id === me) || antenati(n).some(a => a.responsabile_id === me); };
   const canEdit = n => isAdmin() || respDi(n, true);
   const canDel = n => isAdmin() || respDi(n, false);
+  // responsabile effettivo di un ramo: il proprio, altrimenti quello del ramo sopra (a cascata)
+  const respEff = n => { let x = n, ered = false; while (x) { if (x.responsabile_id) return { id: x.responsabile_id, ered }; x = x.parent_id ? nodo(x.parent_id) : null; ered = true; } return { id: null, ered: false }; };
+  const canDup = () => isAdmin();
   const canAdd = n => isAdmin() || (!!stato.parametri.responsabile_crea_rami && respDi(n, true));
   const nIncarichi = n => (S.inc[n.id] || []).length;
   const percorsoTxt = n => [...antenati(n).reverse(), n].map(x => x.titolo).join(' › ');
@@ -638,14 +647,14 @@
   const prossimoColore = usati => PALETTE.find(c => !usati.map(x => String(x).toLowerCase()).includes(c)) || PALETTE[usati.length % PALETTE.length];
   const colArea = a => { if (!a) return null; const e = eventoCorrente(), i = areeEv().indexOf(a); return ((e && e.aree_colori) || {})[a] || (i >= 0 ? PALETTE[i % PALETTE.length] : null); };
   const areeEv = () => { const e = eventoCorrente(); return (e && Array.isArray(e.aree)) ? e.aree : []; };
-  const passaArea = n => S.mod || !S.areaF || (isLeaf(n) ? (!n.area || n.area === S.areaF) : figli(n.id).some(passaArea));
+  const passaArea = n => !S.areaF || (isLeaf(n) ? (!n.area || n.area === S.areaF) : figli(n.id).some(passaArea));
   // filtri della Struttura (riga in alto): un'attività compare se rispetta tutti i filtri attivi;
   // un ramo compare se almeno una sua attività li rispetta (o se il testo cercato è nel ramo stesso)
   S.f = { q: '', stato: '', pers: '', scad: '' };
   const filtriAttivi = () => !!(S.f.q || S.f.stato || S.f.pers || S.f.scad || S.areaF);
   const testoNodo = n => [n.titolo, n.descrizione, n.note, n.area, n.responsabile_id ? nomeP(n.responsabile_id) : '', ...(S.inc[n.id] || []).flatMap(x => [nomeP(x.persona_id), x.nota]), numTxt(n)].filter(Boolean).join(' ');
   const passaFiltri = n => {
-    if (S.mod || !filtriAttivi()) return true;
+    if (!filtriAttivi()) return true;
     if (!isLeaf(n)) return figli(n.id).some(passaFiltri) || (!S.f.stato && !S.f.pers && !S.f.scad && !S.areaF && !!S.f.q && norm(testoNodo(n)).includes(norm(S.f.q)));
     const f = S.f;
     if (S.areaF && n.area && n.area !== S.areaF) return false;
@@ -720,7 +729,7 @@
   function dettagliNodo(n) {
     const lf = isLeaf(n), inc = S.inc[n.id] || [], sp = isAdmin() ? S.sponsor[n.id] : null;
     const dr = (et, v) => (v ? h('div', { class: 'dr' }, h('span', { class: 'dl' }, et), h('div', { class: 'dv' }, v)) : '');
-    const els = [dr('Descrizione', n.descrizione), dr('Note', n.note), dr('Responsabile', n.responsabile_id ? nomeP(n.responsabile_id) : ''),
+    const els = [dr('Descrizione', n.descrizione), dr('Note', n.note), dr('Responsabile', lf ? '' : (() => { const r = respEff(n); return r.id ? nomeP(r.id) + (r.ered ? ' (ereditato)' : '') : ''; })()),
       lf ? dr('Scadenza', n.scadenza ? fmtData(n.scadenza) : '') : '', lf ? dr('Area', n.area || 'Tutte') : ''];
     if (lf) {
       els.push(dr('Incaricati', inc.length ? h('div', {}, ...inc.map(x => h('div', {}, nomeP(x.persona_id), x.nota ? h('span', { class: 'sec' }, ' — “' + x.nota + '”') : ''))) : ''));
@@ -742,50 +751,50 @@
     const meta = h('div', { class: 'meta' });
     if (S.pend && S.pend.has(n.id)) meta.append(chip('⏳ in attesa', 'w'));
     if (lf && n.area) meta.append(chip('Area · ' + n.area, '', 'Area'));
-    if (n.responsabile_id) meta.append(chip('👤 ' + nomeP(n.responsabile_id), '', 'Responsabile'));
     if (lf) {
       meta.append(badgeStato(n.stato), badgeScad(n), chip('👥 ' + nIncarichi(n), '', 'Persone incaricate'));
       if (righeCheck(n).length) meta.append(chip('☑ ' + checkFatte(n) + '/' + righeCheck(n).length, '', 'Check-list'));
       if (isAdmin() && S.sponsor[n.id]) meta.append(chip('€ sponsor', 'ok', 'Sponsor: ' + (S.sponsor[n.id].fornitore || '')));
     } else {
-      const ls = foglie(n), f = ls.filter(x => x.stato === 'finito').length, p = ls.length ? Math.round(100 * f / ls.length) : 0;
-      meta.append(h('span', { class: 'sec', style: 'font-size:12px' }, f + '/' + ls.length + ' ', h('span', { class: 'mini' }, h('i', { style: 'width:' + p + '%' })), ' ' + p + '%'));
+      const ls = foglie(n), f = ls.filter(x => x.stato === 'finito').length, p = ls.length ? Math.round(100 * f / ls.length) : 0, re = respEff(n);
+      meta.append(h('span', { class: 'sec cnt' }, figli(n.id).length + ' sotto · ' + f + '/' + ls.length + ' fatte ', h('span', { class: 'mini' }, h('i', { style: 'width:' + p + '%' })), ' ' + p + '%'));
+      if (re.id) meta.append(h('span', { class: 'resp' + (re.ered ? ' ered' : ''), title: re.ered ? 'Responsabile ereditato dal ramo sopra' : 'Responsabile del ramo' }, (re.ered ? '↳ ' : '👤 ') + nomeP(re.id)));
+      else meta.append(h('span', { class: 'resp ered' }, '— nessun responsabile'));
     }
     const btns = h('div', { class: 'azn' });
     const ib = (txt, titolo, fn, cl) => { const b = h('button', { class: 'ib' + (cl ? ' ' + cl : ''), type: 'button', title: titolo, 'aria-label': titolo }, txt); b.addEventListener('click', fn); return b; };
-    let handle = '';
-    if (S.mod) {
-      const padre = n.parent_id ? nodo(n.parent_id) : null;
-      if (canEdit(n)) handle = h('span', { class: 'hd', title: 'Trascina' }, '☰');
-      if (canAdd(n) && lv < maxLivelli()) btns.append(ib('＋', 'Aggiungi sottoramo', () => apriNodo(null, n.id)));
-      if (lf && (padre ? canAdd(padre) : isAdmin())) btns.append(ib('⧉', 'Duplica attività', () => apriScheda(n.id, true)));
-      if (canEdit(n)) btns.append(ib('✎', 'Modifica', () => apriNodo(n.id, null)), ib('⇄', 'Sposta in…', () => apriSposta(n.id)));
-      if (canDel(n)) btns.append(ib('🗑', 'Elimina', () => eliminaNodo(n.id), 'dn'));
-    }
+    // modifica diretta: matita, + sotto, duplica (solo amministratore), elimina; su PC anche "Sposta in…".
+    // Su smartphone ✎ resta in vista e il resto va nel menu ⋯ (niente "Sposta in…": si trascina tenendo premuto).
+    const padre = n.parent_id ? nodo(n.parent_id) : null;
+    const vAdd = canAdd(n) && lv < maxLivelli(), vDup = canDup(), vEd = canEdit(n), vDel = canDel(n);
+    const ac = [];
+    if (vEd) btns.append(ib('✎', 'Modifica', () => apriNodo(n.id, null)));
+    if (vAdd) { btns.append(ib('＋', 'Aggiungi sotto', () => apriNodo(null, n.id), 'xm')); ac.push(['＋ Aggiungi sotto', () => apriNodo(null, n.id)]); }
+    if (vDup) { btns.append(ib('⧉', 'Duplica', () => apriDuplicaRamo(n.id), 'xm')); ac.push(['⧉ Duplica', () => apriDuplicaRamo(n.id)]); }
+    if (vEd) btns.append(ib('⇄', 'Sposta in…', () => apriSposta(n.id), 'xm xs'));
+    if (vDel) { btns.append(ib('🗑', 'Elimina', () => eliminaNodo(n.id), 'dn xm')); ac.push(['🗑 Elimina', () => eliminaNodo(n.id), 'dn']); }
+    if (ac.length) { const mb = ib('⋯', 'Altre azioni', ev => { ev.stopPropagation(); menuRiga(mb, ac); }, 'xk'); btns.append(mb); }
     let tg;
     if (lf) tg = h('span', { class: 'tg0' });
     else { tg = h('button', { class: 'tg', type: 'button', 'aria-label': aperto ? 'Comprimi' : 'Espandi' }, aperto ? '▼' : '▶'); tg.addEventListener('click', () => { if (aperto) S.collassati.add(n.id); else S.collassati.delete(n.id); renderStruttura(); }); }
     const ca = lf ? colArea(n.area) : null;
-    const row = h('div', { class: 'tn cmp' + (lf ? '' : ' br') + (det ? ' op' : ''), ...(ca ? { style: 'background:color-mix(in srgb,' + ca + ' 22%,var(--card));border-left:5px solid ' + ca } : {}), tabindex: '0', role: 'button', 'aria-expanded': det ? 'true' : 'false' }, handle, tg,
+    const row = h('div', { class: 'tn cmp' + (lf ? '' : ' br') + (det ? ' op' : '') + (n.id === S.menuId ? ' mn' : ''), ...(ca ? { style: 'background:color-mix(in srgb,' + ca + ' 22%,var(--card));border-left:5px solid ' + ca } : {}), tabindex: '0', role: 'button', 'aria-expanded': det ? 'true' : 'false' }, tg,
       h('span', { class: 'num' }, numTxt(n)),
       h('div', { class: 'tt2' }, h('b', { title: n.titolo }, n.titolo), n.descrizione ? h('span', { class: 'ds' }, n.descrizione) : ''), meta, btns);
     const commuta = () => { if (S.aperti.has(n.id)) S.aperti.delete(n.id); else S.aperti.add(n.id); renderStruttura(); };
-    row.addEventListener('click', e => { if (e.target.closest('button,.hd,a,input,select')) return; commuta(); });
+    row.addEventListener('click', e => { if (e.target.closest('button,a,input,select') || Date.now() - (S.dragFine || 0) < 400) return; commuta(); });
     row.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === row) commuta(); });
-    const li = h('li', { 'data-id': n.id }, row);
+    const li = h('li', { 'data-id': n.id, class: canEdit(n) ? 'mv' : '' }, row);
     if (det) li.append(dettagliNodo(n));
     if (!lf && aperto) { const ul = h('ul', { class: 'trl', 'data-parent': n.id }); figli(n.id).filter(passaFiltri).forEach(c => ul.append(rigaNodo(c))); li.append(ul); }
-    else if (lf && S.mod) li.append(h('ul', { class: 'trl vuoto', 'data-parent': n.id }));
+    else if (lf) li.append(h('ul', { class: 'trl vuoto', 'data-parent': n.id }));
     return li;
   }
 
   function renderStruttura() {
-    if (!navigator.onLine) S.mod = false;
     ordina(); S.pend = nodiInAttesa();
     const adm = isAdmin();
     const puoMod = adm || S.nodi.some(n => n.responsabile_id === stato.persona.id);
-    $('#strModBtn').classList.toggle('hidden', !puoMod);
-    $('#strModBtn').textContent = S.mod ? '✔ Fine modifica' : '✎ Modifica struttura';
     const lista = $('#strLista');
     $('#strInfo').textContent = adm ? 'Albero completo dell\'evento · max ' + maxLivelli() + ' livelli'
       : (puoMod ? 'I rami di cui sei responsabile e le tue attività' : 'Le attività in cui sei incaricato');
@@ -801,21 +810,23 @@
       sp.value = S.f.pers;
       $('#fQ').value = S.f.q; $('#fStato').value = S.f.stato; $('#fScad').value = S.f.scad;
       const foglieTot = S.nodi.filter(isLeaf), foglieOk = foglieTot.filter(passaFiltri);
-      $('#fCnt').textContent = filtriAttivi() && !S.mod ? foglieOk.length + ' attività su ' + foglieTot.length : '';
+      $('#fCnt').textContent = filtriAttivi() ? foglieOk.length + ' attività su ' + foglieTot.length : '';
       $('#fReset').classList.toggle('hidden', !filtriAttivi());
       $('#strFiltri').classList.toggle('hidden', !S.nodi.length);
     }
     S.sort.forEach(x => x.destroy()); S.sort = [];
-    const nuovo = adm && S.mod ? h('div', { style: 'margin-bottom:10px' }, (() => { const b = h('button', { class: 'btn need-net', type: 'button' }, '+ Nuovo ramo di primo livello'); b.addEventListener('click', () => apriNodo(null, null)); return b; })()) : '';
+    const nuovo = adm ? h('div', { style: 'margin-bottom:10px' }, (() => { const b = h('button', { class: 'btn need-net', type: 'button' }, '+ Ramo di primo livello'); b.addEventListener('click', () => apriNodo(null, null)); return b; })()) : '';
     const radice = h('ul', { class: 'trl' });
     figli(null).filter(passaFiltri).forEach(n => radice.append(rigaNodo(n)));
-    lista.replaceChildren(...[nuovo, S.nodi.length ? radice : h('p', { class: 'sec' }, adm ? 'Nessun ramo: crea il primo con "Modifica struttura".' : 'Nessuna attività assegnata per questo evento.')].filter(Boolean));
-    if (S.mod && window.Sortable) lista.querySelectorAll('ul.trl').forEach(ul => S.sort.push(new window.Sortable(ul, {
-      group: 'albero', handle: '.hd', animation: 150, forceFallback: true, fallbackOnBody: true, swapThreshold: 0.65, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
-      delay: cfg.DRAG_DELAY_MS === undefined ? 500 : cfg.DRAG_DELAY_MS, delayOnTouchOnly: true, touchStartThreshold: 8,
-      onStart: () => { if (navigator.vibrate) navigator.vibrate(25); },
+    lista.replaceChildren(...[nuovo, S.nodi.length ? radice : h('p', { class: 'sec' }, adm ? 'Nessun ramo: crea il primo con "+ Ramo di primo livello".' : 'Nessuna attività assegnata per questo evento.')].filter(Boolean));
+    // si trascina prendendo la riga in un punto qualsiasi e tenendola premuta un attimo (più a lungo su smartphone)
+    const touch = isMobile() || !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
+    if (navigator.onLine && window.Sortable) lista.querySelectorAll('ul.trl').forEach(ul => S.sort.push(new window.Sortable(ul, {
+      group: 'albero', draggable: 'li.mv', filter: 'button,a,input,select', preventOnFilter: false, animation: 150, forceFallback: true, fallbackOnBody: true, swapThreshold: 0.65, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
+      delay: touch ? (cfg.DRAG_DELAY_TOUCH_MS || 700) : (cfg.DRAG_DELAY_MS === undefined ? 250 : cfg.DRAG_DELAY_MS), delayOnTouchOnly: false, touchStartThreshold: 8,
+      onStart: () => { document.body.classList.add('drg'); if (navigator.vibrate) navigator.vibrate(25); },
       onMove: e => { const n = nodo(e.dragged.dataset.id), d = e.to.dataset.parent ? nodo(e.to.dataset.parent) : null; return !motivoNo(n, d); },
-      onEnd: e => { if (e.from === e.to && e.oldIndex === e.newIndex) return; spostaNodo(e.item.dataset.id, e.to.dataset.parent || null, e.newIndex); }
+      onEnd: e => { document.body.classList.remove('drg'); S.dragFine = Date.now(); if (e.from === e.to && e.oldIndex === e.newIndex) return; spostaNodo(e.item.dataset.id, e.to.dataset.parent || null, e.newIndex); }
     })));
   }
 
@@ -842,6 +853,44 @@
     await caricaStruttura();
   }
 
+  // menu ⋯ della riga (smartphone): azioni che non stanno sulla riga
+  function menuRiga(btn, voci) {
+    const prec = document.querySelector('.menuRiga'); if (prec) { prec.remove(); if (prec._btn === btn) return; }
+    const m = h('div', { class: 'menuRiga', role: 'menu' }, ...voci.map(v => { const b = h('button', { type: 'button', class: v[2] || '', role: 'menuitem' }, v[0]); b.addEventListener('click', ev => { ev.stopPropagation(); m.remove(); v[1](); }); return b; }));
+    m._btn = btn; document.body.append(m);
+    const r = btn.getBoundingClientRect(), w = m.offsetWidth, hh = m.offsetHeight;
+    m.style.left = Math.max(6, Math.min(r.right - w, window.innerWidth - w - 6)) + 'px';
+    m.style.top = (r.bottom + hh + 6 > window.innerHeight ? Math.max(6, r.top - hh - 4) : r.bottom + 4) + 'px';
+    const chiudi = ev => { if (!m.contains(ev.target)) { m.remove(); document.removeEventListener('click', chiudi, true); } };
+    setTimeout(() => document.addEventListener('click', chiudi, true), 0);
+  }
+
+  // duplica un ramo: titolo e descrizione nuovi per la prima riga, il resto (anche tutti i sottorami) identico
+  S.dupR = null;
+  function apriDuplicaRamo(id) {
+    const n = nodo(id); if (!n) return; S.dupR = n;
+    const k = sottoalbero(n).length;
+    $('#drDa').textContent = percorsoTxt(n);
+    $('#drTit').value = n.titolo; $('#drDes').value = '';
+    $('#drTuttoW').classList.toggle('hidden', !k);
+    $('#drTutto').checked = true;
+    $('#drTuttoT').textContent = 'Duplica anche tutti i sottorami (' + k + ' element' + (k === 1 ? 'o' : 'i') + ')';
+    $('#drNota').textContent = k ? 'Sì: si copia l\'intera catena con le stesse caratteristiche degli originali. No: si copia solo questa riga.' : 'Si copiano tutte le caratteristiche dell\'attività (scadenza, area, check-list, incaricati, responsabile).';
+    $('#drErr').classList.add('hidden');
+    $('#modDupR').classList.remove('hidden'); $('#drDes').focus();
+  }
+  async function eseguiDuplicaRamo(ev) {
+    ev.preventDefault();
+    const er = m => { $('#drErr').textContent = m; $('#drErr').classList.remove('hidden'); };
+    const t = $('#drTit').value.trim(); if (!t) return er('Il titolo è obbligatorio.');
+    if (!navigator.onLine) return er('Serve la connessione per duplicare.');
+    const b = $('#drSalva'); b.disabled = true;
+    const { error } = await stato.sb.rpc('duplica_ramo', { _nodo: S.dupR.id, _titolo: t, _descrizione: $('#drDes').value.trim() || null, _tutto: sottoalbero(S.dupR).length ? $('#drTutto').checked : false });
+    b.disabled = false;
+    if (error) return er('Duplicazione non riuscita: ' + errDb(error.message));
+    $('#modDupR').classList.add('hidden'); await aggiornaTutto(); toast('Duplicato');
+  }
+
   function apriSposta(id) {
     const n = nodo(id);
     $('#mvDa').textContent = 'Elemento: ' + percorsoTxt(n);
@@ -866,7 +915,8 @@
     $('#nTitM').textContent = S.corr ? 'Modifica' : (padre ? 'Nuovo sottoramo' : 'Nuovo ramo');
     $('#nPercorso').textContent = S.corr ? percorsoTxt(S.corr) : (padre ? 'Dentro: ' + percorsoTxt(nodo(padre)) : 'Primo livello');
     $('#nTit').value = n.titolo; $('#nDes').value = n.descrizione || ''; $('#nNot').value = n.note || '';
-    const op = [h('option', { value: '' }, '— (nessuno)')];
+    const padreN = S.corr ? (S.corr.parent_id ? nodo(S.corr.parent_id) : null) : (padre ? nodo(padre) : null), ered = padreN ? respEff(padreN) : null;
+    const op = [h('option', { value: '' }, ered && ered.id ? 'Eredita dal ramo sopra: ' + nomeP(ered.id) : (padreN ? 'Eredita dal ramo sopra (nessuno)' : '— (nessuno)'))];
     const elenco = [...S.assegnabili];
     if (n.responsabile_id && !elenco.some(p => p.id === n.responsabile_id)) elenco.push({ id: n.responsabile_id, cognome: nomeP(n.responsabile_id), nome: '' });
     elenco.forEach(p => op.push(h('option', { value: p.id }, (p.cognome + ' ' + p.nome).trim())));
@@ -1971,11 +2021,11 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#perEsporta').onclick = esportaPersone; $('#perImporta').onclick = importaPersone; $('#perModello').onclick = modelloPersone;
     $('#strEsporta').onclick = esportaStruttura; $('#strImporta').onclick = importaStruttura; $('#strModello').onclick = modelloStruttura;
     $('#impFile').addEventListener('change', impAnalizza); $('#impOk').onclick = impEsegui; $('#impAnnulla').onclick = chiudiImport;
+    $('#dupRForm').addEventListener('submit', eseguiDuplicaRamo); $('#drAnnulla').onclick = () => $('#modDupR').classList.add('hidden');
     $('#dupForm').addEventListener('submit', eseguiDuplica); $('#dAnnulla').onclick = () => $('#modDup').classList.add('hidden');
     $('#nodoForm').addEventListener('submit', salvaNodo);
     $('#attForm').addEventListener('submit', salvaScheda); $('#aChiudi').onclick = chiudiScheda; if ($('#aBack')) $('#aBack').onclick = chiudiScheda;
     $('#nAnnulla').onclick = chiudiNodo; $('#mvAnnulla').onclick = () => $('#modMove').classList.add('hidden');
-    $('#strModBtn').onclick = () => { S.mod = !S.mod; renderStruttura(); };
     if (window.matchMedia) window.matchMedia('(max-width:760px)').addEventListener('change', () => { renderNav(); if (isMobile() && stato.pagina === 'str') vai('home'); });
     if ($('#strArea')) $('#strArea').onchange = e => { S.areaF = e.target.value; renderStruttura(); renderHome(); };
     if ($('#fQ')) {

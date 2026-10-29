@@ -4,5 +4,6 @@ SDM Eventi - gestione eventi sportivi (PWA, HTML + JavaScript, Supabase + Vercel
   db/01_schema_sdm_eventi.sql                              schema database (schema "sdm_eventi")
   db/99_rimozione_schema_sdm_eventi.sql                    elimina lo schema (solo per i test)
   anteprima/index.html                                     anteprima grafica (dati finti)
+  anteprima/struttura.html                                 anteprima della Struttura con modifica diretta (dati finti)
   docs/SETUP.md                                            installazione e configurazione
   docs/GDPR.md                                             guida pratica alla privacy (GDPR), informativa e registro

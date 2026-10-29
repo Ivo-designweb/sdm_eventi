@@ -148,7 +148,8 @@ nav.side .brand .brandimg{width:190px}
 
 ul.trl{list-style:none;margin:0;padding:0}
 ul.trl ul.trl{margin-left:20px}
-ul.trl.vuoto{min-height:12px;border:1px dashed var(--bordo);border-radius:8px;margin:0 0 6px 20px}
+ul.trl.vuoto{min-height:6px;border:1px dashed transparent;border-radius:8px;margin:0 0 6px 20px}
+body.drg ul.trl.vuoto{min-height:18px;border-color:var(--primario)}
 .sortable-ghost{opacity:.4}
 .sortable-chosen{box-shadow:0 6px 18px rgba(0,0,0,.25)}
 .hd{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;padding:6px 10px}
@@ -334,3 +335,27 @@ label.flag input{width:auto;margin:0}
 .ln.mia .tt small{color:var(--sec);font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ln.mia select{border:1px solid var(--bordo);border-radius:8px;padding:4px;font:inherit;font-size:13px;background:var(--card);color:var(--testo);width:auto;flex:none}
 .ln.mia .ib{padding:3px 8px;font-size:13px;flex:none}
+
+/* v2.7: Struttura con modifica diretta */
+.tn.cmp .resp{font-size:12px;white-space:nowrap}
+.tn.cmp .resp.ered{color:var(--sec);font-style:italic}
+.tn.cmp .cnt{white-space:nowrap}
+.xk{display:none!important}
+li.mv>.tn{cursor:grab}
+.menuRiga{position:fixed;z-index:60;background:var(--card);border:1px solid var(--bordo);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.2);padding:4px;min-width:170px}
+.menuRiga button{display:block;width:100%;text-align:left;border:0;background:none;padding:10px 12px;border-radius:7px;font:inherit;cursor:pointer;color:var(--testo)}
+.menuRiga button:hover{background:color-mix(in srgb,var(--primario) 10%,var(--card))}
+.menuRiga button.dn{color:var(--err)}
+.flag{display:flex;gap:8px;align-items:center;font-weight:600}
+@media (max-width:760px){
+  /* smartphone: sulla riga stanno numero, titolo e ✎/⋯; il resto (conteggi, responsabile, stato) va sotto */
+  .tn.cmp{flex-wrap:wrap;row-gap:1px;padding:5px 6px}
+  .tn.cmp .tt2{flex:1 1 80px}
+  .tn.cmp .tt2 b{max-width:100%}
+  .tn.cmp .ds{display:none}
+  .tn.cmp .meta{order:5;flex:1 0 100%;flex-wrap:wrap;padding-left:30px;gap:3px 8px}
+  .xm{display:none!important}
+  .xk{display:inline-block!important}
+  .evc .acts{width:auto;margin:0}
+  ul.trl ul.trl{margin-left:8px;padding-left:4px}
+}

@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 1.5
+-- Versione script: 1.6
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -759,6 +759,49 @@ begin
     select m.new_id, i.persona_id from sdm_eventi.incarichi i join _dup_map m on m.old_id = i.nodo_id;
   end if;
   return v_new;
+end $$;
+
+-- DUPLICA RAMO (solo admin): copia un ramo accanto all'originale. La prima riga prende il titolo e la
+-- descrizione indicati; con _tutto = true copia anche tutti i sottorami e le attività, con le stesse
+-- caratteristiche (descrizioni, note, scadenze, responsabili, area, check-list senza esiti, incaricati
+-- senza note, sponsor). Gli stati ripartono da "da fare". Ritorna l'id della nuova prima riga.
+create or replace function sdm_eventi.duplica_ramo(_nodo uuid, _titolo text, _descrizione text, _tutto boolean default true)
+returns uuid
+language plpgsql set search_path = sdm_eventi, public, pg_temp as $$
+declare
+  o      sdm_eventi.nodi%rowtype;
+  v_root uuid;
+  v_nid  uuid;
+  v_idx  integer;
+  r      record;
+begin
+  if not sdm_eventi.is_admin() then raise exception 'Solo l''amministratore può duplicare un ramo'; end if;
+  select * into o from sdm_eventi.nodi where id = _nodo;
+  if not found then raise exception 'Elemento non trovato'; end if;
+  if coalesce(trim(_titolo), '') = '' then raise exception 'Il titolo è obbligatorio'; end if;
+  select count(*) into v_idx from sdm_eventi.nodi
+   where evento_id = o.evento_id and parent_id is not distinct from o.parent_id
+     and (posizione, creato_il, id) < (o.posizione, o.creato_il, o.id);
+  create temp table _dupr_map (old_id uuid primary key, new_id uuid) on commit drop;
+  for r in select * from sdm_eventi.nodi
+           where id = _nodo or (_tutto and o.id = any(percorso))
+           order by livello, posizione, creato_il loop
+    insert into sdm_eventi.nodi (evento_id, parent_id, titolo, descrizione, note, scadenza, stato, posizione, responsabile_id, area, checklist)
+    values (r.evento_id,
+            case when r.id = _nodo then o.parent_id else (select new_id from _dupr_map where old_id = r.parent_id) end,
+            case when r.id = _nodo then trim(_titolo) else r.titolo end,
+            case when r.id = _nodo then nullif(trim(coalesce(_descrizione, '')), '') else r.descrizione end,
+            r.note, r.scadenza, 'da_fare', r.posizione, r.responsabile_id, r.area, r.checklist)
+    returning id into v_nid;
+    insert into _dupr_map values (r.id, v_nid);
+    if r.id = _nodo then v_root := v_nid; end if;
+  end loop;
+  insert into sdm_eventi.incarichi (nodo_id, persona_id)
+    select m.new_id, i.persona_id from sdm_eventi.incarichi i join _dupr_map m on m.old_id = i.nodo_id;
+  insert into sdm_eventi.nodi_sponsor (nodo_id, fornitore, referente, cellulare, importo)
+    select m.new_id, sp.fornitore, sp.referente, sp.cellulare, sp.importo from sdm_eventi.nodi_sponsor sp join _dupr_map m on m.old_id = sp.nodo_id;
+  perform sdm_eventi.sposta_nodo(v_root, o.parent_id, v_idx + 1);
+  return v_root;
 end $$;
 
 -- IMPORTA PERSONE da Excel (solo admin): inserisce le nuove e, su richiesta, aggiorna quelle con la
