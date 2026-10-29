@@ -262,6 +262,67 @@
     $$('.nv').forEach(b => b.classList.toggle('on', b.dataset.p === p));
     $$('.bottom button').forEach(b => b.classList.toggle('on', b.dataset.p === k));
   }
+  // ---------- registro modifiche (solo amministratori) ----------
+  const LOG = { righe: [], fine: false, occupato: false, PAG: 50 };
+  const LOG_AZ = { INSERT: ['Inserito', 'ok'], UPDATE: ['Modificato', 'w'], DELETE: ['Eliminato', 'e'] };
+  const LOG_TAB = { nodi: 'ramo/attività', incarichi: 'incarico', eventi: 'evento', persone: 'persona' };
+  function apriLog() {
+    const se = $('#logEv'), cur = se.value;
+    se.replaceChildren(h('option', { value: '' }, 'Evento'), ...stato.eventi.map(e => h('option', { value: e.id }, e.titolo)));
+    se.value = cur; caricaLog(true);
+  }
+  async function caricaLog(da0) {
+    if (LOG.occupato) return;
+    const info = $('#logInfo');
+    if (!navigator.onLine) { info.textContent = 'Serve la connessione per leggere il registro.'; return; }
+    if (da0) { LOG.righe = []; LOG.fine = false; }
+    LOG.occupato = true; info.textContent = 'Carico…';
+    let q = stato.sb.from('v_movimenti').select('id, data_ora, data_ora_dispositivo, operatore, evento, ramo, azione, tabella, descrizione, dettaglio')
+      .order('data_ora', { ascending: false }).order('id', { ascending: false }).range(LOG.righe.length, LOG.righe.length + LOG.PAG - 1);
+    const ev = $('#logEv').value, az = $('#logAz').value, tb = $('#logTab').value, pr = $('#logPer').value, t = $('#logQ').value.trim().replace(/[,()%*\\]/g, ' ');
+    if (ev) q = q.eq('evento_id', ev); if (az) q = q.eq('azione', az); if (tb) q = q.eq('tabella', tb);
+    if (pr) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (parseInt(pr, 10) - 1)); q = q.gte('data_ora', d.toISOString()); }
+    if (t) q = q.or('descrizione.ilike.%' + t + '%,operatore.ilike.%' + t + '%,ramo.ilike.%' + t + '%');
+    const { data, error } = await q;
+    LOG.occupato = false;
+    if (error) { info.textContent = 'Lettura non riuscita: ' + errDb(error.message); return; }
+    LOG.righe.push(...(data || [])); LOG.fine = (data || []).length < LOG.PAG;
+    renderLog();
+  }
+  const valLog = v => { if (v === null || v === undefined || v === '') return '—'; if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return fmtDataOra(v); const t = typeof v === 'object' ? JSON.stringify(v) : String(v); return t.length > 140 ? t.slice(0, 140) + '…' : t; };
+  function dettaglioLog(m) {
+    const d = m.dettaglio, out = [];
+    if (m.ramo) out.push(h('div', {}, h('span', { class: 'sec' }, 'Ramo: '), m.ramo));
+    if (m.evento) out.push(h('div', {}, h('span', { class: 'sec' }, 'Evento: '), m.evento));
+    if (m.data_ora_dispositivo && Math.abs(new Date(m.data_ora_dispositivo) - new Date(m.data_ora)) > 60000) out.push(h('div', {}, h('span', { class: 'sec' }, 'Ora sul dispositivo: '), fmtDataOra(m.data_ora_dispositivo)));
+    if (d && typeof d === 'object') Object.entries(d).filter(([k, v]) => m.azione === 'UPDATE' || (v !== null && v !== '' && !/(^id$|_id$|^percorso$)/.test(k))).forEach(([k, v]) => {
+      out.push(m.azione === 'UPDATE' && v && typeof v === 'object' && ('da' in v || 'a' in v)
+        ? h('div', { class: 'lgd' }, h('b', {}, k + ': '), valLog(v.da), ' → ', valLog(v.a))
+        : h('div', { class: 'lgd' }, h('b', {}, k + ': '), valLog(v)));
+    });
+    return h('div', { class: 'dett' }, ...out);
+  }
+  function renderLog() {
+    const lista = $('#logLista');
+    lista.replaceChildren(...LOG.righe.map(m => {
+      const az = LOG_AZ[m.azione] || [m.azione, ''], aperto = LOG.aperti && LOG.aperti.has(m.id);
+      const riga = h('div', { class: 'lgr' + (aperto ? ' op' : ''), tabindex: '0', role: 'button', 'aria-expanded': aperto ? 'true' : 'false' },
+        h('div', { class: 'lg1' }, h('span', { class: 'badge ' + az[1] }, az[0]), h('span', { class: 'sec' }, LOG_TAB[m.tabella] || m.tabella), h('span', { class: 'lgt sec' }, fmtDataOra(m.data_ora))),
+        h('div', { class: 'lg2' }, m.descrizione), h('div', { class: 'lg3 sec' }, m.operatore));
+      const commuta = () => { LOG.aperti = LOG.aperti || new Set(); if (LOG.aperti.has(m.id)) LOG.aperti.delete(m.id); else LOG.aperti.add(m.id); renderLog(); };
+      riga.addEventListener('click', commuta); riga.addEventListener('keydown', e => { if (e.key === 'Enter') commuta(); });
+      return aperto ? h('div', { class: 'lgw' }, riga, dettaglioLog(m)) : riga;
+    }));
+    $('#logAltri').classList.toggle('hidden', LOG.fine);
+    $('#logInfo').textContent = LOG.righe.length ? LOG.righe.length + ' movimenti' + (LOG.fine ? '' : ' mostrati') : 'Nessun movimento trovato.';
+  }
+  async function esportaLog() {
+    if (!LOG.righe.length) { toast('Niente da esportare'); return; }
+    const p2 = k => String(k).padStart(2, '0');
+    scaricaFile('registro_modifiche.xlsx', [{ nome: 'Registro', righe: [['Data', 'Ora', 'Operatore', 'Evento', 'Ramo', 'Azione', 'Tipo', 'Descrizione'],
+      ...LOG.righe.map(m => { const d = new Date(m.data_ora); return [p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear(), p2(d.getHours()) + ':' + p2(d.getMinutes()), m.operatore, m.evento || '', m.ramo || '', (LOG_AZ[m.azione] || [m.azione])[0], LOG_TAB[m.tabella] || m.tabella, m.descrizione]; })], larghezze: [11, 7, 22, 22, 36, 11, 14, 70] }]);
+  }
+
   function renderAltro() {
     const op = !!stato.persona && isOperatore(), r = rivedereMio().length, i = infoPrivacy();
     const voce = (ico, testo, fn, extra) => { const b = h('button', { class: 'altro', type: 'button' }, h('span', {}, ico + ' ' + testo), extra || ''); b.addEventListener('click', fn); return b; };
@@ -270,6 +331,7 @@
       op ? voce('👥', 'Persone dell\'evento', () => vai('persone')) : '',
       voce('🔔', 'Da rivedere', () => vai('rev'), r ? h('span', { class: 'badge e' }, String(r)) : ''),
       voce('⚙️', 'Impostazioni', () => vai('imp')),
+      isAdmin() ? voce('📜', 'Registro modifiche', () => vai('log')) : '',
       isSuper() ? voce('🎛️', 'Parametri', () => vai('par')) : '',
       (i.url || i.testo) ? voce('🔒', 'Informativa privacy', () => apriInformativa()) : '',
       voce('⎋', 'Esci', () => esci())
@@ -279,6 +341,7 @@
   function vai(p) {
     if ((p === 'home' || p === 'str') && stato.evento === null && stato.persona) p = 'eventi';
     if (p === 'par' && !isSuper()) p = 'home';
+    if (p === 'log' && !isAdmin()) p = 'home';
     if (p === 'str' && isMobile() && !isAdmin()) p = 'home';   // su smartphone la Struttura è solo dell'amministratore
     stato.pagina = p;
     $$('.pg').forEach(e => e.classList.add('hidden'));
@@ -288,6 +351,7 @@
     if (p === 'persone') caricaPersone();
     if (p === 'str' || p === 'home') caricaStruttura();
     if (p === 'rev') renderRivedere();
+    if (p === 'log') apriLog();
     if (p === 'altro') renderAltro();
     window.scrollTo(0, 0);
   }
@@ -487,7 +551,7 @@
   }
 
   function selezionaEvento(id, vaiHome) {
-    stato.evento = id; S.undo = []; S.collassati = new Set(); S.aperti = new Set(); S.areaF = ''; S.f = { q: '', stato: '', pers: '', scad: '' }; S.nodi = []; S.inc = {}; S.num = {}; S.sponsor = {}; homeAvv = ''; homeAperti = new Set();
+    stato.evento = id; homeStatoF = ''; S.undo = []; S.collassati = new Set(); S.aperti = new Set(); S.areaF = ''; S.f = { q: '', stato: '', pers: '', scad: '' }; S.nodi = []; S.inc = {}; S.num = {}; S.sponsor = {}; homeAvv = ''; homeAperti = new Set();
     LS.set('sdm_evento', { uid: stato.persona.uid, id });
     renderEvBar(); renderEventi();
     if (vaiHome) vai('home');
@@ -685,7 +749,7 @@
     if (navigator.onLine) {
       const NODI_BASE = 'id, parent_id, livello, posizione, titolo, descrizione, note, scadenza, stato, responsabile_id';
       const qNodi = async () => {
-        const r = await stato.sb.from('nodi').select(NODI_BASE + ', area, checklist, checklist_esito').eq('evento_id', stato.evento);
+        const r = await stato.sb.from('nodi').select(NODI_BASE + ', area, checklist, checklist_esito, data_chiusura').eq('evento_id', stato.evento);
         return r.error ? stato.sb.from('nodi').select(NODI_BASE).eq('evento_id', stato.evento) : r;   // database non ancora aggiornato
       };
       const [n, i, pe, pa, nu, sp] = await Promise.all([
@@ -731,7 +795,7 @@
     const lf = isLeaf(n), inc = S.inc[n.id] || [], sp = isAdmin() ? S.sponsor[n.id] : null;
     const dr = (et, v) => (v ? h('div', { class: 'dr' }, h('span', { class: 'dl' }, et), h('div', { class: 'dv' }, v)) : '');
     const els = [dr('Descrizione', n.descrizione), dr('Note', n.note), dr('Responsabile', lf ? '' : (() => { const r = respEff(n); return r.id ? nomeP(r.id) + (r.ered ? ' (ereditato)' : '') : ''; })()),
-      lf ? dr('Scadenza', n.scadenza ? fmtData(n.scadenza) : '') : '', lf ? dr('Area', n.area || 'Tutte') : ''];
+      lf ? dr('Scadenza', n.scadenza ? fmtData(n.scadenza) : '') : '', lf && n.data_chiusura && (n.stato === 'fatto' || n.stato === 'finito') ? dr('Chiusa il', fmtDataOra(n.data_chiusura)) : '', lf ? dr('Area', n.area || 'Tutte') : ''];
     if (lf) {
       els.push(dr('Incaricati', inc.length ? h('div', {}, ...inc.map(x => h('div', {}, nomeP(x.persona_id), x.nota ? h('span', { class: 'sec' }, ' — “' + x.nota + '”') : ''))) : ''));
       const rc = righeCheck(n);
@@ -996,9 +1060,14 @@
     const selStato = h('select', { class: 'f', id: 'aStato' }, ...['da_fare', 'in_corso', 'fatto', ...(adm || chiuso ? ['finito'] : [])]
       .map(k => { const o = h('option', { value: k }, STATI[k]); if (n.stato === k) o.selected = true; return o; }));
     if (!puoStato) selStato.disabled = true;
+    const chiuW = h('div', { id: 'aChiuW' }, campo('Data e ora di chiusura', h('input', { type: 'datetime-local', id: 'aChiu', value: dtLocale(n.data_chiusura || new Date()) })),
+      h('p', { class: 'note', style: 'margin-top:-4px' }, 'Proposta: adesso. Puoi cambiarla prima di salvare.'));
+    const mostraChiu = () => chiuW.classList.toggle('hidden', selStato.value !== 'fatto' || !puoStato);
+    selStato.addEventListener('change', mostraChiu); mostraChiu();
     corpo.push(h('div', { class: 'grid2' },
       campo('Scadenza', ed ? h('input', { type: 'date', id: 'aScad', value: n.scadenza || '' }) : testo(n.scadenza ? fmtData(n.scadenza) : '')),
-      campo('Stato', selStato)));
+      campo('Stato', selStato)), chiuW);
+    if (n.data_chiusura && n.stato === 'finito') corpo.push(h('p', { class: 'note' }, 'Chiusa il ' + fmtDataOra(n.data_chiusura)));
     // area
     const ar = areeEv();
     if (ed) {
@@ -1036,12 +1105,12 @@
       const lab = { da_fare: 'Da fare', in_corso: 'In corso', fatto: 'Fatto', finito: 'Finito' };
       const seg = h('div', { class: 'seg2', id: 'aSeg' }, ...['da_fare', 'in_corso', 'fatto', ...(chiuso ? ['finito'] : [])].map(k => {
         const b = h('button', { type: 'button', class: n.stato === k ? 'on' : '' }, lab[k]); b.disabled = !puoStato;
-        b.addEventListener('click', () => { selStato.value = k; seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); });
+        b.addEventListener('click', () => { selStato.value = k; seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); mostraChiu(); });
         return b;
       }));
       corpo.push(h('div', { class: 'chips' }, h('span', { class: 'ar' }, ca0 ? h('i', { style: 'background:' + ca0 }) : '', n.area || 'Tutte le aree'), n.scadenza ? badgeScad(n) : '', h('span', { class: 'badge' }, '👥 ' + S.attInc.length)),
         (n.descrizione || n.note) ? h('div', { class: 'info' }, n.descrizione ? h('div', {}, h('span', { class: 'l' }, 'Descrizione: '), n.descrizione) : '', n.note ? h('div', {}, h('span', { class: 'l' }, 'Note: '), n.note) : '') : '',
-        seg, selStato, ...(righeCheck(n).length ? [h('div', { class: 'ckfill', id: 'aCompila' })] : []), h('div', { id: 'aInc' }));
+        seg, selStato, chiuW, ...(righeCheck(n).length ? [h('div', { class: 'ckfill', id: 'aCompila' })] : []), h('div', { id: 'aInc' }));
       if (chiuso && !adm) corpo.push(h('p', { class: 'note' }, 'Attività finita: la riapre solo l\'amministratore.'));
     }
     if (ed) corpo.push(h('div', { style: 'display:flex;gap:8px;margin-top:8px' }, h('select', { class: 'f', id: 'aIncSel', style: 'flex:1' }),
@@ -1173,7 +1242,14 @@
       }
     }
     const st = $('#aStato');
-    const statoNuovo = (!st.disabled && st.value !== n.stato) ? st.value : null;
+    let chiu = null;
+    if (st.value === 'fatto' && !st.disabled) {
+      const v = $('#aChiu') && $('#aChiu').value, t = v ? new Date(v) : new Date();
+      if (t.getTime() > Date.now() + 5 * 60000) { erroreScheda('La data di chiusura non può essere nel futuro.'); return; }
+      chiu = t.toISOString();
+    }
+    const chiuCambia = !!chiu && n.stato === 'fatto' && (!n.data_chiusura || Math.abs(new Date(n.data_chiusura) - new Date(chiu)) > 59000);
+    const statoNuovo = (!st.disabled && (st.value !== n.stato || chiuCambia)) ? st.value : null;
     if (bozza) {
       if (!navigator.onLine) { erroreScheda('Serve la connessione per duplicare l\'attività.'); return; }
       const orig = S.bozza; bloccaSalva(true);
@@ -1220,7 +1296,7 @@
     if (strutturale) await aggiornaTutto();
     // stato e propria nota passano dalla coda: funzionano anche offline
     if (miaNota) accodaModifica('incarico_nota', miaNota.id, (miaNota.nota || '').trim() || null, { nodo: n.id, titolo: n.titolo, percorso: percorsoTxt(n), etichetta: 'Nota' });
-    if (statoNuovo) accodaStato(n, statoNuovo);
+    if (statoNuovo) accodaStato(n, statoNuovo, chiu);
   }
 
   // ---------- sincronizzazione offline ----------
@@ -1253,7 +1329,7 @@
   }
 
   function applicaOpLocale(o) {
-    if (o.tipo === 'nodo_stato') { const n = S.nodi.find(x => x.id === o.id); if (n) n.stato = o.valore; }
+    if (o.tipo === 'nodo_stato') { const n = S.nodi.find(x => x.id === o.id); if (n) { n.stato = o.valore; if (o.valore === 'fatto') n.data_chiusura = o.chiusura || n.data_chiusura || o.ts; else if (o.valore !== 'finito') n.data_chiusura = null; } }
     else if (o.tipo === 'nodo_check') { const n = S.nodi.find(x => x.id === o.id); if (n) n.checklist_esito = { ...(n.checklist_esito || {}), [o.sub]: { ...o.valore, ts: o.ts } }; }
     else Object.values(S.inc).forEach(l => { const x = l.find(i => i.id === o.id); if (x) x.nota = o.valore; });
   }
@@ -1270,8 +1346,8 @@
     sincronizza();
   }
 
-  function accodaStato(n, v) {
-    accodaModifica('nodo_stato', n.id, v, { nodo: n.id, titolo: n.titolo, percorso: percorsoTxt(n), etichetta: 'Stato' });
+  function accodaStato(n, v, chiusura) {
+    accodaModifica('nodo_stato', n.id, v, { nodo: n.id, titolo: n.titolo, percorso: percorsoTxt(n), etichetta: 'Stato', ...(v === 'fatto' ? { chiusura: chiusura || new Date().toISOString() } : {}) });
     toast(navigator.onLine ? 'Stato aggiornato' : 'Salvato sul dispositivo: partirà appena c\'è rete');
   }
 
@@ -1379,7 +1455,27 @@
   const card = (titolo, ...figli) => h('div', { class: 'card' }, titolo ? h('h2', {}, titolo) : '', ...figli);
   const tile = (n, etich, cl) => h('div', { class: 'tile ' + (n ? cl : '') }, h('b', {}, String(n)), h('span', { class: 'sec' }, etich));
 
-  const statoRapido = (n, v) => accodaStato(n, v);
+  // data e ora di chiusura: proposta adesso, modificabile prima di salvare
+  const dtLocale = d => { const x = new Date(d), p = k => String(k).padStart(2, '0'); return x.getFullYear() + '-' + p(x.getMonth() + 1) + '-' + p(x.getDate()) + 'T' + p(x.getHours()) + ':' + p(x.getMinutes()); };
+  const fmtDataOra = d => new Date(d).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  function chiediChiusura(n) {
+    return new Promise(res => {
+      $('#chTit').textContent = n.titolo; $('#chData').value = dtLocale(new Date()); $('#chErr').classList.add('hidden');
+      const m = $('#modChiu'); m.classList.remove('hidden');
+      const fine = v => { m.classList.add('hidden'); $('#chForm').onsubmit = null; $('#chAnnulla').onclick = null; res(v); };
+      $('#chAnnulla').onclick = () => fine(null);
+      $('#chForm').onsubmit = ev => {
+        ev.preventDefault();
+        const v = $('#chData').value, t = v ? new Date(v) : new Date();
+        if (t.getTime() > Date.now() + 5 * 60000) { $('#chErr').textContent = 'La data di chiusura non può essere nel futuro.'; $('#chErr').classList.remove('hidden'); return; }
+        fine(t.toISOString());
+      };
+    });
+  }
+  async function statoRapido(n, v) {
+    if (v === 'fatto' && n.stato !== 'fatto') { const c = await chiediChiusura(n); if (!c) { renderHome(); renderStruttura(); return; } accodaStato(n, v, c); return; }
+    accodaStato(n, v);
+  }
 
   let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null, homeStatoF = '', homeLuce = '';
   const passaStatoHome = n => !homeStatoF || (homeStatoF === 'fatte' ? (n.stato === 'fatto' || n.stato === 'finito') : homeStatoF === 'scad' ? !!scadClasse(n) : n.stato === homeStatoF);
@@ -1456,7 +1552,8 @@
         gestisco.forEach(n => (S.inc[n.id] || []).forEach(x => { if (!m.has(x.persona_id)) m.set(x.persona_id, []); m.get(x.persona_id).push(n); }));
         m.forEach((l, id) => gruppi.push({ k: 'p' + id, nome: nomeP(id), l }));
         gruppi.sort((a, b) => (b.l.filter(n => n.stato === 'fatto').length - a.l.filter(n => n.stato === 'fatto').length) || a.nome.localeCompare(b.nome));
-        if (sn.length) gruppi.push({ k: 'senza', nome: 'Senza incaricati', l: sn });
+        const nessuno = gestisco.filter(n => !nIncarichi(n));   // tutte le attività senza incaricati, anche quelle già finite: così nessuna sparisce dall'elenco
+        if (nessuno.length) gruppi.push({ k: 'senza', nome: 'Senza incaricati', l: nessuno });
       } else {
         figli(null).forEach(r => { const l = gestisco.filter(n => radice(n).id === r.id); if (l.length) gruppi.push({ k: 'r' + r.id, nome: r.titolo, l }); });
       }
@@ -1464,7 +1561,7 @@
       const gv = gruppi.map(g => ({ ...g, lf: g.l.filter(passaStatoHome) })).filter(g => g.lf.length);
       const righe = gv.map(g => {
         const cc = conteggio(g.l), aperto = homeAperti.has(g.k) || !!homeStatoF, nf = g.l.filter(n => n.stato === 'fatto').length;
-        const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, g.nome), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, cc.finito + '/' + cc.tot), h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
+        const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, g.nome), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, (homeStatoF ? g.lf.length : cc.finito) + '/' + cc.tot), h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
         gh.addEventListener('click', () => { if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); });
         const gr = h('div', { class: 'gr' }, gh);
         if (aperto) gr.append(h('div', { class: 'det' }, ...g.lf.map(n => {
@@ -1489,7 +1586,7 @@
         const sel = h('select', { class: 'st' }, ...['da_fare', 'in_corso', 'fatto', ...(puoFin || chiuso ? ['finito'] : [])].map(k => { const o = h('option', { value: k }, STATI[k].replace(' (confermato dall\'amministratore)', '')); if (n.stato === k) o.selected = true; if (chiuso && !puoFin && k !== 'finito') o.disabled = true; return o; }));
         if (chiuso && !puoFin) sel.disabled = true;
         sel.addEventListener('change', () => statoRapido(n, sel.value));
-        const nota = h('button', { class: 'ib', type: 'button' }, '✎ Nota' + (((S.inc[n.id] || []).find(x => x.persona_id === me) || {}).nota ? ' •' : '')); nota.addEventListener('click', () => apriScheda(n.id));
+        const nota = h('button', { class: 'ib', type: 'button' }, '📝 Consuntiva' + (((S.inc[n.id] || []).find(x => x.persona_id === me) || {}).nota ? ' •' : '')); nota.addEventListener('click', () => apriScheda(n.id));
         const t1 = h('div', { class: 't1' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), badgeScad(n)), t2 = h('div', { class: 't2' }, percorsoTxt(n) + ' ', n.area ? h('span', { class: 'ar' }, h('i', { style: 'background:' + (colArea(n.area) || '#999') }), n.area) : '');
         t1.addEventListener('click', () => apriScheda(n.id)); t2.addEventListener('click', () => apriScheda(n.id));
         const rc = righeCheck(n), ck = rc.length ? h('button', { class: 'ib ck', type: 'button', title: 'Check-list' }, '☑ ' + checkFatte(n) + '/' + rc.length) : '';
@@ -1504,7 +1601,7 @@
         return h('div', { class: 'it', ...(cA ? { style: 'background:color-mix(in srgb,' + cA + ' 18%,var(--card));border-left:5px solid ' + cA } : {}) }, t1, t2, h('div', { class: 't3' }, sel, ck, nota, S.pend.has(n.id) ? h('span', { class: 'pend' }, '⏳ in attesa') : ''));
       }) : [h('p', { class: 'sec', style: 'text-align:center' }, mie.length ? 'Tutte le tue attività sono finite. 🎉' : 'Non hai attività assegnate in questo evento.')]));
       if (nFin) { const a = h('a', { href: '#' }, (homeFinite ? 'Nascondi' : 'Mostra') + ' le attività finite (' + nFin + ')'); a.addEventListener('click', e => { e.preventDefault(); homeFinite = !homeFinite; renderHome(); }); out.push(h('p', { class: 'sec', style: 'text-align:center' }, a)); }
-      if (op) out.push(h('p', { class: 'note', style: 'text-align:center' }, 'Tocca "Nota" per scrivere cosa hai fatto e ☑ per compilare la check-list. Le modifiche partono da sole appena c\'è rete.'));
+      if (op) out.push(h('p', { class: 'note', style: 'text-align:center' }, 'Tocca "Consuntiva" per registrare cosa hai fatto, la nota e la check-list. Le modifiche partono da sole appena c\'è rete.'));
     }
     box.replaceChildren(...out);
   }
@@ -2059,6 +2156,9 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { chiudiPersona(); chiudiEvento(); chiudiNodo(); chiudiScheda(); chiudiImport(); $('#modDup').classList.add('hidden'); $('#modPriv').classList.add('hidden'); } });
     $('#installa').onclick = installa;
     $('#vaiPar').onclick = () => vai('par');
+    $('#logIndietro').onclick = () => vai('altro'); $('#logEsporta').onclick = esportaLog; $('#logAltri').onclick = () => caricaLog(false);
+    let tl; $('#logQ').addEventListener('input', () => { clearTimeout(tl); tl = setTimeout(() => caricaLog(true), 350); });
+    ['#logEv', '#logAz', '#logTab', '#logPer'].forEach(s => $(s).addEventListener('change', () => caricaLog(true)));
     $('#rete').onclick = () => sincronizza(true); $('#iSync').onclick = () => sincronizza(true); $('#iRev').onclick = () => vai('rev');
     window.addEventListener('online', aggiornaRete);
     window.addEventListener('offline', aggiornaRete);

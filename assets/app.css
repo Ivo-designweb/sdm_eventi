@@ -493,3 +493,21 @@ body.drg{cursor:grabbing}
   .bottom button span{font-size:17px;line-height:1.15}
   main{padding-bottom:calc(58px + env(safe-area-inset-bottom))}
 }
+
+/* v3.8: finestre sopra la barra in basso; barra dei pulsanti della scheda più alta su smartphone */
+@media (max-width:760px), (pointer:coarse) and (max-height:500px){
+  #modAtt.cmpt .aBar{padding:12px 12px calc(16px + env(safe-area-inset-bottom))}
+  #modAtt.cmpt .aBar .btn{padding:13px 10px;font-size:15px}
+  #modAtt.cmpt #aCorpo{padding-bottom:12px}
+}
+
+/* v3.9: registro modifiche */
+.lgr{background:var(--card);border:1px solid var(--bordo);border-radius:10px;padding:7px 10px;margin-bottom:4px;cursor:pointer;font-size:13.5px}
+.lgr.op{border-color:var(--primario)}
+.lgr .lg1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lgr .lgt{margin-left:auto;font-size:12px;white-space:nowrap}
+.lgr .lg2{margin-top:2px;overflow-wrap:anywhere}
+.lgr .lg3{font-size:12px}
+.lgw .dett{margin:-2px 0 6px 10px;font-size:12.5px}
+.lgd{overflow-wrap:anywhere}
+#p-log .fbar select.f,#p-log .fbar input[type=search]{min-width:0}

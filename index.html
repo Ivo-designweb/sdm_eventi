@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.6">
+<meta name="app-version" content="3.9">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -134,7 +134,7 @@
       <p class="note" id="perAgg"></p>
     </div>
 
-    <div id="modPer" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
+    <div id="modPer" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:60;overflow:auto;padding:16px">
       <form class="card" id="perForm" style="max-width:640px;margin:0 auto" novalidate>
         <h2 id="modTit">Persona</h2>
         <div class="grid2">
@@ -171,7 +171,7 @@
       <div class="avviso off-only" style="margin-top:12px">Sei offline: puoi scegliere l'evento e consultare i dati, ma gli eventi si modificano solo con la connessione.</div>
     </div>
 
-    <div id="modEv" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
+    <div id="modEv" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:60;overflow:auto;padding:16px">
       <form class="card" id="evForm" style="max-width:520px;margin:0 auto" novalidate>
         <h2 id="evModTit">Evento</h2>
         <label for="eTit">Titolo *</label><input type="text" id="eTit" maxlength="120" placeholder="Es. Gara Sociale 2027">
@@ -211,7 +211,7 @@
       <div id="strLista"></div>
     </div>
 
-    <div id="modNodo" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
+    <div id="modNodo" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:60;overflow:auto;padding:16px">
       <form class="card" id="nodoForm" style="max-width:560px;margin:0 auto" novalidate>
         <h2 id="nTitM">Ramo</h2>
         <p class="sec" id="nPercorso" style="margin-top:-6px"></p>
@@ -225,7 +225,7 @@
       </form>
     </div>
 
-    <div id="modDupR" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
+    <div id="modDupR" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:60;overflow:auto;padding:16px">
       <form class="card" id="dupRForm" style="max-width:480px;margin:0 auto" novalidate>
         <h2>Duplica</h2>
         <p class="sec" id="drDa" style="margin-top:-6px"></p>
@@ -238,7 +238,18 @@
       </form>
     </div>
 
-    <div id="modAtt" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:20;overflow:auto;padding:16px">
+    <div id="modChiu" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:60;overflow:auto;padding:16px">
+      <form class="card" id="chForm" style="max-width:420px;margin:40px auto" novalidate>
+        <h2>Attività fatta</h2>
+        <p class="sec" id="chTit" style="margin-top:-6px"></p>
+        <label for="chData">Data e ora di chiusura</label><input type="datetime-local" id="chData">
+        <p class="note">Proposta: adesso. Puoi cambiarla prima di salvare.</p>
+        <div id="chErr" class="avviso hidden" style="margin-top:12px"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end"><button class="btn sec" id="chAnnulla" type="button">Annulla</button><button class="btn" id="chSalva" type="submit">Conferma</button></div>
+      </form>
+    </div>
+
+    <div id="modAtt" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:60;overflow:auto;padding:16px">
       <form class="card" id="attForm" style="max-width:640px;margin:0 auto" novalidate>
         <div class="aHd" id="aHead"><button type="button" class="aBk" id="aBack" aria-label="Indietro" title="Indietro">←</button><div class="aTt"><b id="aTit2"></b><div class="aPc" id="aPerc2"></div></div><button class="btn sv js-salva" id="aSalva2" type="submit">Salva</button></div>
         <h2 id="aTitH">Attività</h2>
@@ -296,6 +307,22 @@
         <div id="infoErr" class="avviso hidden" style="margin-top:12px"></div>
         <div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="btn" id="infoOk" type="button">Ho letto e preso visione</button></div>
       </div>
+    </div>
+
+    <div id="p-log" class="pg hidden">
+      <div class="top"><div><h1>Registro modifiche</h1><p class="sec" style="margin:4px 0 0">Chi ha cambiato cosa e quando (solo amministratori).</p></div>
+        <div style="display:flex;gap:8px"><button class="btn sec" id="logIndietro" type="button">← Altro</button><button class="btn sec" id="logEsporta" type="button">⬇ Esporta</button></div></div>
+      <div class="avviso off-only">Sei offline: il registro si legge solo con la connessione.</div>
+      <div class="fbar" id="logFiltri">
+        <input type="search" id="logQ" placeholder="Cerca…" aria-label="Cerca">
+        <select class="f" id="logEv" aria-label="Evento"><option value="">Evento</option></select>
+        <select class="f" id="logAz" aria-label="Azione"><option value="">Azione</option><option value="INSERT">Inserimenti</option><option value="UPDATE">Modifiche</option><option value="DELETE">Eliminazioni</option></select>
+        <select class="f" id="logTab" aria-label="Tipo"><option value="">Tipo</option><option value="nodi">Rami/attività</option><option value="incarichi">Incarichi</option><option value="eventi">Eventi</option><option value="persone">Persone</option></select>
+        <select class="f" id="logPer" aria-label="Periodo"><option value="">Periodo</option><option value="1">Oggi</option><option value="7">7 giorni</option><option value="30">30 giorni</option></select>
+      </div>
+      <div id="logLista"></div>
+      <p style="text-align:center"><button class="btn sec hidden" id="logAltri" type="button">Carica altri</button></p>
+      <p class="sec" id="logInfo" style="text-align:center"></p>
     </div>
 
     <div id="p-rev" class="pg hidden">

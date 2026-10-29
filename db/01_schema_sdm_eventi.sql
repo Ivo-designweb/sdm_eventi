@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 1.6
+-- Versione script: 1.7
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -159,6 +159,8 @@ create table if not exists sdm_eventi.nodi_sponsor (
   importo        numeric(12,2),
   aggiornato_il  timestamptz not null default now()
 );
+-- data e ora di chiusura (stato "fatto"): proposta dall'app, modificabile dall'operatore
+alter table sdm_eventi.nodi add column if not exists data_chiusura timestamptz;
 alter table sdm_eventi.incarichi add column if not exists nota_il  timestamptz not null default now();
 alter table sdm_eventi.movimenti add column if not exists data_ora_dispositivo timestamptz;
 alter table sdm_eventi.persone   add column if not exists informativa_ver integer not null default 0;
@@ -333,7 +335,18 @@ create trigger a_controllo before insert or update or delete on sdm_eventi.perso
 create or replace function sdm_eventi.trg_nodi_stato_il() returns trigger
 language plpgsql as $$
 begin
-  if new.stato is distinct from old.stato then new.stato_il := now(); end if;
+  if new.stato is distinct from old.stato then
+    new.stato_il := now();
+    -- data di chiusura: se l'app non la indica, vale il momento del passaggio a fatto/finito;
+    -- tornando a "da fare" / "in corso" si azzera
+    if new.stato in ('fatto', 'finito') then
+      if new.data_chiusura is not distinct from old.data_chiusura and old.stato in ('da_fare', 'in_corso') then
+        new.data_chiusura := now();
+      end if;
+    else
+      new.data_chiusura := null;
+    end if;
+  end if;
   return new;
 end $$;
 drop trigger if exists b_stato_il on sdm_eventi.nodi;
@@ -458,8 +471,8 @@ begin
 
   if sdm_eventi.is_incaricato_in(old.id) then
     -- gli incaricati possono cambiare solo lo stato e compilare la check-list
-    if (to_jsonb(new) - 'stato' - 'stato_il' - 'aggiornato_il' - 'checklist_esito')
-       is distinct from (to_jsonb(old) - 'stato' - 'stato_il' - 'aggiornato_il' - 'checklist_esito') then
+    if (to_jsonb(new) - 'stato' - 'stato_il' - 'aggiornato_il' - 'checklist_esito' - 'data_chiusura')
+       is distinct from (to_jsonb(old) - 'stato' - 'stato_il' - 'aggiornato_il' - 'checklist_esito' - 'data_chiusura') then
       raise exception 'Gli incaricati possono modificare solo lo stato e la check-list';
     end if;
     return new;
@@ -647,7 +660,10 @@ begin
         elsif v_cur > v_ts then
           v_esito := 'superata'; v_mot := 'Lo stato è stato modificato da altri dopo la tua modifica';
         else
-          update sdm_eventi.nodi set stato = op ->> 'valore' where id = (op ->> 'id')::uuid;
+          update sdm_eventi.nodi set stato = op ->> 'valore',
+                 data_chiusura = case when op ->> 'valore' = 'fatto' and nullif(op ->> 'chiusura', '') is not null
+                                      then least((op ->> 'chiusura')::timestamptz, now()) else data_chiusura end
+           where id = (op ->> 'id')::uuid;
           get diagnostics v_n = row_count;
           if v_n = 0 then v_esito := 'rifiutata'; v_mot := 'Modifica non permessa'; end if;
         end if;
