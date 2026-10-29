@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.8">
+<meta name="app-version" content="3.9">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -307,6 +307,22 @@
         <div id="infoErr" class="avviso hidden" style="margin-top:12px"></div>
         <div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="btn" id="infoOk" type="button">Ho letto e preso visione</button></div>
       </div>
+    </div>
+
+    <div id="p-log" class="pg hidden">
+      <div class="top"><div><h1>Registro modifiche</h1><p class="sec" style="margin:4px 0 0">Chi ha cambiato cosa e quando (solo amministratori).</p></div>
+        <div style="display:flex;gap:8px"><button class="btn sec" id="logIndietro" type="button">← Altro</button><button class="btn sec" id="logEsporta" type="button">⬇ Esporta</button></div></div>
+      <div class="avviso off-only">Sei offline: il registro si legge solo con la connessione.</div>
+      <div class="fbar" id="logFiltri">
+        <input type="search" id="logQ" placeholder="Cerca…" aria-label="Cerca">
+        <select class="f" id="logEv" aria-label="Evento"><option value="">Evento</option></select>
+        <select class="f" id="logAz" aria-label="Azione"><option value="">Azione</option><option value="INSERT">Inserimenti</option><option value="UPDATE">Modifiche</option><option value="DELETE">Eliminazioni</option></select>
+        <select class="f" id="logTab" aria-label="Tipo"><option value="">Tipo</option><option value="nodi">Rami/attività</option><option value="incarichi">Incarichi</option><option value="eventi">Eventi</option><option value="persone">Persone</option></select>
+        <select class="f" id="logPer" aria-label="Periodo"><option value="">Periodo</option><option value="1">Oggi</option><option value="7">7 giorni</option><option value="30">30 giorni</option></select>
+      </div>
+      <div id="logLista"></div>
+      <p style="text-align:center"><button class="btn sec hidden" id="logAltri" type="button">Carica altri</button></p>
+      <p class="sec" id="logInfo" style="text-align:center"></p>
     </div>
 
     <div id="p-rev" class="pg hidden">

@@ -262,6 +262,67 @@
     $$('.nv').forEach(b => b.classList.toggle('on', b.dataset.p === p));
     $$('.bottom button').forEach(b => b.classList.toggle('on', b.dataset.p === k));
   }
+  // ---------- registro modifiche (solo amministratori) ----------
+  const LOG = { righe: [], fine: false, occupato: false, PAG: 50 };
+  const LOG_AZ = { INSERT: ['Inserito', 'ok'], UPDATE: ['Modificato', 'w'], DELETE: ['Eliminato', 'e'] };
+  const LOG_TAB = { nodi: 'ramo/attività', incarichi: 'incarico', eventi: 'evento', persone: 'persona' };
+  function apriLog() {
+    const se = $('#logEv'), cur = se.value;
+    se.replaceChildren(h('option', { value: '' }, 'Evento'), ...stato.eventi.map(e => h('option', { value: e.id }, e.titolo)));
+    se.value = cur; caricaLog(true);
+  }
+  async function caricaLog(da0) {
+    if (LOG.occupato) return;
+    const info = $('#logInfo');
+    if (!navigator.onLine) { info.textContent = 'Serve la connessione per leggere il registro.'; return; }
+    if (da0) { LOG.righe = []; LOG.fine = false; }
+    LOG.occupato = true; info.textContent = 'Carico…';
+    let q = stato.sb.from('v_movimenti').select('id, data_ora, data_ora_dispositivo, operatore, evento, ramo, azione, tabella, descrizione, dettaglio')
+      .order('data_ora', { ascending: false }).order('id', { ascending: false }).range(LOG.righe.length, LOG.righe.length + LOG.PAG - 1);
+    const ev = $('#logEv').value, az = $('#logAz').value, tb = $('#logTab').value, pr = $('#logPer').value, t = $('#logQ').value.trim().replace(/[,()%*\\]/g, ' ');
+    if (ev) q = q.eq('evento_id', ev); if (az) q = q.eq('azione', az); if (tb) q = q.eq('tabella', tb);
+    if (pr) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (parseInt(pr, 10) - 1)); q = q.gte('data_ora', d.toISOString()); }
+    if (t) q = q.or('descrizione.ilike.%' + t + '%,operatore.ilike.%' + t + '%,ramo.ilike.%' + t + '%');
+    const { data, error } = await q;
+    LOG.occupato = false;
+    if (error) { info.textContent = 'Lettura non riuscita: ' + errDb(error.message); return; }
+    LOG.righe.push(...(data || [])); LOG.fine = (data || []).length < LOG.PAG;
+    renderLog();
+  }
+  const valLog = v => { if (v === null || v === undefined || v === '') return '—'; if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return fmtDataOra(v); const t = typeof v === 'object' ? JSON.stringify(v) : String(v); return t.length > 140 ? t.slice(0, 140) + '…' : t; };
+  function dettaglioLog(m) {
+    const d = m.dettaglio, out = [];
+    if (m.ramo) out.push(h('div', {}, h('span', { class: 'sec' }, 'Ramo: '), m.ramo));
+    if (m.evento) out.push(h('div', {}, h('span', { class: 'sec' }, 'Evento: '), m.evento));
+    if (m.data_ora_dispositivo && Math.abs(new Date(m.data_ora_dispositivo) - new Date(m.data_ora)) > 60000) out.push(h('div', {}, h('span', { class: 'sec' }, 'Ora sul dispositivo: '), fmtDataOra(m.data_ora_dispositivo)));
+    if (d && typeof d === 'object') Object.entries(d).filter(([k, v]) => m.azione === 'UPDATE' || (v !== null && v !== '' && !/(^id$|_id$|^percorso$)/.test(k))).forEach(([k, v]) => {
+      out.push(m.azione === 'UPDATE' && v && typeof v === 'object' && ('da' in v || 'a' in v)
+        ? h('div', { class: 'lgd' }, h('b', {}, k + ': '), valLog(v.da), ' → ', valLog(v.a))
+        : h('div', { class: 'lgd' }, h('b', {}, k + ': '), valLog(v)));
+    });
+    return h('div', { class: 'dett' }, ...out);
+  }
+  function renderLog() {
+    const lista = $('#logLista');
+    lista.replaceChildren(...LOG.righe.map(m => {
+      const az = LOG_AZ[m.azione] || [m.azione, ''], aperto = LOG.aperti && LOG.aperti.has(m.id);
+      const riga = h('div', { class: 'lgr' + (aperto ? ' op' : ''), tabindex: '0', role: 'button', 'aria-expanded': aperto ? 'true' : 'false' },
+        h('div', { class: 'lg1' }, h('span', { class: 'badge ' + az[1] }, az[0]), h('span', { class: 'sec' }, LOG_TAB[m.tabella] || m.tabella), h('span', { class: 'lgt sec' }, fmtDataOra(m.data_ora))),
+        h('div', { class: 'lg2' }, m.descrizione), h('div', { class: 'lg3 sec' }, m.operatore));
+      const commuta = () => { LOG.aperti = LOG.aperti || new Set(); if (LOG.aperti.has(m.id)) LOG.aperti.delete(m.id); else LOG.aperti.add(m.id); renderLog(); };
+      riga.addEventListener('click', commuta); riga.addEventListener('keydown', e => { if (e.key === 'Enter') commuta(); });
+      return aperto ? h('div', { class: 'lgw' }, riga, dettaglioLog(m)) : riga;
+    }));
+    $('#logAltri').classList.toggle('hidden', LOG.fine);
+    $('#logInfo').textContent = LOG.righe.length ? LOG.righe.length + ' movimenti' + (LOG.fine ? '' : ' mostrati') : 'Nessun movimento trovato.';
+  }
+  async function esportaLog() {
+    if (!LOG.righe.length) { toast('Niente da esportare'); return; }
+    const p2 = k => String(k).padStart(2, '0');
+    scaricaFile('registro_modifiche.xlsx', [{ nome: 'Registro', righe: [['Data', 'Ora', 'Operatore', 'Evento', 'Ramo', 'Azione', 'Tipo', 'Descrizione'],
+      ...LOG.righe.map(m => { const d = new Date(m.data_ora); return [p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear(), p2(d.getHours()) + ':' + p2(d.getMinutes()), m.operatore, m.evento || '', m.ramo || '', (LOG_AZ[m.azione] || [m.azione])[0], LOG_TAB[m.tabella] || m.tabella, m.descrizione]; })], larghezze: [11, 7, 22, 22, 36, 11, 14, 70] }]);
+  }
+
   function renderAltro() {
     const op = !!stato.persona && isOperatore(), r = rivedereMio().length, i = infoPrivacy();
     const voce = (ico, testo, fn, extra) => { const b = h('button', { class: 'altro', type: 'button' }, h('span', {}, ico + ' ' + testo), extra || ''); b.addEventListener('click', fn); return b; };
@@ -270,6 +331,7 @@
       op ? voce('👥', 'Persone dell\'evento', () => vai('persone')) : '',
       voce('🔔', 'Da rivedere', () => vai('rev'), r ? h('span', { class: 'badge e' }, String(r)) : ''),
       voce('⚙️', 'Impostazioni', () => vai('imp')),
+      isAdmin() ? voce('📜', 'Registro modifiche', () => vai('log')) : '',
       isSuper() ? voce('🎛️', 'Parametri', () => vai('par')) : '',
       (i.url || i.testo) ? voce('🔒', 'Informativa privacy', () => apriInformativa()) : '',
       voce('⎋', 'Esci', () => esci())
@@ -279,6 +341,7 @@
   function vai(p) {
     if ((p === 'home' || p === 'str') && stato.evento === null && stato.persona) p = 'eventi';
     if (p === 'par' && !isSuper()) p = 'home';
+    if (p === 'log' && !isAdmin()) p = 'home';
     if (p === 'str' && isMobile() && !isAdmin()) p = 'home';   // su smartphone la Struttura è solo dell'amministratore
     stato.pagina = p;
     $$('.pg').forEach(e => e.classList.add('hidden'));
@@ -288,6 +351,7 @@
     if (p === 'persone') caricaPersone();
     if (p === 'str' || p === 'home') caricaStruttura();
     if (p === 'rev') renderRivedere();
+    if (p === 'log') apriLog();
     if (p === 'altro') renderAltro();
     window.scrollTo(0, 0);
   }
@@ -2092,6 +2156,9 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { chiudiPersona(); chiudiEvento(); chiudiNodo(); chiudiScheda(); chiudiImport(); $('#modDup').classList.add('hidden'); $('#modPriv').classList.add('hidden'); } });
     $('#installa').onclick = installa;
     $('#vaiPar').onclick = () => vai('par');
+    $('#logIndietro').onclick = () => vai('altro'); $('#logEsporta').onclick = esportaLog; $('#logAltri').onclick = () => caricaLog(false);
+    let tl; $('#logQ').addEventListener('input', () => { clearTimeout(tl); tl = setTimeout(() => caricaLog(true), 350); });
+    ['#logEv', '#logAz', '#logTab', '#logPer'].forEach(s => $(s).addEventListener('change', () => caricaLog(true)));
     $('#rete').onclick = () => sincronizza(true); $('#iSync').onclick = () => sincronizza(true); $('#iRev').onclick = () => vai('rev');
     window.addEventListener('online', aggiornaRete);
     window.addEventListener('offline', aggiornaRete);
