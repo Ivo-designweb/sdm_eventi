@@ -883,11 +883,10 @@
     const radice = h('ul', { class: 'trl' });
     figli(null).filter(passaFiltri).forEach(n => radice.append(rigaNodo(n)));
     lista.replaceChildren(...[nuovo, S.nodi.length ? radice : h('p', { class: 'sec' }, adm ? 'Nessun ramo: crea il primo con "+ Ramo di primo livello".' : 'Nessuna attività assegnata per questo evento.')].filter(Boolean));
-    // si trascina prendendo la riga in un punto qualsiasi e tenendola premuta un attimo (più a lungo su smartphone)
-    const touch = isMobile() || !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
+    // si trascina solo dalla maniglia ⋮⋮ a sinistra della riga, tenendola premuta un attimo
     if (navigator.onLine && window.Sortable) lista.querySelectorAll('ul.trl').forEach(ul => S.sort.push(new window.Sortable(ul, {
-      group: 'albero', draggable: 'li.mvb', handle: isMobile() ? '.dgh' : undefined, filter: 'button,a,input,select', preventOnFilter: false, animation: 150, forceFallback: true, fallbackOnBody: true, swapThreshold: 0.65, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
-      delay: isMobile() ? 0 : touch ? (cfg.DRAG_DELAY_TOUCH_MS || 700) : (cfg.DRAG_DELAY_MS === undefined ? 250 : cfg.DRAG_DELAY_MS), delayOnTouchOnly: false, touchStartThreshold: 8,
+      group: 'albero', draggable: 'li.mvb', handle: '.dgh', filter: 'button,a,input,select', preventOnFilter: false, animation: 150, forceFallback: true, fallbackOnBody: true, swapThreshold: 0.65, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
+      delay: cfg.DRAG_DELAY_MS === undefined ? 140 : cfg.DRAG_DELAY_MS, delayOnTouchOnly: false, touchStartThreshold: 6,
       onStart: () => { document.body.classList.add('drg'); if (navigator.vibrate) navigator.vibrate(25); },
       onMove: e => {
         const n = nodo(e.dragged.dataset.id), d = e.to.dataset.parent ? nodo(e.to.dataset.parent) : null, no = !!motivoNo(n, d);

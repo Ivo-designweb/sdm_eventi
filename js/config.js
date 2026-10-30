@@ -5,7 +5,6 @@ window.SDM_CONFIG = {
   SUPABASE_URL: "https://wwaomtfchpplmmxdpsqa.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3YW9tdGZjaHBwbG1teGRwc3FhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjQ5MTIsImV4cCI6MjA5NzIwMDkxMn0.OyIYsrpg4yZQVxeG7gxA0KQRqM7q0MOc29AWaGNxhR8",
   SCHEMA: "sdm_eventi",
-  DRAG_DELAY_MS: 250,        // PC: millisecondi di pressione su una riga prima di poterla trascinare
-  DRAG_DELAY_TOUCH_MS: 700,  // smartphone/tablet: tenuta più lunga, per non trascinare per sbaglio mentre si scorre
+  DRAG_DELAY_MS: 140,        // Struttura: millisecondi di pressione sulla maniglia ⋮⋮ prima di poter trascinare una riga
   OTP_MINUTI: 5           // deve coincidere con "Email OTP Expiration" in Supabase (secondi / 60)
 };
