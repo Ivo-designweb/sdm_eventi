@@ -170,7 +170,7 @@
     if (inAttesa && !confirm('Hai ' + inAttesa + ' modifiche non ancora inviate. Se esci ora restano salvate su questo dispositivo e partiranno al prossimo accesso con lo stesso utente. Uscire?')) return;
     try { await stato.sb.auth.signOut(); } catch (e) { /* offline: pulisco comunque */ }
     LS.del('sdm_profilo'); LS.del('sdm_persone'); LS.del('sdm_pulizia'); LS.del('sdm_eventi'); LS.del('sdm_evento'); Object.keys(localStorage).filter(k => k.startsWith('sdm_struttura_')).forEach(k => LS.del(k)); LS.del(MAIL_ATTESA);
-    stato.persona = null;
+    stato.persona = null; stato.cronologia = [];
     stato.avviata = false;
     $('#loginForm').classList.remove('hidden');
     $('#loginOk').classList.add('hidden');
@@ -238,9 +238,9 @@
     $$('.superOnly').forEach(e => e.classList.toggle('hidden', !(admin && p.superadmin)));
     mostra('app');
     renderNav();
-    vai('eventi');
+    vai('eventi', true);
     aggiornaRete();
-    caricaEventi().then(() => vai(stato.evento !== null ? 'home' : 'eventi'));
+    caricaEventi().then(() => vai(stato.evento !== null ? 'home' : 'eventi', true));
     avviaSincronizzazione();
     verificaInformativa(); pulizieAutomatiche();
   }
@@ -339,12 +339,20 @@
     ].filter(Boolean));
   }
 
-  function vai(p) {
+  // cronologia delle pagine: la freccia in alto (e il tasto indietro del telefono) tornano alla pagina precedente
+  stato.cronologia = [];
+  function aggiornaIndietro() { const b = $('#bkBtn'); if (b) b.disabled = !stato.cronologia.length; }
+  function indietro() { if (stato.cronologia.length) { try { history.back(); } catch (e) { vai(stato.cronologia.pop(), true); } } }
+  window.addEventListener('popstate', () => { const prec = stato.cronologia.pop(); if (prec) vai(prec, true); });
+  function vai(p, senzaStoria) {
+    const prima = stato.pagina;
     if ((p === 'home' || p === 'str') && stato.evento === null && stato.persona) p = 'eventi';
     if (p === 'par' && !isSuper()) p = 'home';
     if (p === 'log' && !isAdmin()) p = 'home';
     if (p === 'str' && isMobile() && !isAdmin()) p = 'home';   // su smartphone la Struttura è solo dell'amministratore
+    if (!senzaStoria && p !== prima && prima) { stato.cronologia.push(prima); if (stato.cronologia.length > 30) stato.cronologia.shift(); try { history.pushState({ sdm: 1 }, ''); } catch (e) { /* niente cronologia del browser */ } }
     stato.pagina = p;
+    aggiornaIndietro();
     $$('.pg').forEach(e => e.classList.add('hidden'));
     $('#p-' + p).classList.remove('hidden');
     segnaNav(p);
@@ -1179,7 +1187,7 @@
   function leggiNoteScheda() { $('#aInc').querySelectorAll('[data-pid]').forEach(i => { const w = S.attInc.find(x => x.persona_id === i.dataset.pid); if (w) w.nota = i.value; }); }
 
   function renderIncarichi() {
-    const n = S.att, me = stato.persona.id, ed = !!S.bozza || canEdit(n);
+    const n = S.att, me = stato.persona.id, ed = !!S.bozza || (canEdit(n) && !inModoOp());
     if (S.cmpt && !ed) {   // compatto: la mia nota su una riga, gli altri incaricati ripiegati
       const mio = S.attInc.find(x => x.persona_id === me), altri = S.attInc.filter(x => x.persona_id !== me);
       const els = [];
@@ -1219,7 +1227,7 @@
 
   async function salvaScheda(ev) {
     ev.preventDefault();
-    const n = S.att, bozza = !!S.bozza, ed = bozza || canEdit(n), me = stato.persona.id, adm = isAdmin();
+    const n = S.att, bozza = !!S.bozza, ed = bozza || (canEdit(n) && !inModoOp()), me = stato.persona.id, adm = isAdmin() && !inModoOp();
     leggiNoteScheda();
     const rec = {}; let sp;   // sp: undefined = non toccare, null = nessuno sponsor, oggetto = dati sponsor
     if (ed) {
@@ -2197,6 +2205,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { chiudiPersona(); chiudiEvento(); chiudiNodo(); chiudiScheda(); chiudiImport(); $('#modDup').classList.add('hidden'); $('#modPriv').classList.add('hidden'); } });
     $('#installa').onclick = installa;
     $('#vaiPar').onclick = () => vai('par');
+    $('#bkBtn').onclick = indietro;
     $('#ruoloOp').onclick = () => scegliModo('op'); $('#ruoloGest').closest('button').onclick = () => scegliModo('gest');
     $('#logIndietro').onclick = () => vai('altro'); $('#logEsporta').onclick = esportaLog; $('#logAltri').onclick = () => caricaLog(false);
     let tl; $('#logQ').addEventListener('input', () => { clearTimeout(tl); tl = setTimeout(() => caricaLog(true), 350); });
