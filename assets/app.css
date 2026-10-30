@@ -533,3 +533,5 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
   .tn.cmp .meta .resp{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere}
 }
 @media (max-width:760px), (pointer:coarse) and (max-height:500px){.tn.cmp .nsot{white-space:normal}}
+
+.lkAll{font-size:12.5px;color:var(--primario);cursor:pointer;background:none;border:0;padding:4px 2px;font-weight:600}
