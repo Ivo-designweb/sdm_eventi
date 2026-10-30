@@ -1,6 +1,6 @@
 # SDM Eventi - funzionalità e storico delle versioni
 
-Versione dell'app: **4.3** · Script database: **1.7** · Ultimo aggiornamento di questo file: versione 4.3
+Versione dell'app: **4.4** · Script database: **1.7** · Ultimo aggiornamento di questo file: versione 4.4
 
 > Questo file va aggiornato a ogni nuova versione: sezione «Funzionalità» se cambia il comportamento, tabella «Storico» con una riga per versione (e l'indicazione se serve rieseguire `db/01_schema_sdm_eventi.sql`).
 
@@ -55,7 +55,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 ## 4. Smartphone e PWA
 - Barra in basso sempre ferma (Home/Attività, Persone, Eventi, Struttura per l'amministratore, Altro); su iPhone rispetta l'area sicura.
-- **Freccia indietro** in alto in ogni pagina (e tasto indietro del telefono), con cronologia.
+- **Freccia indietro** in alto a sinistra in ogni pagina (e tasto indietro del telefono), con cronologia: pulsante tondo da 44-46 px con bordo, staccato dal logo; uguale nella scheda attività.
 - Telefono in verticale e in orizzontale con le stesse funzioni; nessuno scorrimento a destra.
 - Numero di versione accanto all'icona del segnale; etichetta della modalità (Operatore / Responsabile / Amministratore) quando si hanno due ruoli.
 - Installabile (manifest, icone anche maskable), funziona offline con service worker; si aggiorna alla riapertura (`VERSIONE` in `sw.js` = `app-version` in `index.html`).
@@ -66,6 +66,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 | Versione | Novità | DB |
 |---|---|---|
+| 4.4 | Freccia indietro più grande (44-46 px, con bordo) e staccata dal logo in tutte le pagine e nella scheda attività | – |
 | 4.3 | L'operatore (anche in modalità scelta) può aprire e consuntivare le attività; freccia indietro in ogni pagina | – |
 | 4.2 | Scelta Operatore / Responsabile per chi ha due ruoli | – |
 | 4.1 | Home per persona/ramo: righe chiuse di default, Apri/Chiudi tutti | – |
