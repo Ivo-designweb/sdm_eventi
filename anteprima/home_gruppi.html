@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="app-version" content="1.0">
+<title>SDM Eventi - Anteprima Home per persona / per ramo</title>
+<style>
+:root{--primario:#1d4ed8;--bg:#f4f6fa;--card:#fff;--testo:#1c2333;--sec:#5b6578;--bordo:#dde2ec;--ok:#15803d;--warn:#b45309;--err:#b91c1c}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#cfd5e1;color:var(--testo)}
+button{font:inherit}
+.demo{background:#111827;color:#e5e7eb;padding:8px 14px;font-size:13px;display:flex;gap:10px 14px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:50}
+.demo button{background:#1f2937;color:#fff;border:1px solid #374151;border-radius:6px;padding:4px 10px;cursor:pointer}
+.demo button.on{background:#2563eb;border-color:#2563eb}.demo span{opacity:.75}
+.vista{background:var(--bg);margin:0 auto;max-width:900px;min-height:calc(100vh - 44px);padding:18px}
+.vista.phone{max-width:390px;padding:12px;box-shadow:0 0 0 1px #b8c0d0}
+.sec{color:var(--sec)}
+.tot{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:0 0 10px}
+.tt-c{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;min-height:84px;border:2px solid var(--bordo);border-radius:12px;background:var(--card);cursor:pointer;line-height:1.1;min-width:0}
+.tt-c b{font-size:30px;font-weight:800}.tt-c span{font-size:13px;font-weight:600;color:var(--sec)}
+.tt-c.act{border-color:var(--primario);background:color-mix(in srgb,var(--primario) 10%,var(--card));box-shadow:0 0 10px color-mix(in srgb,var(--primario) 35%,transparent)}
+.phone .tt-c{min-height:52px;padding:4px 1px;border-width:1.5px;border-radius:9px}.phone .tt-c b{font-size:21px}.phone .tt-c span{font-size:10.5px}
+.card{background:var(--card);border:1px solid var(--bordo);border-radius:12px;padding:12px;margin-bottom:12px}
+.seg{display:flex;background:#e8ecf4;border-radius:10px;padding:3px;margin-bottom:6px}
+.seg button{flex:1;border:0;background:none;padding:8px;border-radius:8px;font-weight:600;color:var(--sec);cursor:pointer}
+.seg button.on{background:#fff;color:var(--primario);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.gr{border-bottom:1px solid var(--bordo)}.gr:last-child{border:0}
+.gh{display:flex;align-items:center;gap:8px;padding:9px 2px;cursor:pointer}
+.gh .nm{flex:1.7;min-width:0;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gh .bar{flex:1;display:flex;height:7px;border-radius:99px;overflow:hidden;background:#dbe1ec;min-width:50px}
+.gh .bar i{display:block;height:100%}
+.gh .fr{font-size:12px;color:var(--sec);width:34px;text-align:right}
+.gh .ar{color:var(--sec);width:14px;text-align:center}
+.badge{font-size:11px;border-radius:99px;padding:1px 8px;background:#eef2ff;color:var(--primario);font-weight:600;white-space:nowrap}
+.badge.ok{background:#dcfce7;color:var(--ok)}.badge.w{background:#fef3c7;color:var(--warn)}.badge.e{background:#fee2e2;color:var(--err)}
+.det{padding:0 2px 8px}
+.ln{display:flex;align-items:center;gap:6px;padding:5px 0 5px 8px;font-size:13px;border-top:1px dashed var(--bordo);border-left:5px solid transparent}
+.ln .tt{flex:1;min-width:0}.ln .tt small{display:block;color:var(--sec);font-size:11px}
+.ln .num{color:var(--sec);font-size:11px;font-weight:700;margin-right:6px}
+.ar2{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;border:1px solid rgba(0,0,0,.1);border-radius:99px;padding:0 7px;margin-left:5px}
+.ar2 i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.note2{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 10px;font-size:13px;margin:8px 0 12px}
+.lk{font-size:12.5px;color:var(--primario);cursor:pointer;background:none;border:0;padding:2px 0;font-weight:600}
+</style>
+</head>
+<body>
+<div class="demo"><b>Anteprima Home: per persona / per ramo</b>
+  <span>Vista:</span><button id="vPc" class="on">PC</button><button id="vPh">Smartphone</button>
+  <span>· tocca una cella per filtrare, tocca una riga per aprire/chiudere</span></div>
+
+<div class="vista" id="vista">
+  <div class="note2" id="nota"></div>
+  <div class="tot" id="tot"></div>
+  <div class="card">
+    <div class="seg"><button id="sP" class="on">Per persona</button><button id="sR">Per ramo</button></div>
+    <div style="text-align:right"><button class="lk" id="tutti"></button></div>
+    <div id="gruppi"></div>
+  </div>
+</div>
+
+<script>
+// attività: [num, titolo, stato, persona, ramo, area, colore area]
+const A=[
+ ['01.01.01','Montaggio gazebo','fatto','Rossi Anna','Logistica','Campo','#22c55e'],
+ ['01.01.02','Segnaletica','in_corso','Rossi Anna','Logistica','Bar','#f97316'],
+ ['01.02','Trasporti','da_fare','Bianchi Marco','Logistica',null,null],
+ ['02.01','Rifornimento bar','finito','Bianchi Marco','Ristoro','Bar','#f97316'],
+ ['02.02','Ghiaccio','in_corso','Verdi Luca','Ristoro','Bar','#f97316'],
+ ['03.01','Pulizia finale','da_fare','Verdi Luca','Servizi',null,null],
+ ['03.02','Verbale riunione','fatto','Verdi Luca','Servizi','Campo','#22c55e']];
+const LAB={da_fare:'da fare',in_corso:'in corso',fatto:'fatto',finito:'finito'};
+const CL={da_fare:'',in_corso:'w',fatto:'ok',finito:'ok'};
+const $=s=>document.querySelector(s);
+let vista='persona',filtro='',aperti=new Set(),apriTutti=false;
+const passa=a=>!filtro||(filtro==='fatte'?(a[2]==='fatto'||a[2]==='finito'):a[2]===filtro);
+const CELLE=[['','Tutte',()=>A.length],['da_fare','Da fare',()=>A.filter(a=>a[2]==='da_fare').length],['in_corso','In corso',()=>A.filter(a=>a[2]==='in_corso').length],['fatte','Fatte',()=>A.filter(a=>a[2]==='fatto'||a[2]==='finito').length],['scad','Scadenza',()=>1]];
+function barra(l){const t=l.length,w=s=>100*l.filter(a=>s.includes(a[2])).length/t;return `<span class="bar"><i style="width:${w(['finito'])}%;background:#15803d"></i><i style="width:${w(['fatto'])}%;background:#86efac"></i><i style="width:${w(['in_corso'])}%;background:#60a5fa"></i></span>`}
+function render(){
+  $('#tot').innerHTML=CELLE.map(([k,t,f])=>`<div class="tt-c ${filtro===k?'act':''}" data-k="${k}"><b>${f()}</b><span>${t}</span></div>`).join('');
+  const key=a=>vista==='persona'?a[3]:a[4];
+  const gruppi=[...new Set(A.map(key))].map(g=>({g,l:A.filter(a=>key(a)===g)})).map(x=>({...x,lf:x.l.filter(passa)})).filter(x=>x.lf.length);
+  $('#gruppi').innerHTML=gruppi.map(({g,l,lf})=>{const op=aperti.has(g);
+    return `<div class="gr"><div class="gh" data-g="${g}"><span class="nm">${g}</span>${barra(l)}<span class="fr">${filtro?lf.length:l.filter(a=>a[2]==='finito').length}/${l.length}</span><span class="ar">${op?'▾':'▸'}</span></div>
+    ${op?`<div class="det">${lf.map(a=>`<div class="ln" style="${a[6]?'border-left-color:'+a[6]:''}"><div class="tt"><b><span class="num">${a[0]}</span>${a[1]}</b><small>${vista==='persona'?a[4]:a[3]}${a[5]?`<span class="ar2"><i style="background:${a[6]}"></i>${a[5]}</span>`:'<span class="ar2"><i style="background:#cbd5e1"></i>Tutte</span>'}</small></div><span class="badge ${CL[a[2]]}">${LAB[a[2]]}</span></div>`).join('')}</div>`:''}</div>`}).join('')||'<p class="sec">Nessuna attività.</p>';
+  const tuttiAperti=gruppi.length&&gruppi.every(x=>aperti.has(x.g));
+  $('#tutti').textContent=tuttiAperti?'Chiudi tutti':'Apri tutti';
+  $('#tutti').onclick=()=>{gruppi.forEach(x=>tuttiAperti?aperti.delete(x.g):aperti.add(x.g));render()};
+}
+document.addEventListener('click',e=>{
+  const c=e.target.closest('.tt-c');if(c){const k=c.dataset.k;filtro=(filtro===k||!k)?'':k;
+    // scegliendo una cella i gruppi con risultati si aprono una volta sola: poi ognuno si apre/chiude liberamente
+    if(filtro){const key=a=>vista==='persona'?a[3]:a[4];A.filter(passa).forEach(a=>aperti.add(key(a)));}render();return;}
+  const g=e.target.closest('.gh');if(g){const k=g.dataset.g;aperti.has(k)?aperti.delete(k):aperti.add(k);render();}
+});
+$('#sP').onclick=()=>{vista='persona';$('#sP').classList.add('on');$('#sR').classList.remove('on');aperti=new Set();render()};
+$('#sR').onclick=()=>{vista='ramo';$('#sR').classList.add('on');$('#sP').classList.remove('on');aperti=new Set();render()};
+const nota=()=>$('#nota').textContent='Come proposto: all\'apertura (e cambiando vista) tutte le righe sono chiuse; tocchi una persona o un ramo per aprirla/chiuderla, uguale su PC e smartphone. Se scegli una cella-filtro le righe con risultati si aprono una volta sola, ma poi puoi chiuderle e riaprirle. Facoltativo: il link "Apri tutti / Chiudi tutti".';
+$('#vPc').onclick=()=>{$('#vista').classList.remove('phone');$('#vPc').classList.add('on');$('#vPh').classList.remove('on')};
+$('#vPh').onclick=()=>{$('#vista').classList.add('phone');$('#vPh').classList.add('on');$('#vPc').classList.remove('on')};
+nota();render();
+</script>
+</body>
+</html>
