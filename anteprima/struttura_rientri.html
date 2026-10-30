@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="app-version" content="1.0">
+<meta name="app-version" content="1.1">
 <title>SDM Eventi - Anteprima rientri e maniglia (Struttura)</title>
 <style>
 :root{--primario:#1d4ed8;--bg:#f4f6fa;--card:#fff;--testo:#1c2333;--sec:#5b6578;--bordo:#dde2ec;--ok:#15803d;--warn:#b45309;--err:#b91c1c;
@@ -25,7 +25,7 @@ h1{font-size:22px;margin:0 0 2px}.sec{color:var(--sec);font-size:13px}
 /* albero: il rientro di ogni livello è --ind; ogni livello ha la sua guida colorata */
 ul.trl{list-style:none;margin:0;padding:0}
 ul.trl ul.trl{margin-left:var(--ind);padding-left:0;position:relative}
-.guide ul.trl ul.trl{border-left:3px solid var(--gc,var(--g0));padding-left:6px;margin-left:calc(var(--ind) - 9px)}
+.guide ul.trl ul.trl{border-left:1.5px dashed var(--gc,var(--g0));padding-left:6px;margin-left:calc(var(--ind) - 7px)}
 .guide ul.trl ul.trl{--gc:var(--g0)}
 .guide ul.trl ul.trl ul.trl{--gc:var(--g1)}
 .guide ul.trl ul.trl ul.trl ul.trl{--gc:var(--g2)}
@@ -67,9 +67,7 @@ ul.trl.vuoto{min-height:4px}
 <body>
 <div class="demo"><b>Anteprima rientri e maniglia</b>
   <span>Vista:</span><button id="vPc" class="on">PC</button><button id="vPh">Smartphone</button>
-  <span>Rientro:</span><button class="rt" data-r="0">Attuale</button><button class="rt on" data-r="1">Medio</button><button class="rt" data-r="2">Forte</button>
-  <span>Guide colorate:</span><button id="gSi" class="on">Sì</button><button id="gNo">No</button>
-  <span>Maniglia PC:</span><button id="hSi" class="on">Sì</button><button id="hNo">No</button></div>
+  <span>Rientro forte · guide colorate sottili tratteggiate · si trascina solo dalla maniglia ⋮⋮ (140 ms)</span></div>
 
 <div class="vista guide" id="vista">
   <h1>Struttura</h1>
@@ -111,23 +109,18 @@ function build(){
   while(stack.length){stack.pop();html+='</ul></li>';}
   $('#lista').innerHTML='<ul class="trl">'+html+'</ul>';
   sorters.forEach(s=>s.destroy());sorters=[];
-  document.querySelectorAll('#lista ul.trl').forEach(ul=>sorters.push(new Sortable(ul,{group:'a',animation:150,handle:'.dgh',ghostClass:'sortable-ghost',fallbackOnBody:true,swapThreshold:.65})));
+  document.querySelectorAll('#lista ul.trl').forEach(ul=>sorters.push(new Sortable(ul,{group:'a',animation:150,handle:'.dgh',delay:140,delayOnTouchOnly:false,touchStartThreshold:6,ghostClass:'sortable-ghost',fallbackOnBody:true,swapThreshold:.65})));
 }
 const RIENTRI={0:{pc:'20px',ph:'8px',et:'attuale: 20 px su PC, 8 px su smartphone'},1:{pc:'36px',ph:'14px',et:'medio: 36 px su PC, 14 px su smartphone'},2:{pc:'52px',ph:'20px',et:'forte: 52 px su PC, 20 px su smartphone'}};
-let rt=1;
+let rt=2;
 function applica(){
   const ph=$('#vista').classList.contains('phone');
   $('#vista').style.setProperty('--ind',ph?RIENTRI[rt].ph:RIENTRI[rt].pc);
-  $('#legenda').textContent='Rientro '+RIENTRI[rt].et+'. Ogni sottoramo si sposta a destra; con le guide, a ogni livello cambia il colore della linea verticale.';
-  $('#nota').textContent=ph?'Smartphone: la maniglia ⋮⋮ a sinistra serve per trascinare (come adesso). Il rientro è più piccolo per lasciare spazio al testo.':'PC: nuova maniglia ⋮⋮ a sinistra di ogni riga. Trascini da lì (anche la riga intera può restare trascinabile: da decidere).';
+  $('#legenda').textContent='Rientro forte: '+(ph?'20 px':'52 px')+' per ogni livello. A ogni livello la linea verticale tratteggiata cambia colore.';
+  $('#nota').textContent=ph?'Smartphone: stessa maniglia ⋮⋮ a sinistra, rientro forte ma più stretto di quello PC per lasciare spazio al testo.':'PC: la maniglia ⋮⋮ a sinistra è l\'unico punto da cui si trascina (tieni premuto 140 ms). Il resto della riga serve solo per toccare e vedere i dettagli.';
 }
-document.querySelectorAll('.rt').forEach(b=>b.onclick=()=>{rt=+b.dataset.r;document.querySelectorAll('.rt').forEach(x=>x.classList.toggle('on',x===b));applica()});
 $('#vPc').onclick=()=>{$('#vista').classList.remove('phone');$('#vPc').classList.add('on');$('#vPh').classList.remove('on');applica()};
 $('#vPh').onclick=()=>{$('#vista').classList.add('phone');$('#vPh').classList.add('on');$('#vPc').classList.remove('on');applica()};
-$('#gSi').onclick=()=>{$('#vista').classList.add('guide');$('#gSi').classList.add('on');$('#gNo').classList.remove('on')};
-$('#gNo').onclick=()=>{$('#vista').classList.remove('guide');$('#gNo').classList.add('on');$('#gSi').classList.remove('on')};
-$('#hSi').onclick=()=>{$('#vista').classList.remove('nohd');$('#hSi').classList.add('on');$('#hNo').classList.remove('on')};
-$('#hNo').onclick=()=>{$('#vista').classList.add('nohd');$('#hNo').classList.add('on');$('#hSi').classList.remove('on')};
 build();applica();
 </script>
 </body>
