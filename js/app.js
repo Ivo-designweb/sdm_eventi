@@ -330,6 +330,7 @@
     $('#altroLista').replaceChildren(...[
       op ? voce('👥', 'Persone dell\'evento', () => vai('persone')) : '',
       voce('🔔', 'Da rivedere', () => vai('rev'), r ? h('span', { class: 'badge e' }, String(r)) : ''),
+      dueRuoli() ? voce('🔁', 'Entri come ' + (modoScelto() === 'op' ? 'Operatore' : nomeGestione()), cambiaModo, h('span', { class: 'badge' }, 'Cambia')) : '',
       voce('⚙️', 'Impostazioni', () => vai('imp')),
       isAdmin() ? voce('📜', 'Registro modifiche', () => vai('log')) : '',
       isSuper() ? voce('🎛️', 'Parametri', () => vai('par')) : '',
@@ -574,7 +575,7 @@
     if (!S.nodi.length) { const a = stato.avanz[stato.evento]; return a && a.foglie_totali ? Math.round(a.percentuale) : null; }
     ordina();
     const tutte = S.nodi.filter(isLeaf), me = stato.persona.id;
-    const base = isAdmin() ? tutte : (isOperatore() ? tutte.filter(n => (S.inc[n.id] || []).some(x => x.persona_id === me)) : tutte.filter(canEdit));
+    const base = isAdmin() && !inModoOp() ? tutte : (isOperatore() ? tutte.filter(n => (S.inc[n.id] || []).some(x => x.persona_id === me)) : tutte.filter(canEdit));
     return base.length ? conteggio(base).perc : null;
   }
 
@@ -774,7 +775,7 @@
       }
     }
     if (!ok) { const c = LS.get(chiave); if (c) { S.nodi = c.n; S.inc = c.i; S.nomi = c.m; S.assegnabili = c.a || []; S.num = c.u || {}; S.sponsor = c.s || {}; } else S.nodi = []; sovrapponiCoda(); }
-    renderStruttura(); renderHome(); renderEvBar(); renderNav(); aggiornaUndo();
+    renderStruttura(); renderHome(); renderEvBar(); renderNav(); aggiornaUndo(); verificaScelta();
   }
 
   function badgeStato(st) {
@@ -1046,7 +1047,7 @@
     S.att = n; S.bozza = bozza ? orig : null;
     S.attInc = (S.inc[id] || []).map(x => bozza ? { id: null, persona_id: x.persona_id, nota: '' } : { ...x });
     S.ckRighe = righeCheck(n).map(r => ({ ...r }));
-    const me = stato.persona.id, adm = isAdmin(), ed = bozza || canEdit(n), isInc = !bozza && S.attInc.some(x => x.persona_id === me), chiuso = n.stato === 'finito';
+    const me = stato.persona.id, opMode = inModoOp(), adm = isAdmin() && !opMode, ed = bozza || (canEdit(n) && !opMode), isInc = !bozza && S.attInc.some(x => x.persona_id === me), chiuso = n.stato === 'finito';
     const puoStato = adm || (!chiuso && (ed || isInc));
     const corpo = [];
     if (ed) {
@@ -1480,7 +1481,45 @@
   const passaStatoHome = n => !homeStatoF || (homeStatoF === 'fatte' ? (n.stato === 'fatto' || n.stato === 'finito') : homeStatoF === 'scad' ? !!scadClasse(n) : n.stato === homeStatoF);
   const radice = n => { const a = antenati(n); return a.length ? a[a.length - 1] : n; };
   const nomiInc = n => (S.inc[n.id] || []).map(x => nomeP(x.persona_id));
-  const isOperatore = () => !!stato.persona && !isAdmin() && !S.nodi.some(n => n.responsabile_id === stato.persona.id);
+  // chi ha due ruoli nell'evento (gestione: amministratore o responsabile di un ramo; operatore: incaricato di attività)
+  // sceglie all'ingresso come entrare: le due interfacce sono diverse. La scelta vale per l'evento.
+  const haGestione = () => !!stato.persona && (isAdmin() || S.nodi.some(n => n.responsabile_id === stato.persona.id));
+  const haOperativo = () => !!stato.persona && S.nodi.some(n => isLeaf(n) && (S.inc[n.id] || []).some(x => x.persona_id === stato.persona.id));
+  const dueRuoli = () => stato.evento !== null && haGestione() && haOperativo();
+  const MODI = (LS.get('sdm_modo') || {});
+  const modoScelto = () => (stato.modoEv && stato.modoEv[stato.evento]) || (MODI.uid === (stato.persona && stato.persona.uid) && (MODI.ev || {})[stato.evento]) || null;
+  const inModoOp = () => dueRuoli() && modoScelto() === 'op';
+  const isOperatore = () => !!stato.persona && (inModoOp() || (!isAdmin() && !S.nodi.some(n => n.responsabile_id === stato.persona.id)));
+  const nomeGestione = () => isAdmin() ? 'Amministratore' : 'Responsabile';
+  function aggiornaModo() {
+    const c = $('#hdModo'); if (!c) return;
+    const on = dueRuoli() && !!modoScelto();
+    c.classList.toggle('hidden', !on);
+    if (on) c.textContent = modoScelto() === 'op' ? 'Operatore' : nomeGestione();
+  }
+  function verificaScelta() {
+    aggiornaModo();
+    if (!dueRuoli() || modoScelto() || !$('#modRuolo').classList.contains('hidden')) return;
+    $('#ruoloGest').textContent = nomeGestione();
+    $('#ruoloGestD').textContent = isAdmin() ? 'Tutto l\'evento: struttura, persone, avanzamento e attività da confermare.' : 'I tuoi rami: avanzamento, persone, attività da confermare.';
+    $('#ruoloNome').textContent = stato.persona.nome;
+    $('#ruoloRic').checked = true;
+    $('#modRuolo').classList.remove('hidden');
+  }
+  function scegliModo(m) {
+    stato.modoEv = stato.modoEv || {}; stato.modoEv[stato.evento] = m;
+    if ($('#ruoloRic').checked) {
+      const cur = MODI.uid === stato.persona.uid ? MODI : { uid: stato.persona.uid, ev: {} };
+      cur.ev = { ...(cur.ev || {}), [stato.evento]: m }; Object.keys(MODI).forEach(k => delete MODI[k]); Object.assign(MODI, cur); LS.set('sdm_modo', MODI);
+    }
+    $('#modRuolo').classList.add('hidden');
+    aggiornaModo(); renderNav(); renderHome(); renderStruttura(); renderEvBar(); if (stato.pagina === 'altro') renderAltro(); else vai('home');
+  }
+  function cambiaModo() {
+    if (stato.modoEv) delete stato.modoEv[stato.evento];
+    if (MODI.uid === stato.persona.uid && MODI.ev) { delete MODI.ev[stato.evento]; LS.set('sdm_modo', MODI); }
+    verificaScelta();
+  }
 
   function renderHome() {
     const box = $('#homeCorpo');
@@ -2158,6 +2197,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { chiudiPersona(); chiudiEvento(); chiudiNodo(); chiudiScheda(); chiudiImport(); $('#modDup').classList.add('hidden'); $('#modPriv').classList.add('hidden'); } });
     $('#installa').onclick = installa;
     $('#vaiPar').onclick = () => vai('par');
+    $('#ruoloOp').onclick = () => scegliModo('op'); $('#ruoloGest').closest('button').onclick = () => scegliModo('gest');
     $('#logIndietro').onclick = () => vai('altro'); $('#logEsporta').onclick = esportaLog; $('#logAltri').onclick = () => caricaLog(false);
     let tl; $('#logQ').addEventListener('input', () => { clearTimeout(tl); tl = setTimeout(() => caricaLog(true), 350); });
     ['#logEv', '#logAz', '#logTab', '#logPer'].forEach(s => $(s).addEventListener('change', () => caricaLog(true)));

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="4.1">
+<meta name="app-version" content="4.2">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -80,6 +80,7 @@
       <img class="lg brandimg" alt="SDM Eventi" src="assets/logo.png">
       <div class="ev"><b id="evN"></b><span id="evD"></span></div>
       <div class="pc hidden" id="pc"><b id="evP"></b><i><u id="evB"></u></i></div>
+      <span class="modo hidden" id="hdModo"></span>
       <span class="ver" id="hdVer"></span>
       <button class="net on" id="rete" type="button" aria-label="Stato del collegamento"><svg viewBox="0 0 24 24"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01"/></svg></button>
     </header>
@@ -236,6 +237,17 @@
         <div id="drErr" class="avviso hidden" style="margin-top:12px"></div>
         <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end"><button class="btn sec" id="drAnnulla" type="button">Annulla</button><button class="btn need-net" id="drSalva" type="submit">Duplica</button></div>
       </form>
+    </div>
+
+    <div id="modRuolo" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.6);z-index:70;overflow:auto;padding:16px;display:flex;align-items:center">
+      <div class="card" style="max-width:420px;margin:0 auto;width:100%">
+        <h2 style="margin:0 0 2px">Come vuoi entrare?</h2>
+        <p class="sec" style="margin:0">Ciao <span id="ruoloNome"></span>, in questo evento hai due modi di lavorare.</p>
+        <button class="scr" id="ruoloOp" type="button"><span class="ic">📋</span><span><b>Operatore</b><small>Le tue attività: cambi stato, consuntivi, note e check-list.</small></span></button>
+        <button class="scr" type="button"><span class="ic">🧭</span><span><b id="ruoloGest">Responsabile</b><small id="ruoloGestD"></small></span></button>
+        <label class="flag" style="margin-top:12px;font-weight:500"><input type="checkbox" id="ruoloRic" checked> Ricorda la scelta su questo dispositivo</label>
+        <p class="note" style="margin:4px 0 0">Potrai cambiare modalità in ogni momento da «Altro».</p>
+      </div>
     </div>
 
     <div id="modChiu" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:60;overflow:auto;padding:16px">
