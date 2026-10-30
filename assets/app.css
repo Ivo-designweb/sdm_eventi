@@ -271,7 +271,10 @@ label.flag input{width:auto;margin:0}
   #modAtt.cmpt #attForm{max-width:none !important;margin:0 !important;border-radius:0;border:0;padding:0;min-height:100vh;display:flex;flex-direction:column}
   #modAtt.cmpt #aTitH,#modAtt.cmpt #aPerc{display:none}
   #modAtt.cmpt .aHd{display:flex;align-items:center;gap:8px;padding:8px 10px;position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--bordo)}
-  .aHd .aBk{border:0;background:color-mix(in srgb,var(--card) 75%,transparent);border-radius:8px;font-size:20px;font-weight:700;width:36px;height:36px;flex:none;color:var(--testo);cursor:pointer}
+  .aHd .aBk{position:relative;display:grid;place-items:center;padding:0;border:1px solid color-mix(in srgb,var(--primario) 30%,transparent);background:color-mix(in srgb,var(--primario) 14%,var(--card));border-radius:50%;width:44px;height:44px;flex:none;margin-right:10px;color:var(--primario);cursor:pointer}
+  .aHd .aBk svg{width:28px;height:28px}
+  .aHd .aBk::after{content:"";position:absolute;left:calc(100% + 6px);top:8px;bottom:8px;width:1px;background:var(--bordo)}
+  .aHd .aBk:focus-visible{outline:3px solid var(--primario);outline-offset:2px}
   .aHd .aTt{flex:1;min-width:0}
   .aHd .aTt b{display:block;font-size:16px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .aHd .aPc{font-size:11px;color:var(--sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -545,15 +548,17 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
 .hd .modo.hidden{display:none}
 @media (max-width:760px){.hd .ev span#evD{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hd .modo{padding:2px 7px;font-size:10.5px}}
 
-/* v4.3: freccia indietro in alto in ogni pagina */
-.hd .bk{flex:none;width:36px;height:36px;border:0;border-radius:50%;background:color-mix(in srgb,var(--primario) 10%,transparent);color:var(--primario);display:grid;place-items:center;cursor:pointer;padding:0}
-.hd .bk svg{width:22px;height:22px}
-.hd .bk:disabled{opacity:.3;cursor:default}
+/* v4.3: freccia indietro in alto in ogni pagina (ritocco: più grande, area di tocco 44 px, staccata dal logo da una linea) */
+.hd .bk{flex:none;position:relative;width:44px;height:44px;margin-right:10px;border:1px solid color-mix(in srgb,var(--primario) 30%,transparent);border-radius:50%;background:color-mix(in srgb,var(--primario) 14%,var(--card));color:var(--primario);display:grid;place-items:center;cursor:pointer;padding:0}
+.hd .bk::after{content:"";position:absolute;left:calc(100% + 6px);top:8px;bottom:8px;width:1px;background:var(--bordo)}
+.hd .bk svg{width:28px;height:28px}
+.hd .bk:disabled{opacity:.35;cursor:default}
+.hd .bk:focus-visible{outline:3px solid var(--primario);outline-offset:2px}
 @media (max-width:430px){
   .hd{gap:6px;padding-left:8px;padding-right:8px}
   .hd .lg{height:24px}
-  .hd .bk{width:32px;height:32px}
+  .hd .bk{margin-right:8px}
   .hd .modo{padding:1px 6px;font-size:10px}
   .hd .ver{font-size:10px}
-  .hd .pc{width:38px}
+  .hd .pc{width:34px}
 }
