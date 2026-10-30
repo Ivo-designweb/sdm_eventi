@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="app-version" content="1.1">
+<title>SDM Eventi - Anteprima rientri e maniglia (Struttura)</title>
+<style>
+:root{--primario:#1d4ed8;--bg:#f4f6fa;--card:#fff;--testo:#1c2333;--sec:#5b6578;--bordo:#dde2ec;--ok:#15803d;--warn:#b45309;--err:#b91c1c;
+  --ind:36px;--g0:#1d4ed8;--g1:#0891b2;--g2:#16a34a;--g3:#d97706;--g4:#db2777;--g5:#7c3aed}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#cfd5e1;color:var(--testo)}
+button,select{font:inherit}
+.demo{background:#111827;color:#e5e7eb;padding:8px 14px;font-size:13px;display:flex;gap:10px 14px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:50}
+.demo button{background:#1f2937;color:#fff;border:1px solid #374151;border-radius:6px;padding:4px 10px;cursor:pointer}
+.demo button.on{background:#2563eb;border-color:#2563eb}
+.demo span{opacity:.75}
+.vista{background:var(--bg);margin:0 auto;max-width:980px;min-height:calc(100vh - 80px);padding:18px}
+.vista.phone{max-width:390px;padding:10px;box-shadow:0 0 0 1px #b8c0d0;--ind:14px}
+h1{font-size:22px;margin:0 0 2px}.sec{color:var(--sec);font-size:13px}
+.btn{background:var(--primario);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
+.badge{font-size:11px;border-radius:99px;padding:1px 8px;background:#eef2ff;color:var(--primario);font-weight:600;white-space:nowrap}
+.badge.ok{background:#dcfce7;color:var(--ok)}.badge.w{background:#fef3c7;color:var(--warn)}
+
+/* albero: il rientro di ogni livello è --ind; ogni livello ha la sua guida colorata */
+ul.trl{list-style:none;margin:0;padding:0}
+ul.trl ul.trl{margin-left:var(--ind);padding-left:0;position:relative}
+.guide ul.trl ul.trl{border-left:1.5px dashed var(--gc,var(--g0));padding-left:6px;margin-left:calc(var(--ind) - 7px)}
+.guide ul.trl ul.trl{--gc:var(--g0)}
+.guide ul.trl ul.trl ul.trl{--gc:var(--g1)}
+.guide ul.trl ul.trl ul.trl ul.trl{--gc:var(--g2)}
+.guide ul.trl ul.trl ul.trl ul.trl ul.trl{--gc:var(--g3)}
+.guide ul.trl ul.trl ul.trl ul.trl ul.trl ul.trl{--gc:var(--g4)}
+ul.trl.vuoto{min-height:4px}
+.tn{display:flex;align-items:center;gap:6px;padding:5px 8px;min-height:38px;border:1px solid var(--bordo);border-radius:10px;margin-bottom:3px;background:var(--card);position:relative}
+.tn.br{background:color-mix(in srgb,var(--primario) 5%,var(--card));border-left:5px solid var(--primario)}
+.tn .tg{width:22px;height:26px;border:0;background:none;cursor:pointer;font-size:12px;color:var(--sec);flex:none;padding:0}
+.tn .tg0{width:22px;flex:none}
+.tn .num{font-size:11px;color:var(--sec);font-weight:700;flex:none}
+.tn .tt2{flex:1 1 auto;min-width:0;display:flex;align-items:baseline;gap:8px;overflow:hidden;white-space:nowrap}
+.tn .tt2 b{flex:none;max-width:55%;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+.tn.br .tt2 b{font-weight:800;font-size:15px}.tn:not(.br) .tt2 b{font-weight:500}
+.tn .ds{color:var(--sec);font-size:12px;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tn .meta{display:flex;gap:6px;align-items:center;flex:none;font-size:12px;color:var(--sec)}
+.azn{display:flex;gap:2px;flex:none}
+.ib{border:1px solid var(--bordo);background:var(--card);border-radius:7px;padding:2px 7px;font-size:14px;cursor:pointer;line-height:1.3}
+/* maniglia di trascinamento a sinistra: ora anche su PC */
+.dgh{display:flex;align-items:center;justify-content:center;flex:none;width:28px;align-self:stretch;margin:-5px 0 -5px -8px;border-right:1px solid var(--bordo);border-radius:9px 0 0 9px;background:color-mix(in srgb,var(--primario) 8%,transparent);color:var(--sec);font-size:15px;letter-spacing:-2px;cursor:grab;user-select:none}
+.tn.br .dgh{margin-left:-8px}
+.dgh:hover{background:color-mix(in srgb,var(--primario) 22%,transparent);color:var(--primario)}
+.nohd .dgh{display:none}
+.sortable-ghost{opacity:1!important;background:color-mix(in srgb,var(--primario) 22%,#fff)!important;border:2px dashed var(--primario)!important;border-radius:10px}
+.sortable-ghost>*{opacity:.35}
+
+/* smartphone */
+.phone .tn{flex-wrap:wrap;row-gap:2px;padding:6px 6px}
+.phone .tn .tt2{flex:1 1 110px;white-space:normal;flex-wrap:wrap}
+.phone .tn .tt2 b{max-width:100%;white-space:normal}
+.phone .tn .ds{flex:1 1 100%;white-space:nowrap}
+.phone .tn .meta{flex:1 0 100%;order:5;padding-left:34px;flex-wrap:wrap}
+.phone .tn .azn .xm{display:none}
+.phone .dgh{width:30px}
+.azn .xk{display:none}.phone .azn .xk{display:inline-block}
+.note2{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 10px;font-size:13px;margin:8px 0 12px}
+</style>
+</head>
+<body>
+<div class="demo"><b>Anteprima rientri e maniglia</b>
+  <span>Vista:</span><button id="vPc" class="on">PC</button><button id="vPh">Smartphone</button>
+  <span>Rientro forte · guide colorate sottili tratteggiate · si trascina solo dalla maniglia ⋮⋮ (140 ms)</span></div>
+
+<div class="vista guide" id="vista">
+  <h1>Struttura</h1>
+  <div class="sec" id="legenda"></div>
+  <div class="note2" id="nota"></div>
+  <div id="lista"></div>
+</div>
+
+<script src="../vendor/sortable.min.js"></script>
+<script>
+const DATI=[
+ [0,'01','Logistica','Tutto il campo gara',1],
+ [1,'01.01','Campo','Allestimento',1],
+ [2,'01.01.01','Gazebo','Montaggio',1],
+ [3,'01.01.01.01','Zona nord','',1],
+ [4,'01.01.01.01.01','Gazebo 1','8 gazebo bianchi',0],
+ [4,'01.01.01.01.02','Gazebo 2','',0],
+ [3,'01.01.01.02','Zona sud','',0],
+ [2,'01.01.02','Segnaletica','Frecce e cartelli',0],
+ [1,'01.02','Trasporti','Navette atleti',0],
+ [0,'02','Ristoro','Bar e cucina',1],
+ [1,'02.01','Bar','',0],
+ [1,'02.02','Ghiaccio','Ordine entro venerdì',0],
+ [0,'03','Servizi','',1],
+ [1,'03.01','Pulizia finale','',0]];
+const $=s=>document.querySelector(s);
+let sorters=[];
+function build(){
+  // ricostruisce l'albero annidato a partire dal livello
+  let html='';const stack=[];
+  DATI.forEach((d,i)=>{const lv=d[0],next=DATI[i+1],ha=next&&next[0]>lv;
+    while(stack.length&&stack[stack.length-1]>=lv){stack.pop();html+='</ul></li>';}
+    html+=`<li><div class="tn ${d[4]?'br':''}"><span class="dgh" title="Trascina">⋮⋮</span>${ha?'<button class="tg">▼</button>':'<span class="tg0"></span>'}<span class="num">${d[1]}</span>
+      <div class="tt2"><b>${d[2]}</b>${d[3]?`<span class="ds">${d[3]}</span>`:''}</div>
+      <div class="meta">${d[4]?'<span>2 sotto · 0/3 fatte</span><span>👤 Rossi Anna</span>':'<span class="badge">da fare</span>'}</div>
+      <div class="azn"><button class="ib">✎</button><button class="ib xm">＋</button><button class="ib xm">⧉</button><button class="ib xm">🗑</button><button class="ib xk">⋯</button></div></div>`;
+    if(ha){html+='<ul class="trl">';stack.push(lv);}else html+='</li>';
+  });
+  while(stack.length){stack.pop();html+='</ul></li>';}
+  $('#lista').innerHTML='<ul class="trl">'+html+'</ul>';
+  sorters.forEach(s=>s.destroy());sorters=[];
+  document.querySelectorAll('#lista ul.trl').forEach(ul=>sorters.push(new Sortable(ul,{group:'a',animation:150,handle:'.dgh',delay:140,delayOnTouchOnly:false,touchStartThreshold:6,ghostClass:'sortable-ghost',fallbackOnBody:true,swapThreshold:.65})));
+}
+const RIENTRI={0:{pc:'20px',ph:'8px',et:'attuale: 20 px su PC, 8 px su smartphone'},1:{pc:'36px',ph:'14px',et:'medio: 36 px su PC, 14 px su smartphone'},2:{pc:'52px',ph:'20px',et:'forte: 52 px su PC, 20 px su smartphone'}};
+let rt=2;
+function applica(){
+  const ph=$('#vista').classList.contains('phone');
+  $('#vista').style.setProperty('--ind',ph?RIENTRI[rt].ph:RIENTRI[rt].pc);
+  $('#legenda').textContent='Rientro forte: '+(ph?'20 px':'52 px')+' per ogni livello. A ogni livello la linea verticale tratteggiata cambia colore.';
+  $('#nota').textContent=ph?'Smartphone: stessa maniglia ⋮⋮ a sinistra, rientro forte ma più stretto di quello PC per lasciare spazio al testo.':'PC: la maniglia ⋮⋮ a sinistra è l\'unico punto da cui si trascina (tieni premuto 140 ms). Il resto della riga serve solo per toccare e vedere i dettagli.';
+}
+$('#vPc').onclick=()=>{$('#vista').classList.remove('phone');$('#vPc').classList.add('on');$('#vPh').classList.remove('on');applica()};
+$('#vPh').onclick=()=>{$('#vista').classList.add('phone');$('#vPh').classList.add('on');$('#vPc').classList.remove('on');applica()};
+build();applica();
+</script>
+</body>
+</html>
