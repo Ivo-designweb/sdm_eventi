@@ -1476,7 +1476,7 @@
     accodaStato(n, v);
   }
 
-  let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null, homeStatoF = '', homeLuce = '';
+  let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null, homeStatoF = '', homeLuce = '', homeApriFiltro = false;
   const passaStatoHome = n => !homeStatoF || (homeStatoF === 'fatte' ? (n.stato === 'fatto' || n.stato === 'finito') : homeStatoF === 'scad' ? !!scadClasse(n) : n.stato === homeStatoF);
   const radice = n => { const a = antenati(n); return a.length ? a[a.length - 1] : n; };
   const nomiInc = n => (S.inc[n.id] || []).map(x => nomeP(x.persona_id));
@@ -1512,7 +1512,7 @@
       out.push(h('div', { class: 'tot', role: 'group', 'aria-label': 'Filtra le attività per stato' }, ...celle.map(([k, et, n, cl]) => {
         const b = h('button', { type: 'button', class: 'tt-c ' + cl + (homeStatoF === k ? ' act' : '') + (luce && luce === k && homeStatoF === k ? ' run' : ''), 'aria-pressed': homeStatoF === k ? 'true' : 'false', ...({}),
           title: k === 'scad' ? (sc.length + ' scadute, ' + pr.length + ' entro ' + gg + ' giorni') : et }, h('b', {}, String(n)), k === 'scad' ? h('span', {}, h('em', { class: 'lg' }, 'In scadenza'), h('em', { class: 'sh' }, 'Scadenza')) : h('span', {}, et));
-        b.addEventListener('click', () => { homeStatoF = (homeStatoF === k || !k) ? '' : k; homeLuce = homeStatoF; renderHome(); });
+        b.addEventListener('click', () => { homeStatoF = (homeStatoF === k || !k) ? '' : k; homeLuce = homeStatoF; homeApriFiltro = !!homeStatoF; renderHome(); });
         return b;
       })));
       out.push(h('div', { class: 'card sum sm' }, h('div', { class: 'big' }, c.perc + '%'),
@@ -1556,10 +1556,11 @@
       } else {
         figli(null).forEach(r => { const l = gestisco.filter(n => radice(n).id === r.id); if (l.length) gruppi.push({ k: 'r' + r.id, nome: r.titolo, l }); });
       }
-      const seg = h('div', { class: 'seg' }, ...[['persona', 'Per persona'], ['ramo', 'Per ramo']].map(([k, t]) => { const b = h('button', { type: 'button', class: homeVista === k ? 'on' : '' }, t); b.addEventListener('click', () => { homeVista = k; renderHome(); }); return b; }));
+      const seg = h('div', { class: 'seg' }, ...[['persona', 'Per persona'], ['ramo', 'Per ramo']].map(([k, t]) => { const b = h('button', { type: 'button', class: homeVista === k ? 'on' : '' }, t); b.addEventListener('click', () => { homeVista = k; homeAperti = new Set(); renderHome(); }); return b; }));
       const gv = gruppi.map(g => ({ ...g, lf: g.l.filter(passaStatoHome) })).filter(g => g.lf.length);
+      if (homeApriFiltro) { gv.forEach(g => homeAperti.add(g.k)); homeApriFiltro = false; }   // scegliendo una cella le righe con risultati si aprono una volta sola
       const righe = gv.map(g => {
-        const cc = conteggio(g.l), aperto = homeAperti.has(g.k) || !!homeStatoF, nf = g.l.filter(n => n.stato === 'fatto').length;
+        const cc = conteggio(g.l), aperto = homeAperti.has(g.k), nf = g.l.filter(n => n.stato === 'fatto').length;
         const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, g.nome), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, (homeStatoF ? g.lf.length : cc.finito) + '/' + cc.tot), h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
         gh.addEventListener('click', () => { if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); });
         const gr = h('div', { class: 'gr' }, gh);
@@ -1570,7 +1571,9 @@
         })));
         return gr;
       });
-      out.push(h('div', { class: 'card' }, seg, ...(righe.length ? righe : [h('p', { class: 'sec' }, 'Nessuna attività.')]),
+      const tuttiAperti = gv.length > 0 && gv.every(g => homeAperti.has(g.k));
+      const lkTutti = gv.length ? (() => { const a = h('button', { type: 'button', class: 'lkAll' }, tuttiAperti ? 'Chiudi tutti' : 'Apri tutti'); a.addEventListener('click', () => { gv.forEach(g => (tuttiAperti ? homeAperti.delete(g.k) : homeAperti.add(g.k))); renderHome(); }); return h('div', { style: 'text-align:right' }, a); })() : '';
+      out.push(h('div', { class: 'card' }, seg, lkTutti, ...(righe.length ? righe : [h('p', { class: 'sec' }, 'Nessuna attività.')]),
         h('p', { class: 'note', style: 'margin:8px 0 0;text-align:center' }, 'Tocca una riga per vedere le attività. ✔ n = da confermare.')));
     }
     // le mie attività
