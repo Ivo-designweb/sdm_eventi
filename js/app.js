@@ -341,8 +341,10 @@
 
   // cronologia delle pagine: la freccia in alto (e il tasto indietro del telefono) tornano alla pagina precedente
   stato.cronologia = [];
-  function aggiornaIndietro() { const b = $('#bkBtn'); if (b) b.disabled = !stato.cronologia.length; }
-  function indietro() { if (stato.cronologia.length) { try { history.back(); } catch (e) { vai(stato.cronologia.pop(), true); } } }
+  // la freccia compare solo nelle sottopagine (aperte da un'altra pagina), non nelle pagine principali della barra in basso
+  const SOTTOPAGINE = ['log', 'rev', 'imp', 'par'];
+  function aggiornaIndietro() { const b = $('#bkBtn'); if (b) b.classList.toggle('hidden', !SOTTOPAGINE.includes(stato.pagina)); }
+  function indietro() { if (stato.cronologia.length) { try { history.back(); } catch (e) { vai(stato.cronologia.pop(), true); } } else vai('altro', true); }
   window.addEventListener('popstate', () => { const prec = stato.cronologia.pop(); if (prec) vai(prec, true); });
   function vai(p, senzaStoria) {
     const prima = stato.pagina;
