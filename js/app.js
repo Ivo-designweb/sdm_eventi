@@ -731,6 +731,7 @@
   const canAdd = n => isAdmin() || (!!stato.parametri.responsabile_crea_rami && respDi(n, true));
   const nIncarichi = n => (S.inc[n.id] || []).length;
   const percorsoTxt = n => [...antenati(n).reverse(), n].map(x => x.titolo).join(' › ');
+  const percorsoAnt = n => antenati(n).reverse().map(x => x.titolo).join(' › ') || 'Primo livello';   // tutti i livelli sopra l'attività (il titolo dell'attività è già in grassetto)
   // numerazione gerarchica 01 / 01.01 / 01.01.01: calcolata dal database sull'albero completo (uguale per tutti),
   // con ripiego locale sui soli elementi visibili se il database non è aggiornato
   const numTxt = n => S.num[n.id] || S.numLoc[n.id] || '';
@@ -1601,7 +1602,7 @@
             const cA = colArea(n.area);
             const b = adm ? h('button', { class: 'bt2', type: 'button' }, '✔ Finito') : h('span', { class: 'badge ok' }, 'fatto');
             if (adm) b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); });
-            const r = h('div', { class: 'ln', ...(cA ? { style: 'border-left-color:' + cA } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, (nomiInc(n).join(', ') || '—') + ' · ' + radice(n).titolo)), b);
+            const r = h('div', { class: 'ln', ...(cA ? { style: 'border-left-color:' + cA } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, (nomiInc(n).join(', ') || '—') + ' · ' + percorsoAnt(n))), b);
             r.addEventListener('click', () => apriScheda(n.id)); det.append(r);
           });
           if (!adm) det.append(h('div', { class: 'note', style: 'padding:2px 12px 6px' }, 'Il "Finito" lo conferma l\'amministratore. Tocca una riga per aprire l\'attività.'));
@@ -1630,7 +1631,7 @@
         gh.addEventListener('click', () => { if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); });
         const gr = h('div', { class: 'gr' }, gh);
         if (aperto) gr.append(h('div', { class: 'det' }, ...g.lf.map(n => {
-          const cL = colArea(n.area), ln = h('div', { class: 'ln', ...(cL ? { style: 'border-left:5px solid ' + cL + ';padding-left:8px' } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, homeVista === 'persona' ? percorsoTxt(n) : (nomiInc(n).join(', ') || 'nessun incaricato'), ar.length ? h('span', { class: 'ar', title: 'Area' }, h('i', { style: 'background:' + (colArea(n.area) || '#cbd5e1') }), n.area || 'Tutte') : '')), badgeScad(n),
+          const cL = colArea(n.area), ln = h('div', { class: 'ln', ...(cL ? { style: 'border-left:5px solid ' + cL + ';padding-left:8px' } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, homeVista === 'persona' ? percorsoAnt(n) : (nomiInc(n).join(', ') || 'nessun incaricato') + ' · ' + percorsoAnt(n), ar.length ? h('span', { class: 'ar', title: 'Area' }, h('i', { style: 'background:' + (colArea(n.area) || '#cbd5e1') }), n.area || 'Tutte') : '')), badgeScad(n),
             ...(n.stato === 'fatto' && adm ? [(() => { const b = h('button', { class: 'bt2', type: 'button' }, '✔ Finito'); b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); }); return b; })()] : [badgeStato(n.stato)]));
           ln.addEventListener('click', () => apriScheda(n.id)); return ln;
         })));
@@ -1654,13 +1655,13 @@
         if (chiuso && !puoFin) sel.disabled = true;
         sel.addEventListener('change', () => statoRapido(n, sel.value));
         const nota = h('button', { class: 'ib', type: 'button' }, '📝 Consuntiva' + (((S.inc[n.id] || []).find(x => x.persona_id === me) || {}).nota ? ' •' : '')); nota.addEventListener('click', () => apriScheda(n.id));
-        const t1 = h('div', { class: 't1' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), badgeScad(n)), t2 = h('div', { class: 't2' }, percorsoTxt(n) + ' ', n.area ? h('span', { class: 'ar' }, h('i', { style: 'background:' + (colArea(n.area) || '#999') }), n.area) : '');
+        const t1 = h('div', { class: 't1' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), badgeScad(n)), t2 = h('div', { class: 't2' }, percorsoAnt(n) + ' ', n.area ? h('span', { class: 'ar' }, h('i', { style: 'background:' + (colArea(n.area) || '#999') }), n.area) : '');
         t1.addEventListener('click', () => apriScheda(n.id)); t2.addEventListener('click', () => apriScheda(n.id));
         const rc = righeCheck(n), ck = rc.length ? h('button', { class: 'ib ck', type: 'button', title: 'Check-list' }, '☑ ' + checkFatte(n) + '/' + rc.length) : '';
         if (ck) ck.addEventListener('click', () => apriScheda(n.id, false, true));
         const cA = colArea(n.area);
         if (!op) {   // responsabile/admin: una riga per attività
-          const tt = h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, percorsoTxt(n) + ' ', badgeScad(n), S.pend.has(n.id) ? ' ⏳' : ''));
+          const tt = h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, percorsoAnt(n) + ' ', badgeScad(n), S.pend.has(n.id) ? ' ⏳' : ''));
           tt.addEventListener('click', () => apriScheda(n.id));
           nota.textContent = '✎' + (((S.inc[n.id] || []).find(x => x.persona_id === me) || {}).nota ? '•' : '');
           return h('div', { class: 'ln mia', ...(cA ? { style: 'background:color-mix(in srgb,' + cA + ' 14%,var(--card));border-left-color:' + cA } : {}) }, tt, sel, ck, nota);

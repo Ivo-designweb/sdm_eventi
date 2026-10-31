@@ -28,7 +28,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
   - **Totalizzatore** con cinque celle-filtro: Tutte, Da fare, In corso, Fatte (fatto + finito), In scadenza (scadute + in preavviso). La cella attiva ha un bordo colorato con una luce che gira 3 volte e poi si ferma. «Tutte» toglie il filtro.
   - **Avanzamento** in percentuale con barra.
   - **Da confermare** (amministratore) / **in attesa di conferma** (responsabile): l'amministratore conferma «Finito».
-  - **Per persona / per ramo:** righe chiuse di default, si aprono una a una; con una cella-filtro le righe con risultati si aprono una volta sola; link **Apri tutti / Chiudi tutti**. Ogni attività mostra numero, percorso, area colorata e stato.
+  - **Per persona / per ramo:** righe chiuse di default, si aprono una a una; con una cella-filtro le righe con risultati si aprono una volta sola; link **Apri tutti / Chiudi tutti**. Ogni attività mostra numero, percorso completo (tutti i livelli della struttura sopra l'attività, su più righe se serve), area colorata e stato; lo stesso nelle «Le mie attività» dell'operatore.
   - Avviso «senza incaricati», filtro per area.
 
 ### Struttura (albero rami e attività)

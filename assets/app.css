@@ -322,7 +322,7 @@ label.flag input{width:auto;margin:0}
 .blk .ln{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 8px;font-size:13.5px;border-left:5px solid transparent;cursor:pointer}
 .blk .ln .tt{flex:1;min-width:0;line-height:1.2}
 .blk .ln .tt b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-.blk .ln .tt small{color:var(--sec);font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blk .ln .tt small{color:var(--sec);font-size:11px;display:block;white-space:normal;overflow-wrap:anywhere}
 #homeCorpo .seg{margin-bottom:2px}
 #homeCorpo .gr .gh{padding:6px 2px}
 #homeCorpo .gr .gh .bar{flex:0 0 64px}
