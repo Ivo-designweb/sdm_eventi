@@ -1,6 +1,6 @@
 # SDM Eventi - funzionalità e storico delle versioni
 
-Versione dell'app: **4.3** · Script database: **1.7** · Ultimo aggiornamento di questo file: versione 4.3
+Versione dell'app: **4.4** · Script database: **1.7** · Ultimo aggiornamento di questo file: versione 4.4
 
 > Questo file va aggiornato a ogni nuova versione: sezione «Funzionalità» se cambia il comportamento, tabella «Storico» con una riga per versione (e l'indicazione se serve rieseguire `db/01_schema_sdm_eventi.sql`).
 
@@ -28,7 +28,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
   - **Totalizzatore** con cinque celle-filtro: Tutte, Da fare, In corso, Fatte (fatto + finito), In scadenza (scadute + in preavviso). La cella attiva ha un bordo colorato con una luce che gira 3 volte e poi si ferma. «Tutte» toglie il filtro.
   - **Avanzamento** in percentuale con barra.
   - **Da confermare** (amministratore) / **in attesa di conferma** (responsabile): l'amministratore conferma «Finito».
-  - **Per persona / per ramo:** righe chiuse di default, si aprono una a una; con una cella-filtro le righe con risultati si aprono una volta sola; link **Apri tutti / Chiudi tutti**. Ogni attività mostra numero, percorso completo (tutti i livelli della struttura sopra l'attività, su più righe se serve), area colorata e stato; lo stesso nelle «Le mie attività» dell'operatore.
+  - **Per persona / per ramo:** righe chiuse di default, si aprono una a una; con una cella-filtro le righe con risultati si aprono una volta sola; link **Apri tutti / Chiudi tutti**. Ogni attività mostra numero, ramo di primo livello, area colorata e stato; lo stesso in «Le mie attività» dell'operatore. Con il parametro **Mostra il percorso completo delle attività** (Parametri, default no) si vedono invece tutti i livelli sopra l'attività, su più righe.
   - Avviso «senza incaricati», filtro per area.
 
 ### Struttura (albero rami e attività)
@@ -66,6 +66,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 | Versione | Novità | DB |
 |---|---|---|
+| 4.4 | Liste della Home con il solo ramo di primo livello; parametro per mostrare il percorso completo; tasto indietro del telefono chiude schede e dialoghi | – |
 | 4.3 | L'operatore (anche in modalità scelta) può aprire e consuntivare le attività; freccia indietro in ogni pagina | – |
 | 4.2 | Scelta Operatore / Responsabile per chi ha due ruoli | – |
 | 4.1 | Home per persona/ramo: righe chiuse di default, Apri/Chiudi tutti | – |

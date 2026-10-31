@@ -15,7 +15,7 @@
 
   const PARAM_DEFAULT = {
     nome_app: 'SDM Eventi', tema: 'chiaro', colore_primario: '#1d4ed8',
-    max_livelli: 10, giorni_preavviso_scadenza: 7, responsabile_crea_rami: false, logo: null, otp_obbligatorio: true,
+    max_livelli: 10, giorni_preavviso_scadenza: 7, responsabile_crea_rami: false, percorso_completo: false, logo: null, otp_obbligatorio: true,
     privacy_url: '', privacy_testo: '', informativa_versione: 1, informativa_obbligatoria: false, conservazione_movimenti_mesi: 24
   };
   const RUOLI = { admin: 'Amministratore', utente: 'Operatore' };
@@ -731,7 +731,8 @@
   const canAdd = n => isAdmin() || (!!stato.parametri.responsabile_crea_rami && respDi(n, true));
   const nIncarichi = n => (S.inc[n.id] || []).length;
   const percorsoTxt = n => [...antenati(n).reverse(), n].map(x => x.titolo).join(' › ');
-  const percorsoAnt = n => antenati(n).reverse().map(x => x.titolo).join(' › ') || 'Primo livello';   // tutti i livelli sopra l'attività (il titolo dell'attività è già in grassetto)
+  // percorso mostrato nelle liste della Home: solo il ramo di primo livello, oppure tutti i livelli sopra l'attività se il parametro «percorso_completo» è attivo
+  const percorsoAnt = n => { const a = antenati(n).reverse(); return !a.length ? 'Primo livello' : stato.parametri.percorso_completo === true ? a.map(x => x.titolo).join(' › ') : a[0].titolo; };
   // numerazione gerarchica 01 / 01.01 / 01.01.01: calcolata dal database sull'albero completo (uguale per tutti),
   // con ripiego locale sui soli elementi visibili se il database non è aggiornato
   const numTxt = n => S.num[n.id] || S.numLoc[n.id] || '';
@@ -1631,7 +1632,7 @@
         gh.addEventListener('click', () => { if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); });
         const gr = h('div', { class: 'gr' }, gh);
         if (aperto) gr.append(h('div', { class: 'det' }, ...g.lf.map(n => {
-          const cL = colArea(n.area), ln = h('div', { class: 'ln', ...(cL ? { style: 'border-left:5px solid ' + cL + ';padding-left:8px' } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, homeVista === 'persona' ? percorsoAnt(n) : (nomiInc(n).join(', ') || 'nessun incaricato') + ' · ' + percorsoAnt(n), ar.length ? h('span', { class: 'ar', title: 'Area' }, h('i', { style: 'background:' + (colArea(n.area) || '#cbd5e1') }), n.area || 'Tutte') : '')), badgeScad(n),
+          const cL = colArea(n.area), ln = h('div', { class: 'ln', ...(cL ? { style: 'border-left:5px solid ' + cL + ';padding-left:8px' } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, homeVista === 'persona' ? percorsoAnt(n) : (nomiInc(n).join(', ') || 'nessun incaricato') + (stato.parametri.percorso_completo === true ? ' · ' + percorsoAnt(n) : ''), ar.length ? h('span', { class: 'ar', title: 'Area' }, h('i', { style: 'background:' + (colArea(n.area) || '#cbd5e1') }), n.area || 'Tutte') : '')), badgeScad(n),
             ...(n.stato === 'fatto' && adm ? [(() => { const b = h('button', { class: 'bt2', type: 'button' }, '✔ Finito'); b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); }); return b; })()] : [badgeStato(n.stato)]));
           ln.addEventListener('click', () => apriScheda(n.id)); return ln;
         })));
@@ -2098,7 +2099,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     const p = stato.parametri;
     $('#pNome').value = p.nome_app; $('#pTema').value = p.tema; $('#pCol').value = p.colore_primario;
     $('#pLiv').value = p.max_livelli; $('#pGg').value = p.giorni_preavviso_scadenza;
-    $('#pResp').checked = !!p.responsabile_crea_rami; $('#pOtp').checked = p.otp_obbligatorio !== false;
+    $('#pResp').checked = !!p.responsabile_crea_rami; $('#pPerc').checked = p.percorso_completo === true; $('#pOtp').checked = p.otp_obbligatorio !== false;
     $('#pPrivUrl').value = p.privacy_url || ''; $('#pPrivTesto').value = p.privacy_testo || ''; $('#pInfoObb').checked = !!p.informativa_obbligatoria;
     $('#pInfoVer').value = p.informativa_versione || 1; $('#pMesi').value = p.conservazione_movimenti_mesi === undefined ? 24 : p.conservazione_movimenti_mesi; $('#pPulMsg').textContent = '';
     $('#parMsg').textContent = '';
@@ -2123,7 +2124,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     const nuovi = {
       ...stato.parametri,
       nome_app: nome, tema: $('#pTema').value, colore_primario: $('#pCol').value,
-      max_livelli: liv, giorni_preavviso_scadenza: gg, responsabile_crea_rami: $('#pResp').checked, otp_obbligatorio: $('#pOtp').checked,
+      max_livelli: liv, giorni_preavviso_scadenza: gg, responsabile_crea_rami: $('#pResp').checked, percorso_completo: $('#pPerc').checked, otp_obbligatorio: $('#pOtp').checked,
       privacy_url: purl, privacy_testo: $('#pPrivTesto').value.trim(), informativa_obbligatoria: $('#pInfoObb').checked, informativa_versione: iver, conservazione_movimenti_mesi: mesi
     };
     // il logo si gestisce a parte; i valori vuoti (null) non si salvano: la colonna "valore" non accetta null
