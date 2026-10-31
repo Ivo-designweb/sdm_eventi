@@ -55,7 +55,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 ## 4. Smartphone e PWA
 - Barra in basso sempre ferma (Home/Attività, Persone, Eventi, Struttura per l'amministratore, Altro); su iPhone rispetta l'area sicura.
-- **Freccia indietro** in alto solo nelle sottopagine aperte da un'altra pagina (Registro modifiche, Da rivedere, Impostazioni, Parametri, scheda attività); non c'è nelle pagine principali della barra in basso (Home, Persone, Eventi, Struttura, Altro). Il tasto indietro del telefono funziona ovunque, con cronologia. Pulsante rotondo di 44 px con bordo, staccato dal logo da uno spazio e da una linea verticale; stessa freccia nella scheda attività.
+- **Freccia indietro** in alto solo nelle sottopagine aperte da un'altra pagina (Registro modifiche, Da rivedere, Impostazioni, Parametri, scheda attività); non c'è nelle pagine principali della barra in basso (Home, Persone, Eventi, Struttura, Altro). Il **tasto indietro del telefono** chiude prima la scheda o il dialogo aperto, poi torna pagina per pagina alla precedente; dall'app si esce solo dalla pagina principale. Pulsante rotondo di 44 px con bordo, staccato dal logo da uno spazio e da una linea verticale; stessa freccia nella scheda attività.
 - Telefono in verticale e in orizzontale con le stesse funzioni; nessuno scorrimento a destra.
 - Numero di versione accanto all'icona del segnale; etichetta della modalità (Operatore / Responsabile / Amministratore) quando si hanno due ruoli.
 - Installabile (manifest, icone anche maskable), funziona offline con service worker; si aggiorna alla riapertura (`VERSIONE` in `sw.js` = `app-version` in `index.html`).

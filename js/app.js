@@ -345,14 +345,30 @@
   const SOTTOPAGINE = ['log', 'rev', 'imp', 'par'];
   function aggiornaIndietro() { const b = $('#bkBtn'); if (b) b.classList.toggle('hidden', !SOTTOPAGINE.includes(stato.pagina)); }
   function indietro() { if (stato.cronologia.length) { try { history.back(); } catch (e) { vai(stato.cronologia.pop(), true); } } else vai('altro', true); }
-  window.addEventListener('popstate', () => { const prec = stato.cronologia.pop(); if (prec) vai(prec, true); });
+  // finestre (schede e dialoghi): ogni apertura è un passo della cronologia, così il tasto indietro del telefono le chiude invece di uscire dall'app
+  const FINESTRE = ['modPer', 'modEv', 'modNodo', 'modDupR', 'modChiu', 'modAtt', 'modImp', 'modDup', 'modPriv'];
+  const finestreAperte = [];
+  let attesaPop = 0;   // popstate causati da un history.back() fatto da noi, da ignorare
+  function storiaPush() { if (attesaPop) { setTimeout(storiaPush, 30); return; } try { history.pushState({ sdm: 1 }, ''); } catch (e) { /* niente cronologia del browser */ } }
+  const osservaFinestre = new MutationObserver(muts => muts.forEach(m => {
+    const id = m.target.id, aperta = !m.target.classList.contains('hidden'), i = finestreAperte.indexOf(id);
+    if (aperta && i < 0) { finestreAperte.push(id); storiaPush(); }
+    else if (!aperta && i >= 0) { finestreAperte.splice(i, 1); attesaPop++; try { history.back(); } catch (e) { attesaPop--; } }   // chiusa dai pulsanti: si toglie il passo di cronologia
+  }));
+  FINESTRE.forEach(id => { const e = document.getElementById(id); if (e) osservaFinestre.observe(e, { attributes: true, attributeFilter: ['class'] }); });
+  // tasto indietro del telefono: prima chiude l'ultima finestra aperta, poi torna alla pagina precedente; fuori dall'app si esce solo dalla pagina principale
+  window.addEventListener('popstate', () => {
+    if (attesaPop) { attesaPop--; return; }
+    if (finestreAperte.length) { const id = finestreAperte.pop(); const e = document.getElementById(id); if (e) e.classList.add('hidden'); return; }
+    const prec = stato.cronologia.pop(); if (prec) vai(prec, true);
+  });
   function vai(p, senzaStoria) {
     const prima = stato.pagina;
     if ((p === 'home' || p === 'str') && stato.evento === null && stato.persona) p = 'eventi';
     if (p === 'par' && !isSuper()) p = 'home';
     if (p === 'log' && !isAdmin()) p = 'home';
     if (p === 'str' && isMobile() && !isAdmin()) p = 'home';   // su smartphone la Struttura è solo dell'amministratore
-    if (!senzaStoria && p !== prima && prima) { stato.cronologia.push(prima); if (stato.cronologia.length > 30) stato.cronologia.shift(); try { history.pushState({ sdm: 1 }, ''); } catch (e) { /* niente cronologia del browser */ } }
+    if (!senzaStoria && p !== prima && prima) { stato.cronologia.push(prima); if (stato.cronologia.length > 30) stato.cronologia.shift(); storiaPush(); }
     stato.pagina = p;
     aggiornaIndietro();
     $$('.pg').forEach(e => e.classList.add('hidden'));
