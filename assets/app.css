@@ -333,7 +333,7 @@ label.flag input{width:auto;margin:0}
 .ln.mia{display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:5px;background:var(--card);border:1px solid var(--bordo);border-left:5px solid transparent;border-radius:10px;font-size:13.5px}
 .ln.mia .tt{flex:1;min-width:0;line-height:1.2;cursor:pointer}
 .ln.mia .tt b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-.ln.mia .tt small{color:var(--sec);font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ln.mia .tt small{color:var(--sec);font-size:11px;display:block;white-space:normal;overflow-wrap:anywhere}
 .ln.mia select{border:1px solid var(--bordo);border-radius:8px;padding:4px;font:inherit;font-size:13px;background:var(--card);color:var(--testo);width:auto;flex:none}
 .ln.mia .ib{padding:3px 8px;font-size:13px;flex:none}
 
