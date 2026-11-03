@@ -1,6 +1,6 @@
 # SDM Eventi - funzionalità e storico delle versioni
 
-Versione dell'app: **4.7** · Script database: **1.7** · Ultimo aggiornamento di questo file: versione 4.7
+Versione dell'app: **4.8** · Script database: **1.7** · Ultimo aggiornamento di questo file: versione 4.8
 
 > Questo file va aggiornato a ogni nuova versione: sezione «Funzionalità» se cambia il comportamento, tabella «Storico» con una riga per versione (e l'indicazione se serve rieseguire `db/01_schema_sdm_eventi.sql`).
 
@@ -49,7 +49,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 ### Persone (amministratore) · Eventi · Altro · Impostazioni
 - **Backup completo (ZIP)** (amministratori, in *Impostazioni → Backup*, serve la connessione): un unico file `sdm_eventi_backup_AAAA-MM-GG_HHMM.zip` con un file JSON per ogni tabella (`persone`, `eventi`, `nodi`, `incarichi`, `nodi_sponsor`, `parametri`, `movimenti`) più `_info.json` (versione, data, conteggi). I dati si leggono da Supabase a pacchetti di 500 record ordinati per chiave, ripartendo dall'ultima chiave letta, quindi nessun record è scritto due volte; `_info.json` segnala se i dati sono cambiati durante il backup. Il file contiene dati personali: va conservato in un posto protetto. Non esiste ancora il ripristino da file.
-- **Persone:** anagrafica completa, ricerca e filtri, contatto rapido (chiama, WhatsApp, mail), import/export Excel, eliminazione definitiva e dati della persona (GDPR).
+- **Persone:** anagrafica completa, **Invita all'app** nella scheda di una persona salvata: apre WhatsApp (solo telefono e tablet, non PC; serve il cellulare) o la mail (serve l'email) con un messaggio già scritto («Ciao nome, questo è un invito a usare l'app… Apri l'app da qui: link… entra con la tua email»), il link è quello dell'app in uso; l'icona con la scritta «SdM Eventi» sotto il link la mostra WhatsApp grazie ai tag `og:` di `index.html`; disattivato per le persone non attive; ricerca e filtri, contatto rapido (chiama, WhatsApp, mail), import/export Excel, eliminazione definitiva e dati della persona (GDPR).
 - **Eventi:** titolo, date, aree con colore, duplicazione dell'evento (con date spostate, responsabili e incaricati opzionali).
 - **Altro:** Excel della struttura (esporta, importa, modello), **Registro modifiche** (amministratori), Da rivedere, Impostazioni, Parametri (proprietario), Informativa privacy, Esci.
 - **Registro modifiche** (amministratori): chi ha cambiato cosa e quando, filtri (testo, evento, azione, tipo, periodo), dettaglio «vecchio → nuovo», carica altri, esporta in Excel. Il registro si compila in automatico nel database e si conserva per i mesi indicati nei Parametri.
@@ -68,6 +68,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 | Versione | Novità | DB |
 |---|---|---|
+| 4.8 | Invita all'app (WhatsApp / mail) nella scheda persona, anteprima del link con icona | – |
 | 4.7 | Cerca compatta: nella riga del filtro area (operatore, con «Ciao, nome») e a destra dei bottoni di stato (amministratore/responsabile) | – |
 | 4.6 | Ricerca libera (Cerca / ✕) nelle attività della Home su smartphone | – |
 | 4.5 | Backup completo in ZIP (un file JSON per tabella) dalle Impostazioni, solo amministratori | – |

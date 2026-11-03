@@ -563,6 +563,18 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
   .hd .pc{width:34px}
 }
 
+/* v4.8: invito all'app (scheda persona) */
+.inv{margin-top:14px;padding-top:12px;border-top:1px solid var(--bordo)}
+.invBtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.invBtns .btn{flex:1 1 140px;min-height:44px}
+.invBtns .btn.wa{background:#16a34a;border-color:#16a34a;color:#fff}
+.invBtns .btn:disabled{opacity:.45;cursor:not-allowed}
+.invMsg{margin-top:10px;padding:10px 12px;border:1px dashed var(--bordo);border-radius:10px;background:color-mix(in srgb,var(--primario) 4%,var(--card));font-size:13.5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.invCard{display:flex;gap:10px;align-items:center;margin-top:10px;padding:8px;border-radius:10px;background:color-mix(in srgb,#16a34a 12%,var(--card));border-left:4px solid #16a34a;color:var(--testo);text-decoration:none;min-height:44px}
+.invCard img{width:54px;height:54px;border-radius:10px;flex:none}
+.invCard b{font-size:15px}
+.invCard:focus-visible{outline:2px solid #16a34a}
+
 /* v4.7: ricerca nelle attività, solo smartphone: pulsante Cerca nella riga in alto della Home */
 .cercaBox{display:none}
 @media (max-width:760px), (pointer:coarse) and (max-height:500px){

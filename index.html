@@ -3,8 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="4.7">
+<meta name="app-version" content="4.8">
 <meta name="theme-color" content="#1d4ed8">
+<meta name="description" content="SdM Eventi">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SdM Eventi">
+<meta property="og:title" content="SdM Eventi">
+<meta property="og:description" content="SdM Eventi">
+<meta property="og:image" content="icons/icon-512.png">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
@@ -153,6 +159,14 @@
         <div id="fNumW" class="hidden"><label for="fNum">Numero iscritto *</label><input type="text" id="fNum" maxlength="30"></div>
         <label for="fNot">Note</label><input type="text" id="fNot" maxlength="500">
         <div class="row"><div><b>Attivo</b><div class="sec">Se disattivato non può accedere e non compare negli elenchi.</div></div><input type="checkbox" class="sw" id="fAtt"></div>
+        <div id="fInvita" class="inv hidden">
+          <b>Invita all'app</b>
+          <p class="note" style="margin-top:2px">Apre WhatsApp o la mail con il messaggio di invito già scritto, usando i dati salvati della persona. WhatsApp è disponibile solo su telefono e tablet.</p>
+          <div class="invBtns"><button type="button" class="btn wa" id="fInvWa">💬 WhatsApp</button><button type="button" class="btn sec" id="fInvMail">✉️ Mail</button></div>
+          <p class="note" id="fInvHint"></p>
+          <div class="invMsg" id="fInvMsg"></div>
+          <a class="invCard" id="fInvCard" target="_blank" rel="noopener" title="Apri l'app"><img alt="" src="icons/icon-192.png"><b>SdM Eventi</b></a>
+        </div>
         <div id="fGdpr" class="hidden" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--bordo)">
           <b>Privacy (GDPR)</b>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">

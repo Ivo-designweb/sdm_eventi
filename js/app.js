@@ -484,10 +484,38 @@
     $('#fErr').classList.add('hidden');
     $('#fGdpr').classList.toggle('hidden', !p);
     $('#fElimina').classList.toggle('hidden', !p || p.id === stato.persona.id);
+    aggiornaInvito(p);
     $('#modPer').classList.remove('hidden');
     $('#fCog').focus();
   }
   const chiudiPersona = () => $('#modPer').classList.add('hidden');
+
+  // invito all'app: messaggio pronto per WhatsApp (solo telefono e tablet) o mail
+  const linkApp = () => new URL('./', location.href).href;
+  const telefonoOTablet = () => { const ua = navigator.userAgent || ''; return !!((navigator.userAgentData && navigator.userAgentData.mobile) || /Android|iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)); };   // iPad si presenta come Mac
+  function testoInvito(p) {
+    const app = stato.parametri.nome_app || 'SDM Eventi', otp = stato.parametri.otp_obbligatorio !== false;
+    return 'Ciao ' + p.nome + ', questo è un invito a usare l\'app ' + app + ' per gestire gli eventi.\n\nApri l\'app da qui: ' + linkApp() + '\n\nPer entrare inserisci la tua email (' + p.email + ')' + (otp ? ' e il codice che ti arriverà per mail.' : '.') + ' Dal telefono puoi anche installarla sulla schermata Home.';
+  }
+  function aggiornaInvito(p) {
+    const w = $('#fInvita'); w.classList.toggle('hidden', !p);
+    if (!p) return;
+    const wa = !!(p.cellulare && cifre(p.cellulare)), ml = !!p.email, att = p.attivo;
+    $('#fInvWa').classList.toggle('hidden', !telefonoOTablet());
+    $('#fInvWa').disabled = !wa || !att; $('#fInvMail').disabled = !ml || !att;
+    const m = [];
+    if (!att) m.push('La persona non è attiva: non potrà accedere.');
+    else { if (telefonoOTablet() && !wa) m.push('WhatsApp: inserisci il numero di cellulare.'); if (!ml) m.push('Mail: inserisci l\'email.'); }
+    $('#fInvHint').textContent = m.join(' ');
+    $('#fInvMsg').textContent = testoInvito(p);
+    $('#fInvCard').href = linkApp();
+  }
+  function invia(canale) {
+    const p = P.corrente; if (!p) return;
+    const t = testoInvito(p);
+    if (canale === 'wa') window.open('https://wa.me/' + waNumero(p.cellulare) + '?text=' + encodeURIComponent(t), '_blank', 'noopener');
+    else location.href = 'mailto:' + p.email + '?subject=' + encodeURIComponent('Invito a ' + (stato.parametri.nome_app || 'SDM Eventi')) + '&body=' + encodeURIComponent(t.replace(/\n/g, '\r\n'));
+  }
 
   function erroreForm(msgs) {
     const e = $('#fErr');
@@ -2265,6 +2293,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#cercaQ').addEventListener('input', () => { homeCerca = $('#cercaQ').value; renderHome(); });
     $('#cercaQ').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); chiudiCerca(true); } });
     $('#cercaX').onclick = () => chiudiCerca(true);
+    $('#fInvWa').onclick = () => invia('wa'); $('#fInvMail').onclick = () => invia('mail');
     $('#fDati').onclick = () => P.corrente && scaricaDatiPersona(P.corrente.id); $('#fElimina').onclick = eliminaPersonaDef;
     $('#pDisconnetti').onclick = async () => {
       const m = $('#pDiscMsg');
