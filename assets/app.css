@@ -571,9 +571,14 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
 .invBtns .btn:disabled{opacity:.45;cursor:not-allowed}
 .invMsg{margin-top:10px;padding:10px 12px;border:1px dashed var(--bordo);border-radius:10px;background:color-mix(in srgb,var(--primario) 4%,var(--card));font-size:13.5px;white-space:pre-wrap;overflow-wrap:anywhere}
 .invCard{display:flex;gap:10px;align-items:center;margin-top:10px;padding:8px;border-radius:10px;background:color-mix(in srgb,#16a34a 12%,var(--card));border-left:4px solid #16a34a;color:var(--testo);text-decoration:none;min-height:44px}
-.invCard img{width:54px;height:54px;border-radius:10px;flex:none}
+.invCard img{height:40px;width:auto;max-width:60%;border-radius:6px;flex:none;background:#fff;padding:2px}
 .invCard b{font-size:15px}
 .invCard:focus-visible{outline:2px solid #16a34a}
+/* lista persone: i rami di cui una persona è responsabile vanno a capo e la pagina resta nella larghezza dello schermo */
+.badge.resp{white-space:normal;overflow-wrap:anywhere;word-break:break-word;border-radius:12px;max-width:100%;line-height:1.3;text-align:left}
+#perLista .row{min-width:0;max-width:100%}
+#perLista .row>div{min-width:0;overflow-wrap:anywhere}
+#perLista .perAz{min-width:0;max-width:100%}
 /* la scheda persona deve stare sempre nella larghezza dello schermo, anche con email o link lunghi */
 #modPer{overflow-x:hidden}
 #perForm{min-width:0;max-width:100%}

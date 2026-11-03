@@ -443,10 +443,10 @@
       && (!q || [p.cognome, p.nome, p.email, p.cellulare, p.numero_iscritto].join(' ').toLowerCase().includes(q))
       && (!f || (f === 'isc' && p.iscritto) || (f === 'non' && !p.iscritto) || (f === 'adm' && p.ruolo === 'admin') || (f === 'resp' && P.resp[p.id])));
     const righe = l.map(p => {
-      const az = h('div', { style: 'display:flex;gap:6px;align-items:center;flex-wrap:wrap' },
+      const az = h('div', { class: 'perAz', style: 'display:flex;gap:6px;align-items:center;flex-wrap:wrap' },
         p.iscritto ? h('span', { class: 'badge ok' }, 'iscritto ' + (p.numero_iscritto || '')) : h('span', { class: 'badge' }, 'non iscritto'),
         p.ruolo === 'admin' ? h('span', { class: 'badge w' }, 'admin') : '',
-        P.resp[p.id] ? h('span', { class: 'badge', title: 'Responsabile di: ' + P.resp[p.id].join(', ') }, '👤 ' + P.resp[p.id].slice(0, 2).join(', ') + (P.resp[p.id].length > 2 ? ' +' + (P.resp[p.id].length - 2) : '')) : '');
+        P.resp[p.id] ? h('span', { class: 'badge resp', title: 'Responsabile di: ' + P.resp[p.id].join(', ') }, '👤 ' + P.resp[p.id].join(', ')) : '');
       const btn = (href, txt, titolo) => h('a', { class: 'btn sec xm', style: 'padding:4px 10px', href, title: titolo, 'aria-label': titolo }, txt);
       const voci = [];
       if (p.cellulare) {
