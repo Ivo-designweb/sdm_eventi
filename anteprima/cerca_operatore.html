@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="app-version" content="1.0">
+<title>SDM Eventi - Anteprima Vista operatore</title>
+<style>
+:root{--primario:#1d4ed8;--bg:#f4f6fa;--card:#fff;--testo:#1c2333;--sec:#5b6578;--bordo:#dde2ec;--ok:#15803d;--warn:#b45309;--err:#b91c1c}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#cfd5e1;color:var(--testo)}
+.demo{background:#111827;color:#e5e7eb;padding:10px 14px;font-size:13px}
+h2{font-size:14px;margin:18px auto 6px;max-width:380px;padding:0 4px;color:#374151}
+.phone{width:360px;max-width:100%;margin:0 auto 12px;background:var(--bg);border:1px solid #b8c0d0;border-radius:18px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+.hidden{display:none!important}
+.hd{display:flex;align-items:center;gap:6px;padding:7px 8px;background:var(--card);border-bottom:1px solid var(--bordo)}
+.hd b{flex:1;font-size:15px}.hd span{font-size:12px;color:var(--sec)}
+main{padding:10px 10px 14px}
+.hello{display:flex;align-items:baseline;gap:10px;margin:0 0 10px}.hello h1{margin:0;font-size:19px}.hello span{font-size:12px;color:var(--sec)}
+
+/* ---- Cerca compatta ---- */
+.cercaBtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:1.5px solid color-mix(in srgb,var(--primario) 40%,transparent);border-radius:9px;background:color-mix(in srgb,var(--primario) 10%,var(--card));color:var(--primario);font:inherit;font-size:10.5px;font-weight:700;cursor:pointer;padding:0 2px;line-height:1}
+.cercaBtn svg{width:20px;height:20px}
+.cercaBtn.on{background:var(--primario);color:#fff;border-color:var(--primario)}
+.cercaBtn.inline{flex-direction:row;gap:6px;min-height:38px;padding:0 14px;border-radius:99px;font-size:14px}
+.cercaBtn.inline svg{width:20px;height:20px}
+.cercaBox{display:flex;align-items:center;gap:8px;height:44px;margin:0 0 8px;padding:0 4px 0 14px;border:1px solid var(--bordo);border-radius:22px;background:var(--card);color:var(--sec)}
+.cercaBox:focus-within{border-color:var(--primario);box-shadow:0 0 0 2px color-mix(in srgb,var(--primario) 25%,transparent)}
+.cercaBox>svg{width:20px;height:20px;flex:none}
+.cercaBox input{flex:1;min-width:0;height:100%;border:0;outline:0;background:transparent;color:var(--testo);font:inherit;font-size:16px;padding:0}
+.cercaBox input::-webkit-search-cancel-button{display:none}
+.cercaX{flex:none;width:38px;height:38px;border:0;border-radius:50%;background:color-mix(in srgb,var(--primario) 12%,transparent);color:var(--primario);display:grid;place-items:center;cursor:pointer;padding:0}
+.cercaX svg{width:20px;height:20px}
+.info{font-size:12px;color:var(--sec);margin:0 0 8px}
+
+/* riga area + cerca (operatore) */
+.rigaA{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+
+/* totalizzatore: 5 celle più piccole + Cerca a destra */
+.tot{display:grid;grid-template-columns:repeat(5,1fr) 50px;gap:4px;margin:0 0 8px}
+.tt-c{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 1px;min-height:46px;border:1.5px solid var(--bordo);border-radius:9px;background:var(--card);color:var(--testo);font:inherit;line-height:1.05;min-width:0;cursor:pointer}
+.tt-c b{font-size:19px;font-weight:800}.tt-c span{font-size:9.5px;font-weight:600;color:var(--sec);white-space:nowrap}
+.tt-c.all b{color:var(--testo)}.tt-c.dar b{color:#64748b}.tt-c.cor b{color:#2563eb}.tt-c.fin b{color:var(--ok)}.tt-c.e b{color:var(--err)}
+.tt-c.act{border-color:var(--primario);background:color-mix(in srgb,var(--primario) 10%,var(--card));box-shadow:0 0 0 2px var(--primario)}
+.sum{background:var(--card);border:1px solid var(--bordo);border-radius:12px;padding:8px 12px;margin-bottom:8px;display:flex;gap:12px;align-items:center}
+.sum .big{font-size:24px;font-weight:800;color:var(--ok);line-height:1}.sum .r{flex:1;font-size:11.5px;color:var(--sec)}
+.stk{display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--bordo);margin-bottom:4px}.stk i{display:block}
+.ln{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--card);border:1px solid var(--bordo);border-left:5px solid var(--c,transparent);border-radius:10px;margin-bottom:5px;font-size:13.5px}
+.ln .tt{flex:1;min-width:0;line-height:1.2}.ln b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ln small{color:var(--sec);font-size:11px}
+.num{font-size:11px;font-weight:700;color:var(--sec);margin-right:5px}
+.badge{font-size:11px;border-radius:99px;padding:1px 8px;background:#eef2ff;color:var(--primario);font-weight:600;white-space:nowrap}
+
+/* riga operatore: saluto (tagliato con ...) + filtro area ridotto + Cerca */
+.rigaA{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.rigaA .ciao{flex:1 1 0;min-width:0;margin:0;font-size:17px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rigaA select{flex:none;max-width:122px;border:1px solid var(--bordo);background:var(--card);color:var(--testo);border-radius:99px;padding:0 2px 0 8px;height:30px;font:inherit;font-size:12px}
+.rigaA .cercaBtn{margin-left:0;flex:none;padding:0 11px;gap:4px}
+</style>
+</head>
+<body>
+<div class="demo"><b>Anteprima · Vista operatore (smartphone)</b> — saluto con il nome, filtro area ridotto e <b>Cerca</b> sulla stessa riga. Prova Cerca (es. «campo», «bar») e la <b>✕</b>. Dati di esempio, nessun salvataggio.</div>
+
+<h2>Nome breve</h2>
+<div class="phone">
+  <div class="hd"><b>Gara Sociale 2027</b><span>14 mag</span></div>
+  <main>
+    <div class="rigaA">
+      <h1 class="ciao">Ciao, Anna</h1>
+      <select aria-label="Filtra per area"><option>Tutte le aree</option><option>Logistica</option><option>Ristoro</option></select>
+      <button type="button" class="cercaBtn inline" aria-label="Cerca nelle attività"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Cerca</span></button>
+    </div>
+    <div class="cercaBox hidden"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><input type="search" placeholder="Cerca nelle attività…" autocomplete="off"><button type="button" class="cercaX" aria-label="Cancella la ricerca"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>
+    <p class="info hidden"></p>
+    <div class="lista"></div>
+  </main>
+</div>
+<h2>Nome lungo (tagliato prima del pulsante Cerca)</h2>
+<div class="phone">
+  <div class="hd"><b>Gara Sociale 2027</b><span>14 mag</span></div>
+  <main>
+    <div class="rigaA">
+      <h1 class="ciao">Ciao, Maria Cristina Rossi Bianchi</h1>
+      <select aria-label="Filtra per area"><option>Tutte le aree</option><option>Logistica</option><option>Ristoro</option></select>
+      <button type="button" class="cercaBtn inline" aria-label="Cerca nelle attività"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Cerca</span></button>
+    </div>
+    <div class="cercaBox hidden"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><input type="search" placeholder="Cerca nelle attività…" autocomplete="off"><button type="button" class="cercaX" aria-label="Cancella la ricerca"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>
+    <p class="info hidden"></p>
+    <div class="lista"></div>
+  </main>
+</div>
+<script>
+const ATT=[['01.01','Controllo campo','Logistica › Campo','Rossi Anna','Logistica','#22c55e','in corso'],['01.02','Montaggio gazebo','Logistica › Campo','Rossi Anna','Logistica','#22c55e','fatto'],['02.03','Rifornimento bar','Ristoro › Bar','Bianchi Marco','Ristoro','#f97316','da fare'],['03.02','Verbale riunione','Servizi','Verdi Luca','Servizi','','da fare'],['02.04','Ghiaccio per il bar','Ristoro › Bar','Bianchi Marco','Ristoro','#f97316','in corso']];
+const norm=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+document.querySelectorAll('.phone').forEach(ph=>{
+  const btn=ph.querySelector('.cercaBtn'),box=ph.querySelector('.cercaBox'),inp=box.querySelector('input'),info=ph.querySelector('.info'),lista=ph.querySelector('.lista');
+  function draw(){const q=norm(inp.value).trim().split(/\s+/).filter(Boolean);const r=ATT.filter(a=>{const h=norm(a.join(' '));return q.every(t=>h.includes(t))});
+    lista.innerHTML=r.map(a=>`<div class="ln" style="--c:${a[5]}"><div class="tt"><b><span class="num">${a[0]}</span>${a[1]}</b><small>${a[2]} · ${a[3]}</small></div><span class="badge">${a[6]}</span></div>`).join('')||'<p class="info">Nessuna attività.</p>';
+    info.classList.toggle('hidden',!q.length);info.textContent=r.length?r.length+(r.length===1?' attività trovata':' attività trovate'):'Nessuna attività trovata';}
+  function apri(){box.classList.remove('hidden');btn.classList.add('on');inp.focus()}
+  function chiudi(){inp.value='';box.classList.add('hidden');btn.classList.remove('on');draw()}
+  btn.onclick=()=>box.classList.contains('hidden')?apri():chiudi();
+  box.querySelector('.cercaX').onclick=chiudi;inp.oninput=draw;inp.onkeydown=e=>{if(e.key==='Escape')chiudi()};draw();
+});
+</script>
+</body>
+</html>
