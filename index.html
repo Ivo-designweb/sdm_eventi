@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="4.4">
+<meta name="app-version" content="4.5">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -367,6 +367,13 @@
         <div class="row"><span>Esci dall'account</span><button class="btn sec" id="esci2" type="button">Esci</button></div>
         <div class="row superOnly"><span>Parametri (solo proprietario)</span><button class="btn sec" id="vaiPar" type="button">Apri</button></div>
       </div>
+      <div class="card adminOnly">
+        <h2>Backup</h2>
+        <p class="sec" style="margin-top:-4px">Un unico file ZIP con tutti i dati (persone, eventi, struttura, incarichi, sponsor, parametri, registro modifiche): un file JSON per ogni tabella. Contiene dati personali: conservalo in un posto protetto.</p>
+        <div class="row"><span>Backup completo (ZIP)</span><button class="btn sec need-net" id="iBackup" type="button">⬇ Scarica</button></div>
+        <p class="note" id="iBackupMsg" role="status"></p>
+      </div>
+      <p class="note" style="text-align:center;margin-top:16px">Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></p>
     </div>
 
     <div id="p-par" class="pg hidden">
@@ -452,6 +459,7 @@
 <script src="vendor/sortable.min.js"></script>
 <script src="vendor/xlsx.mini.min.js"></script>
 <script src="js/config.js"></script>
+<script src="js/zip.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

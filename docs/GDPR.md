@@ -46,8 +46,8 @@ Già presenti nell'app:
 Da fare tu (organizzative):
 - **Autenticazione a due fattori** su Supabase, Vercel, GitHub e sulla casella email dell'amministratore.
 - Pochi account con accesso alla dashboard di Supabase; mai condividere la chiave `service_role`.
-- **Backup**: i piani gratuiti di Supabase non hanno backup giornalieri garantiti; esporta periodicamente le persone in Excel e
-  conserva i file cifrati, oppure usa un piano con backup.
+- **Backup**: i piani gratuiti di Supabase non hanno backup giornalieri garantiti; fai periodicamente il **Backup completo (ZIP)** da Impostazioni (amministratori) e
+  conserva il file in un posto protetto (cifrato), oppure usa un piano con backup.
 - Telefoni/PC di amministratori e responsabili con **blocco schermo** e aggiornamenti: sul dispositivo resta una copia dei dati
   visibili (offline). All'uscita dall'app le copie dei dati personali vengono eliminate, ma **le modifiche in attesa restano**
   fino all'invio.

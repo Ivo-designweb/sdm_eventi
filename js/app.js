@@ -1757,6 +1757,55 @@
 
   // --- PERSONE ---
   const COL_PERS = ['Cognome', 'Nome', 'Email', 'Cellulare', 'Iscritto', 'Numero iscritto', 'Data di nascita', 'Ruolo', 'Attivo', 'Note'];
+  // ---------- backup completo: un file ZIP con un file JSON per ogni tabella ----------
+  const BACKUP_TABELLE = [['persone', 'id'], ['eventi', 'id'], ['nodi', 'id'], ['incarichi', 'id'], ['nodi_sponsor', 'nodo_id'], ['parametri', 'chiave'], ['movimenti', 'id']];
+  const BACKUP_PAG = 500;   // record per richiesta: il limite di Supabase è 1000
+  // lettura a pacchetti ordinati per chiave primaria, ripartendo dall'ultima chiave letta (non da un numero di riga): un record non può comparire in due pacchetti
+  async function leggiTabellaPagine(tb, pk, avanza) {
+    const viste = new Set(), righe = [];
+    let ultimo = null, doppi = 0;
+    for (;;) {
+      let q = stato.sb.from(tb).select('*').order(pk, { ascending: true }).limit(BACKUP_PAG);
+      if (ultimo !== null) q = q.gt(pk, ultimo);
+      const { data, error } = await q;
+      if (error) throw new Error(tb + ': ' + error.message);
+      data.forEach(r => { const k = String(r[pk]); if (viste.has(k)) doppi++; else { viste.add(k); righe.push(r); } });
+      avanza(righe.length);
+      if (data.length < BACKUP_PAG) break;
+      ultimo = data[data.length - 1][pk];
+    }
+    return { righe, doppi };
+  }
+  async function backupCompleto() {
+    const btn = $('#iBackup'), msg = $('#iBackupMsg');
+    if (!isAdmin()) return;
+    if (!navigator.onLine) { msg.textContent = 'Serve la connessione per fare il backup.'; return; }
+    btn.disabled = true;
+    try {
+      const quando = new Date(), enc = new TextEncoder(), file = [], info = {}, p2 = k => String(k).padStart(2, '0');
+      let totale = 0;
+      for (const [tb, pk] of BACKUP_TABELLE) {
+        msg.textContent = 'Leggo ' + tb + '…';
+        const { righe, doppi } = await leggiTabellaPagine(tb, pk, n => { msg.textContent = 'Leggo ' + tb + ': ' + n + ' record…'; });
+        const { count } = await stato.sb.from(tb).select('*', { count: 'exact', head: true });
+        file.push({ nome: tb + '.json', dati: enc.encode('[\n' + righe.map(r => JSON.stringify(r)).join(',\n') + '\n]\n') });
+        info[tb] = { chiave: pk, record: righe.length, record_nel_database: count, duplicati_scartati: doppi, coerente: count === righe.length };
+        totale += righe.length;
+      }
+      const incoerenti = Object.keys(info).filter(t => !info[t].coerente);
+      file.unshift({ nome: '_info.json', dati: enc.encode(JSON.stringify({ app: 'SDM Eventi', versione_app: VERSIONE, schema: cfg.SCHEMA || 'sdm_eventi', creato_il: quando.toISOString(), creato_da: stato.persona.email, formato: 'un file JSON per tabella (elenco di record)', tabelle: info, avviso: incoerenti.length ? 'Dati modificati durante il backup in: ' + incoerenti.join(', ') + '. Rifare il backup.' : null }, null, 2)) });
+      msg.textContent = 'Comprimo…';
+      const zip = await window.SdmZip.crea(file, quando);
+      const d = quando, nome = 'sdm_eventi_backup_' + d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + '_' + p2(d.getHours()) + p2(d.getMinutes()) + '.zip';
+      const url = URL.createObjectURL(zip);
+      const a = h('a', { href: url, download: nome }); document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      msg.textContent = '✔ Backup creato: ' + totale + ' record in ' + BACKUP_TABELLE.length + ' tabelle (' + nome + ')' + (incoerenti.length ? ' — attenzione: dati modificati durante la lettura, ripeti il backup.' : '');
+    } catch (e) {
+      msg.textContent = 'Backup non riuscito: ' + (e.message || e);
+    } finally { btn.disabled = false; }
+  }
+
   async function esportaPersone() {
     if (!P.elenco.length) await caricaPersone();
     const righe = [COL_PERS, ...P.elenco.map(p => [p.cognome, p.nome, p.email, p.cellulare || '', p.iscritto ? 'Sì' : 'No', p.numero_iscritto || '', ddmmyyyy(p.data_nascita), p.ruolo === 'admin' ? 'Amministratore' : 'Operatore', p.attivo ? 'Sì' : 'No', p.note || ''])];
@@ -2183,7 +2232,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     if ($('#eAreaAdd')) $('#eAreaAdd').onclick = () => { if (EA.length >= 10) return; EA.push({ orig: null, val: '', col: prossimoColore(EA.map(a => a.col)) }); renderAreeEv(); const l = $('#eAree').querySelectorAll('input'); if (l.length) l[l.length - 1].focus(); };
     $('#evNuovo').onclick = () => apriEvento(null);
     $$('.lnkPriv').forEach(e => e.addEventListener('click', apriInformativa)); $('#privChiudi').onclick = () => $('#modPriv').classList.add('hidden');
-    $('#infoOk').onclick = confermaInformativa; $('#iDati').onclick = () => scaricaDatiPersona(null);
+    $('#infoOk').onclick = confermaInformativa; $('#iDati').onclick = () => scaricaDatiPersona(null); if ($('#iBackup')) $('#iBackup').onclick = backupCompleto;
     $('#fDati').onclick = () => P.corrente && scaricaDatiPersona(P.corrente.id); $('#fElimina').onclick = eliminaPersonaDef;
     $('#pDisconnetti').onclick = async () => {
       const m = $('#pDiscMsg');

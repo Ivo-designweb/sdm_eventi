@@ -1,6 +1,6 @@
 # SDM Eventi - funzionalità e storico delle versioni
 
-Versione dell'app: **4.4** · Script database: **1.7** · Ultimo aggiornamento di questo file: versione 4.4
+Versione dell'app: **4.5** · Script database: **1.7** · Ultimo aggiornamento di questo file: versione 4.5
 
 > Questo file va aggiornato a ogni nuova versione: sezione «Funzionalità» se cambia il comportamento, tabella «Storico» con una riga per versione (e l'indicazione se serve rieseguire `db/01_schema_sdm_eventi.sql`).
 
@@ -47,6 +47,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 - Offline si possono cambiare stato, propria nota e check-list: partono da sole alla riconnessione (vince la modifica più recente, campo per campo).
 
 ### Persone (amministratore) · Eventi · Altro · Impostazioni
+- **Backup completo (ZIP)** (amministratori, in *Impostazioni → Backup*, serve la connessione): un unico file `sdm_eventi_backup_AAAA-MM-GG_HHMM.zip` con un file JSON per ogni tabella (`persone`, `eventi`, `nodi`, `incarichi`, `nodi_sponsor`, `parametri`, `movimenti`) più `_info.json` (versione, data, conteggi). I dati si leggono da Supabase a pacchetti di 500 record ordinati per chiave, ripartendo dall'ultima chiave letta, quindi nessun record è scritto due volte; `_info.json` segnala se i dati sono cambiati durante il backup. Il file contiene dati personali: va conservato in un posto protetto. Non esiste ancora il ripristino da file.
 - **Persone:** anagrafica completa, ricerca e filtri, contatto rapido (chiama, WhatsApp, mail), import/export Excel, eliminazione definitiva e dati della persona (GDPR).
 - **Eventi:** titolo, date, aree con colore, duplicazione dell'evento (con date spostate, responsabili e incaricati opzionali).
 - **Altro:** Excel della struttura (esporta, importa, modello), **Registro modifiche** (amministratori), Da rivedere, Impostazioni, Parametri (proprietario), Informativa privacy, Esci.
@@ -66,6 +67,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 | Versione | Novità | DB |
 |---|---|---|
+| 4.5 | Backup completo in ZIP (un file JSON per tabella) dalle Impostazioni, solo amministratori | – |
 | 4.4 | Liste della Home con il solo ramo di primo livello; parametro per mostrare il percorso completo; tasto indietro del telefono chiude schede e dialoghi | – |
 | 4.3 | L'operatore (anche in modalità scelta) può aprire e consuntivare le attività; freccia indietro in ogni pagina | – |
 | 4.2 | Scelta Operatore / Responsabile per chi ha due ruoli | – |
