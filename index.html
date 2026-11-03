@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="4.5">
+<meta name="app-version" content="4.6">
 <meta name="theme-color" content="#1d4ed8">
 <title>SDM Eventi</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -87,7 +87,11 @@
     </header>
 
     <div id="p-home" class="pg">
-      <div class="top" id="homeTop"><div class="hh"><h1>Ciao, <span id="saluto"></span></h1><span class="sec" id="sottoSaluto"></span></div></div>
+      <div class="top" id="homeTop"><div class="hh"><h1>Ciao, <span id="saluto"></span></h1><span class="sec" id="sottoSaluto"></span></div>
+        <div class="cerca" id="homeCerca">
+          <button type="button" class="cercaBtn" id="cercaApri" aria-label="Cerca nelle attività"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Cerca</span></button>
+          <div class="cercaBox hidden" id="cercaBox" role="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><input type="search" id="cercaQ" placeholder="Cerca nelle attività…" aria-label="Cerca nelle attività" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"><button type="button" class="cercaX" id="cercaX" aria-label="Cancella la ricerca" title="Cancella la ricerca"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>
+        </div></div>
       <div class="avviso off-only">Sei offline: stai vedendo l'ultima copia salvata sul dispositivo.</div>
       <div id="homeCorpo"></div>
       <footer class="fine">Versione <span class="vers"></span><span class="lnkPrivSep hidden"> · </span><a href="#" class="lnkPriv hidden">Informativa privacy</a></footer>

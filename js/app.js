@@ -170,7 +170,7 @@
     if (inAttesa && !confirm('Hai ' + inAttesa + ' modifiche non ancora inviate. Se esci ora restano salvate su questo dispositivo e partiranno al prossimo accesso con lo stesso utente. Uscire?')) return;
     try { await stato.sb.auth.signOut(); } catch (e) { /* offline: pulisco comunque */ }
     LS.del('sdm_profilo'); LS.del('sdm_persone'); LS.del('sdm_pulizia'); LS.del('sdm_eventi'); LS.del('sdm_evento'); Object.keys(localStorage).filter(k => k.startsWith('sdm_struttura_')).forEach(k => LS.del(k)); LS.del(MAIL_ATTESA);
-    stato.persona = null; stato.cronologia = [];
+    stato.persona = null; stato.cronologia = []; chiudiCerca(false);
     stato.avviata = false;
     $('#loginForm').classList.remove('hidden');
     $('#loginOk').classList.add('hidden');
@@ -578,7 +578,7 @@
   }
 
   function selezionaEvento(id, vaiHome) {
-    stato.evento = id; homeStatoF = ''; S.undo = []; S.collassati = new Set(); S.aperti = new Set(); S.areaF = ''; S.f = { q: '', stato: '', pers: '', scad: '' }; S.nodi = []; S.inc = {}; S.num = {}; S.sponsor = {}; homeAvv = ''; homeAperti = new Set();
+    stato.evento = id; chiudiCerca(false); homeStatoF = ''; S.undo = []; S.collassati = new Set(); S.aperti = new Set(); S.areaF = ''; S.f = { q: '', stato: '', pers: '', scad: '' }; S.nodi = []; S.inc = {}; S.num = {}; S.sponsor = {}; homeAvv = ''; homeAperti = new Set();
     LS.set('sdm_evento', { uid: stato.persona.uid, id });
     renderEvBar(); renderEventi();
     if (vaiHome) vai('home');
@@ -1505,6 +1505,22 @@
     accodaStato(n, v);
   }
 
+  // ricerca libera nelle attività (solo smartphone): filtra in tempo reale le attività che l'utente vede in Home (le sue, o quelle che gestisce)
+  let homeCerca = '';
+  const normCerca = s => String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const cercaAttiva = () => isMobile() && !!homeCerca.trim();
+  function passaCerca(n) {
+    if (!cercaAttiva()) return true;
+    const campi = [numTxt(n), n.titolo, n.descrizione, n.note, n.area, LAB_STATO[n.stato], ddmmyyyy(n.scadenza), percorsoTxt(n), nomiInc(n).join(' '), n.responsabile_id ? nomeP(n.responsabile_id) : '',
+      (S.inc[n.id] || []).map(x => x.nota).join(' '), n.checklist && n.checklist.descrizione, righeCheck(n).map(r => r.testo).join(' ')];
+    const hay = normCerca(campi.filter(Boolean).join(' | '));
+    return normCerca(homeCerca).trim().split(/\s+/).every(t => hay.includes(t));   // tutte le parole, in qualsiasi ordine
+  }
+  function chiudiCerca(rendi) {
+    homeCerca = ''; const q = $('#cercaQ'); if (q) q.value = '';
+    $('#cercaBox').classList.add('hidden'); $('#cercaApri').classList.remove('hidden'); $('#homeCerca').classList.remove('open');
+    if (rendi) renderHome();
+  }
   let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null, homeStatoF = '', homeLuce = '', homeApriFiltro = false;
   const passaStatoHome = n => !homeStatoF || (homeStatoF === 'fatte' ? (n.stato === 'fatto' || n.stato === 'finito') : homeStatoF === 'scad' ? !!scadClasse(n) : n.stato === homeStatoF);
   const radice = n => { const a = antenati(n); return a.length ? a[a.length - 1] : n; };
@@ -1555,8 +1571,8 @@
     if (stato.evento === null || !stato.persona) { box.replaceChildren(); return; }
     ordina(); S.pend = nodiInAttesa();
     const adm = isAdmin(), me = stato.persona.id, op = isOperatore();
-    $('#homeTop').classList.toggle('hidden', op);
-    const tutte = S.nodi.filter(isLeaf).filter(passaArea);
+    $('#homeTop').classList.remove('hidden'); $('#homeTop .hh').classList.toggle('hidden', op);   // l'operatore non vede il saluto, ma ha la ricerca
+    const tutte = S.nodi.filter(isLeaf).filter(passaArea).filter(passaCerca);
     const gestisco = adm ? tutte : tutte.filter(canEdit);
     const out = [];
     const ar = areeEv();
@@ -1672,6 +1688,7 @@
       if (nFin) { const a = h('a', { href: '#' }, (homeFinite ? 'Nascondi' : 'Mostra') + ' le attività finite (' + nFin + ')'); a.addEventListener('click', e => { e.preventDefault(); homeFinite = !homeFinite; renderHome(); }); out.push(h('p', { class: 'sec', style: 'text-align:center' }, a)); }
       if (op) out.push(h('p', { class: 'note', style: 'text-align:center' }, 'Tocca "Consuntiva" per registrare cosa hai fatto, la nota e la check-list. Le modifiche partono da sole appena c\'è rete.'));
     }
+    if (cercaAttiva()) out.unshift(h('p', { class: 'note cercaInfo', role: 'status' }, tutte.length ? tutte.length + (tutte.length === 1 ? ' attività trovata' : ' attività trovate') + ' per «' + homeCerca.trim() + '»' : 'Nessuna attività trovata per «' + homeCerca.trim() + '»'));
     box.replaceChildren(...out);
   }
 
@@ -2233,6 +2250,10 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#evNuovo').onclick = () => apriEvento(null);
     $$('.lnkPriv').forEach(e => e.addEventListener('click', apriInformativa)); $('#privChiudi').onclick = () => $('#modPriv').classList.add('hidden');
     $('#infoOk').onclick = confermaInformativa; $('#iDati').onclick = () => scaricaDatiPersona(null); if ($('#iBackup')) $('#iBackup').onclick = backupCompleto;
+    $('#cercaApri').onclick = () => { $('#cercaApri').classList.add('hidden'); $('#cercaBox').classList.remove('hidden'); $('#homeCerca').classList.add('open'); $('#cercaQ').focus(); };
+    $('#cercaQ').addEventListener('input', () => { homeCerca = $('#cercaQ').value; renderHome(); });
+    $('#cercaQ').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); chiudiCerca(true); } });
+    $('#cercaX').onclick = () => chiudiCerca(true);
     $('#fDati').onclick = () => P.corrente && scaricaDatiPersona(P.corrente.id); $('#fElimina').onclick = eliminaPersonaDef;
     $('#pDisconnetti').onclick = async () => {
       const m = $('#pDiscMsg');
