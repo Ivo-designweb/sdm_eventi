@@ -507,7 +507,6 @@
     if (!att) m.push('La persona non è attiva: non potrà accedere.');
     else { if (telefonoOTablet() && !wa) m.push('WhatsApp: inserisci il numero di cellulare.'); if (!ml) m.push('Mail: inserisci l\'email.'); }
     $('#fInvHint').textContent = m.join(' ');
-    $('#fInvMsg').textContent = testoInvito(p);
     $('#fInvCard').href = linkApp();
   }
   function invia(canale) {

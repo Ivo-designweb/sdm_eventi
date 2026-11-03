@@ -569,7 +569,6 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
 .invBtns .btn{flex:1 1 140px;min-height:44px}
 .invBtns .btn.wa{background:#16a34a;border-color:#16a34a;color:#fff}
 .invBtns .btn:disabled{opacity:.45;cursor:not-allowed}
-.invMsg{margin-top:10px;padding:10px 12px;border:1px dashed var(--bordo);border-radius:10px;background:color-mix(in srgb,var(--primario) 4%,var(--card));font-size:13.5px;white-space:pre-wrap;overflow-wrap:anywhere}
 .invCard{display:flex;gap:10px;align-items:center;margin-top:10px;padding:8px;border-radius:10px;background:color-mix(in srgb,#16a34a 12%,var(--card));border-left:4px solid #16a34a;color:var(--testo);text-decoration:none;min-height:44px}
 .invCard img{height:40px;width:auto;max-width:60%;border-radius:6px;flex:none;background:#fff;padding:2px}
 .invCard b{font-size:15px}
@@ -586,7 +585,7 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
 #perForm input,#perForm select{max-width:100%;min-width:0}
 #perForm input[type=date]{width:100%}
 #fInvita{min-width:0;max-width:100%}
-#fInvita .note,.invMsg{overflow-wrap:anywhere;word-break:break-word;min-width:0;max-width:100%}
+#fInvita .note{overflow-wrap:anywhere;word-break:break-word;min-width:0;max-width:100%}
 .invCard{min-width:0;max-width:100%}
 .invCard b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
