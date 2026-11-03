@@ -1516,10 +1516,18 @@
     const hay = normCerca(campi.filter(Boolean).join(' | '));
     return normCerca(homeCerca).trim().split(/\s+/).every(t => hay.includes(t));   // tutte le parole, in qualsiasi ordine
   }
+  const cercaAperta = () => !$('#cercaBox').classList.contains('hidden');
   function chiudiCerca(rendi) {
     homeCerca = ''; const q = $('#cercaQ'); if (q) q.value = '';
-    $('#cercaBox').classList.add('hidden'); $('#cercaApri').classList.remove('hidden'); $('#homeCerca').classList.remove('open');
+    $('#cercaBox').classList.add('hidden');
     if (rendi) renderHome();
+  }
+  // pulsante Cerca: sta nella riga in alto della Home (vicino al filtro area per l'operatore, a destra dei bottoni di stato per gli altri)
+  const LENTE = () => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = '<circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>'; return s; };
+  function bottoneCerca(inline) {
+    const b = h('button', { type: 'button', class: 'cercaBtn' + (inline ? ' inline' : '') + (cercaAperta() ? ' on' : ''), 'aria-label': 'Cerca nelle attività', 'aria-expanded': cercaAperta() ? 'true' : 'false' }, LENTE(), h('span', {}, 'Cerca'));
+    b.addEventListener('click', () => { if (cercaAperta()) chiudiCerca(true); else { $('#cercaBox').classList.remove('hidden'); renderHome(); $('#cercaQ').focus(); } });
+    return b;
   }
   let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null, homeStatoF = '', homeLuce = '', homeApriFiltro = false;
   const passaStatoHome = n => !homeStatoF || (homeStatoF === 'fatte' ? (n.stato === 'fatto' || n.stato === 'finito') : homeStatoF === 'scad' ? !!scadClasse(n) : n.stato === homeStatoF);
@@ -1568,22 +1576,25 @@
   function renderHome() {
     const box = $('#homeCorpo');
     if (!box) return;
-    if (stato.evento === null || !stato.persona) { box.replaceChildren(); return; }
+    if (stato.evento === null || !stato.persona) { box.replaceChildren(); $('#homeRiga').replaceChildren(); return; }
     ordina(); S.pend = nodiInAttesa();
     const adm = isAdmin(), me = stato.persona.id, op = isOperatore();
-    $('#homeTop').classList.remove('hidden'); $('#homeTop .hh').classList.toggle('hidden', op);   // l'operatore non vede il saluto, ma ha la ricerca
+    $('#homeTop').classList.toggle('hidden', op);
+    const mob = isMobile(), riga = [];   // riga in alto della Home (solo smartphone): contiene il pulsante Cerca
     const tutte = S.nodi.filter(isLeaf).filter(passaArea).filter(passaCerca);
     const gestisco = adm ? tutte : tutte.filter(canEdit);
     const out = [];
     const ar = areeEv();
-    let selArea = null;
+    let selArea = null, selOp = null;
     if (ar.length) {   // filtro per area: vedi le attività dell'area scelta e quelle "Tutte"
       if (S.areaF && !ar.includes(S.areaF)) S.areaF = '';
       const sa = h('select', { class: 'f', style: 'width:auto;margin:0 0 10px', 'aria-label': 'Filtra per area' }, h('option', { value: '' }, 'Tutte le aree'), ...ar.map(a => h('option', { value: a }, a)));
       sa.value = S.areaF; sa.addEventListener('change', () => { S.areaF = sa.value; renderHome(); renderStruttura(); });
       sa.className = 'selarea'; sa.style.cssText = '';
-      if (op) { sa.className = 'f'; sa.style.cssText = 'width:auto;margin:0 0 10px'; out.push(sa); } else selArea = sa;
+      if (op && mob) { sa.className = 'selarea2'; sa.style.cssText = ''; selOp = sa; }
+      else if (op) { sa.className = 'f'; sa.style.cssText = 'width:auto;margin:0 0 10px'; out.push(sa); } else selArea = sa;
     }
+    if (op && mob) riga.push(h('div', { class: 'rigaOp' }, h('h1', { class: 'ciao' }, 'Ciao, ' + (stato.persona.nome || '')), selOp || '', bottoneCerca(true)));
     if (!op) {
       const c = conteggio(gestisco);
       const sc = gestisco.filter(n => scadClasse(n) === 'e'), pr = gestisco.filter(n => scadClasse(n) === 'w'), sn = gestisco.filter(n => !nIncarichi(n) && n.stato !== 'finito');
@@ -1592,12 +1603,12 @@
       const celle = [['', 'Tutte', c.tot, 'all'], ['da_fare', 'Da fare', c.da_fare, 'dar'], ['in_corso', 'In corso', c.in_corso, 'cor'], ['fatte', 'Fatte', c.fatto + c.finito, 'fin'], ['scad', 'In scadenza', sc.length + pr.length, sc.length ? 'e' : 'w']];
       if (!celle.some(x => x[0] === homeStatoF)) homeStatoF = '';
       const luce = homeLuce; homeLuce = '';   // la luce gira solo subito dopo la scelta della cella, non a ogni aggiornamento   // la cella "Tutte" toglie qualsiasi filtro
-      out.push(h('div', { class: 'tot', role: 'group', 'aria-label': 'Filtra le attività per stato' }, ...celle.map(([k, et, n, cl]) => {
+      (mob ? riga : out).push(h('div', { class: 'tot' + (mob ? ' conCerca' : ''), role: 'group', 'aria-label': 'Filtra le attività per stato' }, ...celle.map(([k, et, n, cl]) => {
         const b = h('button', { type: 'button', class: 'tt-c ' + cl + (homeStatoF === k ? ' act' : '') + (luce && luce === k && homeStatoF === k ? ' run' : ''), 'aria-pressed': homeStatoF === k ? 'true' : 'false', ...({}),
           title: k === 'scad' ? (sc.length + ' scadute, ' + pr.length + ' entro ' + gg + ' giorni') : et }, h('b', {}, String(n)), k === 'scad' ? h('span', {}, h('em', { class: 'lg' }, 'In scadenza'), h('em', { class: 'sh' }, 'Scadenza')) : h('span', {}, et));
         b.addEventListener('click', () => { homeStatoF = (homeStatoF === k || !k) ? '' : k; homeLuce = homeStatoF; homeApriFiltro = !!homeStatoF; renderHome(); });
         return b;
-      })));
+      }), mob ? bottoneCerca(false) : ''));
       out.push(h('div', { class: 'card sum sm' }, h('div', { class: 'big' }, c.perc + '%'),
         h('div', { class: 'r' }, barraStack(c), h('div', { class: 'cnts' }, h('span', { style: '--c:#15803d' }, c.finito + ' finite'), h('span', { style: '--c:#86efac' }, c.fatto + ' da conf.'), h('span', { style: '--c:#60a5fa' }, c.in_corso + ' in corso'), h('span', { style: '--c:#cbd5e1' }, c.da_fare + ' da fare')))));
       const chip = (cl, k, txt, lista) => { if (!lista.length) return ''; const b = h('button', { class: 'ch2 ' + cl + (homeAvv === k ? ' act' : ''), type: 'button' }, txt); b.addEventListener('click', () => { homeAvv = homeAvv === k ? '' : k; renderHome(); }); return b; };
@@ -1689,6 +1700,7 @@
       if (op) out.push(h('p', { class: 'note', style: 'text-align:center' }, 'Tocca "Consuntiva" per registrare cosa hai fatto, la nota e la check-list. Le modifiche partono da sole appena c\'è rete.'));
     }
     if (cercaAttiva()) out.unshift(h('p', { class: 'note cercaInfo', role: 'status' }, tutte.length ? tutte.length + (tutte.length === 1 ? ' attività trovata' : ' attività trovate') + ' per «' + homeCerca.trim() + '»' : 'Nessuna attività trovata per «' + homeCerca.trim() + '»'));
+    $('#homeRiga').replaceChildren(...riga);
     box.replaceChildren(...out);
   }
 
@@ -2250,7 +2262,6 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#evNuovo').onclick = () => apriEvento(null);
     $$('.lnkPriv').forEach(e => e.addEventListener('click', apriInformativa)); $('#privChiudi').onclick = () => $('#modPriv').classList.add('hidden');
     $('#infoOk').onclick = confermaInformativa; $('#iDati').onclick = () => scaricaDatiPersona(null); if ($('#iBackup')) $('#iBackup').onclick = backupCompleto;
-    $('#cercaApri').onclick = () => { $('#cercaApri').classList.add('hidden'); $('#cercaBox').classList.remove('hidden'); $('#homeCerca').classList.add('open'); $('#cercaQ').focus(); };
     $('#cercaQ').addEventListener('input', () => { homeCerca = $('#cercaQ').value; renderHome(); });
     $('#cercaQ').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); chiudiCerca(true); } });
     $('#cercaX').onclick = () => chiudiCerca(true);
@@ -2273,7 +2284,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#nodoForm').addEventListener('submit', salvaNodo);
     $('#attForm').addEventListener('submit', salvaScheda); $('#aChiudi').onclick = chiudiScheda; if ($('#aBack')) $('#aBack').onclick = chiudiScheda;
     $('#nAnnulla').onclick = chiudiNodo;
-    if (window.matchMedia) window.matchMedia(MQ_SMARTPHONE).addEventListener('change', () => { renderNav(); if (stato.pagina === 'str') renderStruttura(); if (isMobile() && !isAdmin() && stato.pagina === 'str') vai('home'); });
+    if (window.matchMedia) window.matchMedia(MQ_SMARTPHONE).addEventListener('change', () => { renderNav(); if (stato.pagina === 'str') renderStruttura(); if (isMobile() && !isAdmin() && stato.pagina === 'str') vai('home'); renderHome(); });
     if ($('#strArea')) $('#strArea').onchange = e => { S.areaF = e.target.value; renderStruttura(); renderHome(); };
     if ($('#fQ')) {
       let tq; $('#fQ').addEventListener('input', e => { clearTimeout(tq); tq = setTimeout(() => { S.f.q = e.target.value.trim(); renderStruttura(); }, 180); });

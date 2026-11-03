@@ -1,6 +1,6 @@
 # SDM Eventi - funzionalità e storico delle versioni
 
-Versione dell'app: **4.6** · Script database: **1.7** · Ultimo aggiornamento di questo file: versione 4.6
+Versione dell'app: **4.7** · Script database: **1.7** · Ultimo aggiornamento di questo file: versione 4.7
 
 > Questo file va aggiornato a ogni nuova versione: sezione «Funzionalità» se cambia il comportamento, tabella «Storico» con una riga per versione (e l'indicazione se serve rieseguire `db/01_schema_sdm_eventi.sql`).
 
@@ -30,7 +30,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
   - **Da confermare** (amministratore) / **in attesa di conferma** (responsabile): l'amministratore conferma «Finito».
   - **Per persona / per ramo:** righe chiuse di default, si aprono una a una; con una cella-filtro le righe con risultati si aprono una volta sola; link **Apri tutti / Chiudi tutti**. Ogni attività mostra numero, ramo di primo livello, area colorata e stato; lo stesso in «Le mie attività» dell'operatore. Con il parametro **Mostra il percorso completo delle attività** (Parametri, default no) si vedono invece tutti i livelli sopra l'attività, su più righe.
   - Avviso «senza incaricati», filtro per area.
-- **Cerca (solo smartphone):** pulsante con lente e scritta **Cerca** in alto a destra della Home, per tutti i ruoli. Apre un campo di ricerca libera che filtra in tempo reale le attività che l'utente vede in Home (le sue per l'operatore, quelle che gestisce per responsabile e amministratore): cerca in numero, titolo, descrizione, note, area, stato, scadenza (gg/mm/aaaa), percorso, incaricati, responsabile, note degli incaricati e check-list; più parole = devono esserci tutte, in qualsiasi ordine, senza distinguere maiuscole e accenti. Totali, percentuale ed elenchi seguono la ricerca; la **✕** a destra la cancella e chiude il campo, tornando alla vista standard. Si azzera cambiando evento o uscendo.
+- **Cerca (solo smartphone):** pulsante con lente e scritta **Cerca** nella riga in alto della Home, per tutti i ruoli, senza occupare spazio in più: per l'**operatore** sta sulla stessa riga di «Ciao, nome» (tagliato con … se lungo) e del filtro «Tutte le aree» (ridotto); per **amministratore e responsabile** è una cella a destra dei cinque bottoni di stato (resi più piccoli). Apre sotto la riga un campo di ricerca libera che filtra in tempo reale le attività che l'utente vede in Home (le sue per l'operatore, quelle che gestisce per responsabile e amministratore): cerca in numero, titolo, descrizione, note, area, stato, scadenza (gg/mm/aaaa), percorso, incaricati, responsabile, note degli incaricati e check-list; più parole = devono esserci tutte, in qualsiasi ordine, senza distinguere maiuscole e accenti. Totali, percentuale ed elenchi seguono la ricerca; la **✕** a destra la cancella e chiude il campo, tornando alla vista standard. Si azzera cambiando evento o uscendo.
 
 ### Struttura (albero rami e attività)
 - Modifica diretta, senza «modalità modifica»: ogni riga ha **✎** (modifica), **＋** (aggiungi sotto), **⧉** (duplica, solo amministratore), **🗑** (elimina). Su smartphone ✎ resta in vista e il resto sta nel menu **⋯**.
@@ -68,6 +68,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 | Versione | Novità | DB |
 |---|---|---|
+| 4.7 | Cerca compatta: nella riga del filtro area (operatore, con «Ciao, nome») e a destra dei bottoni di stato (amministratore/responsabile) | – |
 | 4.6 | Ricerca libera (Cerca / ✕) nelle attività della Home su smartphone | – |
 | 4.5 | Backup completo in ZIP (un file JSON per tabella) dalle Impostazioni, solo amministratori | – |
 | 4.4 | Liste della Home con il solo ramo di primo livello; parametro per mostrare il percorso completo; tasto indietro del telefono chiude schede e dialoghi | – |
