@@ -574,6 +574,16 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
 .invCard img{width:54px;height:54px;border-radius:10px;flex:none}
 .invCard b{font-size:15px}
 .invCard:focus-visible{outline:2px solid #16a34a}
+/* la scheda persona deve stare sempre nella larghezza dello schermo, anche con email o link lunghi */
+#modPer{overflow-x:hidden}
+#perForm{min-width:0;max-width:100%}
+#perForm .grid2>*{min-width:0}
+#perForm input,#perForm select{max-width:100%;min-width:0}
+#perForm input[type=date]{width:100%}
+#fInvita{min-width:0;max-width:100%}
+#fInvita .note,.invMsg{overflow-wrap:anywhere;word-break:break-word;min-width:0;max-width:100%}
+.invCard{min-width:0;max-width:100%}
+.invCard b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* v4.7: ricerca nelle attività, solo smartphone: pulsante Cerca nella riga in alto della Home */
 .cercaBox{display:none}

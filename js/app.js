@@ -495,7 +495,7 @@
   const telefonoOTablet = () => { const ua = navigator.userAgent || ''; return !!((navigator.userAgentData && navigator.userAgentData.mobile) || /Android|iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)); };   // iPad si presenta come Mac
   function testoInvito(p) {
     const app = stato.parametri.nome_app || 'SDM Eventi', otp = stato.parametri.otp_obbligatorio !== false;
-    return 'Ciao ' + p.nome + ', questo è un invito a usare l\'app ' + app + ' per gestire gli eventi.\n\nApri l\'app da qui: ' + linkApp() + '\n\nPer entrare inserisci la tua email (' + p.email + ')' + (otp ? ' e il codice che ti arriverà per mail.' : '.') + ' Dal telefono puoi anche installarla sulla schermata Home.';
+    return 'Ciao ' + p.nome + ', questo è un invito a usare l\'app ' + app + ' per gestire gli eventi.\n\nApri l\'app da qui:\n' + linkApp() + '\n\nPer entrare inserisci la tua email (' + p.email + ')' + (otp ? ' e il codice che ti arriverà per mail.' : '.') + ' Dal telefono puoi anche installarla sulla schermata Home.';
   }
   function aggiornaInvito(p) {
     const w = $('#fInvita'); w.classList.toggle('hidden', !p);
