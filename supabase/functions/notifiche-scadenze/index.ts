@@ -50,7 +50,7 @@ Deno.serve(async (req: Request) => {
 
   webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT') || 'mailto:ivotaffarel@gmail.com', chiavi.pubblica, chiavi.privata);
 
-  type Riga = { persona_id: string; nodo_id: string; titolo: string; ramo: string | null; scadenza: string; giorni: number };
+  type Riga = { persona_id: string; nodo_id: string; titolo: string; evento: string; ramo: string | null; scadenza: string; giorni: number };
   const perPersona = new Map<string, Riga[]>();
   (righe as Riga[]).forEach(r => { if (!perPersona.has(r.persona_id)) perPersona.set(r.persona_id, []); perPersona.get(r.persona_id)!.push(r); });
   const { data: subs } = await sb.from('push_sottoscrizioni').select('id, persona_id, endpoint, p256dh, auth').in('persona_id', [...perPersona.keys()]);
@@ -58,7 +58,7 @@ Deno.serve(async (req: Request) => {
   let inviate = 0, errori = 0; const morte: string[] = [];
   for (const s of (subs || []) as { id: string; persona_id: string; endpoint: string; p256dh: string; auth: string }[]) {
     const l = perPersona.get(s.persona_id) || [];
-    const msg = l.slice(0, MAX_SINGOLE).map(r => ({ title: r.titolo, body: (r.ramo ? r.ramo + ' · ' : '') + testoScadenza(r.scadenza, r.giorni), tag: 'scad-' + r.nodo_id }));
+    const msg = l.slice(0, MAX_SINGOLE).map(r => ({ title: r.titolo, body: [r.evento, r.ramo].filter(Boolean).join(' · ') + ' · ' + testoScadenza(r.scadenza, r.giorni), tag: 'scad-' + r.nodo_id }));
     if (l.length > MAX_SINGOLE) { const n = l.length - MAX_SINGOLE; msg.push({ title: 'e altre ' + n + (n === 1 ? ' attività in scadenza' : ' attività in scadenza'), body: 'Tocca per aprire l\'elenco', tag: 'scad-altre' }); }
     for (const m of msg) {
       try {

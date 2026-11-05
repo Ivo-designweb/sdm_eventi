@@ -7,7 +7,7 @@ Ogni mattina alle **08:00 (ora italiana)** responsabili e amministratori ricevon
 - Un'attività **senza data di scadenza non scade mai**: non genera notifiche.
 - Non si notificano le attività di eventi *conclusi* o *archiviati*.
 - **Destinatari:** il responsabile dell'attività (proprio o ereditato dal ramo più vicino) e tutti gli amministratori attivi.
-- Ogni notifica ha l'icona dell'app (`assets/notifica-icon.png`), il nome dell'attività, il ramo e la scadenza. Al massimo **3 notifiche singole** per persona, poi «e altre N attività in scadenza». Si ripete ogni giorno.
+- Ogni notifica ha l'icona dell'app (`assets/notifica-icon.png`), il nome dell'attività, poi evento, ramo e scadenza. Al massimo **3 notifiche singole** per persona, poi «e altre N attività in scadenza». Si ripete ogni giorno.
 - Parametri (solo proprietario): *Notifiche delle scadenze* (sì/no, default sì) e *Giorni di anticipo per la notifica*.
 - Ogni persona deve **attivare le notifiche su ogni suo dispositivo**: *Impostazioni → Notifiche delle scadenze → Attiva* (il telefono chiede il permesso). Su **iPhone/iPad** l'app deve essere installata sulla schermata Home (iOS 16.4 o successivo) e aperta da lì.
 

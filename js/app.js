@@ -2298,13 +2298,16 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     const m = $('#nMsg'), b = $('#nBtn'); b.disabled = true; m.textContent = '';
     try {
       if (!navigator.onLine) throw new Error('serve la connessione');
-      if (await Notification.requestPermission() !== 'granted') throw new Error('permesso non concesso');
       const reg = await navigator.serviceWorker.ready;
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
+      let sub = await reg.pushManager.getSubscription(), chiave = null;
+      if (!sub) {   // prima controllo che il server sia pronto, poi chiedo il permesso al telefono
         const kp = await stato.sb.rpc('vapid_pubblica');
         if (kp.error || !kp.data) throw new Error('notifiche non ancora configurate sul server (vedi docs/NOTIFICHE.md)');
-        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chiaveVapid(kp.data) });
+        chiave = kp.data;
+      }
+      if (await Notification.requestPermission() !== 'granted') throw new Error('permesso non concesso');
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chiaveVapid(chiave) });
       }
       const j = sub.toJSON();
       const { error } = await stato.sb.rpc('registra_push', { _endpoint: j.endpoint, _p256dh: j.keys.p256dh, _auth: j.keys.auth, _dispositivo: (navigator.userAgent || '').slice(0, 120) });
