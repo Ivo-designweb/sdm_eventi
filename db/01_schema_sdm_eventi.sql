@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 1.7
+-- Versione script: 1.8
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -165,6 +165,8 @@ alter table sdm_eventi.incarichi add column if not exists nota_il  timestamptz n
 alter table sdm_eventi.movimenti add column if not exists data_ora_dispositivo timestamptz;
 alter table sdm_eventi.persone   add column if not exists informativa_ver integer not null default 0;
 alter table sdm_eventi.persone   add column if not exists informativa_il  timestamptz;
+-- data e ora dell'ultima connessione (si aggiorna da sola a ogni ingresso nell'app, vedi registra_connessione)
+alter table sdm_eventi.persone   add column if not exists ultima_connessione timestamptz;
 -- Proprietario dell'app: l'unico a poter gestire i Parametri; è sempre un amministratore
 alter table sdm_eventi.persone   add column if not exists superadmin boolean not null default false;
 do $$ begin
@@ -315,8 +317,8 @@ begin
       if new.superadmin is distinct from old.superadmin then
         raise exception 'Solo il proprietario può assegnare o togliere il ruolo di proprietario';
       end if;
-      if old.superadmin and (to_jsonb(new) - 'auth_user_id' - 'aggiornato_il' - 'informativa_ver' - 'informativa_il')
-                           is distinct from (to_jsonb(old) - 'auth_user_id' - 'aggiornato_il' - 'informativa_ver' - 'informativa_il') then
+      if old.superadmin and (to_jsonb(new) - 'auth_user_id' - 'aggiornato_il' - 'informativa_ver' - 'informativa_il' - 'ultima_connessione')
+                           is distinct from (to_jsonb(old) - 'auth_user_id' - 'aggiornato_il' - 'informativa_ver' - 'informativa_il' - 'ultima_connessione') then
         raise exception 'Solo il proprietario può modificare un proprietario';
       end if;
     end if;
@@ -582,7 +584,7 @@ begin
       from jsonb_each(r) n
       join jsonb_each(o) o2 using (key)
      where n.value is distinct from o2.value
-       and n.key not in ('aggiornato_il','livello','percorso','posizione','auth_user_id','stato_il','nota_il');
+       and n.key not in ('aggiornato_il','livello','percorso','posizione','auth_user_id','stato_il','nota_il','ultima_connessione');
     if v_det is null then return null; end if;     -- nessuna variazione significativa
     if tg_table_name = 'nodi' and (o ->> 'parent_id') is distinct from (r ->> 'parent_id') then
       v_det := v_det || jsonb_build_object('ramo_precedente',
@@ -943,6 +945,26 @@ begin
   if v_id is null then raise exception 'Utente non collegato all''anagrafica'; end if;
   update sdm_eventi.persone set informativa_ver = greatest(informativa_ver, _versione), informativa_il = now() where id = v_id;
 end $$;
+
+-- Ingresso nell'app: aggiorna data e ora di ultima connessione della persona collegata
+-- (non finisce nel registro modifiche)
+create or replace function sdm_eventi.registra_connessione() returns void
+language plpgsql security definer set search_path = sdm_eventi, public, pg_temp as $$
+declare v_id uuid := sdm_eventi.persona_corrente();
+begin
+  if v_id is null then return; end if;
+  update sdm_eventi.persone set ultima_connessione = now() where id = v_id;
+end $$;
+
+-- Persone che si sono collegate almeno una volta: solo per amministratori e responsabili di un ramo
+-- (la data e l'ora le legge solo l'amministratore dall'anagrafica)
+create or replace function sdm_eventi.persone_collegate() returns setof uuid
+language sql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
+  select p.id from sdm_eventi.persone p
+  where p.ultima_connessione is not null
+    and ( sdm_eventi.is_admin()
+       or exists (select 1 from sdm_eventi.nodi r where r.responsabile_id = sdm_eventi.persona_corrente()) )
+$$;
 
 -- Diritto di accesso/portabilità: tutti i dati di una persona (admin: chiunque; gli altri: solo i propri)
 create or replace function sdm_eventi.dati_persona(_id uuid default null) returns jsonb

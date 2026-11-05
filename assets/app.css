@@ -618,3 +618,15 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
   .cercaX svg{width:20px;height:20px}
   .cercaInfo{margin:0 0 8px;font-size:12.5px}
 }
+
+/* ultima connessione */
+.cdot{display:inline-block;width:10px;height:10px;border-radius:50%;flex:none;background:#9ca3af}
+.cdot.v{background:#16a34a}
+.cdot.vuoto{background:none}
+.cdot.live{animation:cLampeggia 1.2s ease-in-out infinite}
+@keyframes cLampeggia{50%{opacity:.25}}
+.nomeC{display:inline-flex;align-items:center;gap:7px}
+.conn{font-size:12px;margin-top:1px;white-space:nowrap}
+.conn.mai{color:var(--sec)}.conn.blu{color:#2563eb}.conn.verde{color:var(--ok)}
+.gr .gh .nm{display:flex;align-items:center;gap:7px}
+@media (max-width:760px){.conn{font-size:11px}}

@@ -194,6 +194,7 @@
       const { data, error: e2 } = await stato.sb.from('persone')
         .select('id, cognome, nome, email, ruolo').eq('id', pid).single();
       if (e2) throw e2;
+      try { await stato.sb.rpc('registra_connessione'); } catch (e) { /* script SQL non ancora aggiornato */ }   // ultima connessione
       persona = { ...data, uid, informativa_ver: 0 };
       // colonne opzionali: se lo script SQL non è aggiornato non devono bloccare l'accesso
       persona.superadmin = persona.ruolo === 'admin';       // senza il campo "proprietario" ogni amministratore vale come prima
@@ -390,7 +391,8 @@
   const isAdmin = () => !!(stato.persona && stato.persona.ruolo === 'admin');
   const isSuper = () => !!(stato.persona && stato.persona.ruolo === 'admin' && stato.persona.superadmin);   // proprietario: unico a gestire i Parametri
   const COLONNE = 'id, cognome, nome, email, cellulare, iscritto, numero_iscritto, data_nascita, note, ruolo, attivo';
-  const P = { elenco: [], corrente: null, aggiornato: null, resp: {} };
+  const P = { elenco: [], corrente: null, aggiornato: null, resp: {}, online: new Set() };
+  const dataOra = iso => iso ? new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '';
 
   function h(tag, attr, ...figli) {
     const e = document.createElement(tag);
@@ -425,7 +427,8 @@
     $('#perSotto').textContent = 'Anagrafica completa';
     const cache = LS.get('sdm_persone');
     if (navigator.onLine) {
-      const { data, error } = await stato.sb.from('persone').select(COLONNE).order('cognome').order('nome');
+      let { data, error } = await stato.sb.from('persone').select(COLONNE + ', ultima_connessione').order('cognome').order('nome');
+      if (error) ({ data, error } = await stato.sb.from('persone').select(COLONNE).order('cognome').order('nome'));   // script SQL non ancora aggiornato
       if (!error) {
         P.elenco = data; P.aggiornato = Date.now(); P.resp = {};
         const r = await stato.sb.from('nodi').select('responsabile_id, titolo').not('responsabile_id', 'is', null);
@@ -460,8 +463,9 @@
       const mb = h('button', { class: 'ib xk', type: 'button', title: 'Contatta', 'aria-label': 'Contatta' }, '⋯'); mb.addEventListener('click', ev => { ev.stopPropagation(); menuRiga(mb, voci); }); az.append(mb);
       const riga = h('div', { class: 'row', style: 'flex-wrap:wrap;cursor:pointer', tabindex: '0' },
         h('div', { style: 'flex:1;min-width:200px' },
-          h('b', {}, p.cognome + ' ' + p.nome), ' ', p.attivo ? '' : h('span', { class: 'badge e' }, 'non attivo'),
-          h('div', { class: 'sec' }, p.email + (p.cellulare ? ' · ' + p.cellulare : ''))), az);
+          h('span', { class: 'nomeC' }, h('b', {}, p.cognome + ' ' + p.nome), h('i', { class: 'cdot' + (p.ultima_connessione || P.online.has(p.id) ? ' v' : '') + (P.online.has(p.id) ? ' live' : '') })), ' ', p.attivo ? '' : h('span', { class: 'badge e' }, 'non attivo'),
+          h('div', { class: 'sec' }, p.email + (p.cellulare ? ' · ' + p.cellulare : '')),
+          h('div', { class: 'conn ' + (P.online.has(p.id) ? 'verde' : p.ultima_connessione ? 'blu' : 'mai') }, 'Connesso: ' + (dataOra(p.ultima_connessione) || '—'))), az);
       riga.addEventListener('click', () => apriPersona(p.id));
       riga.addEventListener('keydown', e => { if (e.key === 'Enter') apriPersona(p.id); });
       return riga;
@@ -738,7 +742,7 @@
 
 
   // ---------- struttura (rami e attività) ----------
-  const S = { pend: new Set(), nodi: [], inc: {}, nomi: {}, assegnabili: [], byId: {}, byParent: {}, collassati: new Set(), aperti: new Set(), corr: null, padre: null, sort: [], num: {}, numLoc: {}, sponsor: {}, areaF: '' };
+  const S = { pend: new Set(), nodi: [], inc: {}, nomi: {}, assegnabili: [], byId: {}, byParent: {}, collassati: new Set(), aperti: new Set(), corr: null, padre: null, sort: [], num: {}, numLoc: {}, sponsor: {}, coll: {}, areaF: '' };
   const maxLivelli = () => Math.min(10, Math.max(1, parseInt(stato.parametri.max_livelli, 10) || 10));
   const nomeP = id => S.nomi[id] || '—';
   const figli = id => S.byParent[id || 'root'] || [];
@@ -808,13 +812,14 @@
         const r = await stato.sb.from('nodi').select(NODI_BASE + ', area, checklist, checklist_esito, data_chiusura').eq('evento_id', stato.evento);
         return r.error ? stato.sb.from('nodi').select(NODI_BASE).eq('evento_id', stato.evento) : r;   // database non ancora aggiornato
       };
-      const [n, i, pe, pa, nu, sp] = await Promise.all([
+      const [n, i, pe, pa, nu, sp, co] = await Promise.all([
         qNodi(),
         stato.sb.from('incarichi').select('id, nodo_id, persona_id, nota'),
         stato.sb.rpc('persone_evento', { _evento: stato.evento }),
         stato.sb.rpc('persone_assegnabili'),
         stato.sb.rpc('numerazione', { _evento: stato.evento }),
-        isAdmin() ? stato.sb.from('nodi_sponsor').select('nodo_id, fornitore, referente, cellulare, importo') : Promise.resolve({ data: [] })
+        isAdmin() ? stato.sb.from('nodi_sponsor').select('nodo_id, fornitore, referente, cellulare, importo') : Promise.resolve({ data: [] }),
+        isOperatore() ? Promise.resolve({ data: [] }) : stato.sb.rpc('persone_collegate')
       ]);
       if (!n.error) {
         ok = true;
@@ -823,13 +828,14 @@
         (i.data || []).filter(x => ids.has(x.nodo_id)).forEach(x => { (S.inc[x.nodo_id] = S.inc[x.nodo_id] || []).push({ id: x.id, persona_id: x.persona_id, nota: x.nota }); });
         S.num = {}; if (!nu.error) (nu.data || []).forEach(x => { S.num[x.nodo_id] = x.numero; });
         S.sponsor = {}; if (!sp.error) (sp.data || []).filter(x => ids.has(x.nodo_id)).forEach(x => { S.sponsor[x.nodo_id] = x; });
+        S.coll = {}; if (!co.error) (co.data || []).forEach(id => { S.coll[id] = true; });
         S.nomi = {}; S.assegnabili = (pa.data || []);
         [...(pe.data || []), ...S.assegnabili].forEach(p => { S.nomi[p.id] = p.cognome + ' ' + p.nome; });
         sovrapponiCoda();
-        LS.set(chiave, { n: S.nodi, i: S.inc, m: S.nomi, a: S.assegnabili, u: S.num, s: S.sponsor });
+        LS.set(chiave, { n: S.nodi, i: S.inc, m: S.nomi, a: S.assegnabili, u: S.num, s: S.sponsor, g: S.coll });
       }
     }
-    if (!ok) { const c = LS.get(chiave); if (c) { S.nodi = c.n; S.inc = c.i; S.nomi = c.m; S.assegnabili = c.a || []; S.num = c.u || {}; S.sponsor = c.s || {}; } else S.nodi = []; sovrapponiCoda(); }
+    if (!ok) { const c = LS.get(chiave); if (c) { S.nodi = c.n; S.inc = c.i; S.nomi = c.m; S.assegnabili = c.a || []; S.num = c.u || {}; S.sponsor = c.s || {}; S.coll = c.g || {}; } else S.nodi = []; sovrapponiCoda(); }
     renderStruttura(); renderHome(); renderEvBar(); renderNav(); aggiornaUndo(); verificaScelta();
   }
 
@@ -1483,6 +1489,15 @@
       ['nodi', 'incarichi', 'eventi'].forEach(tb => ch.on('postgres_changes', { event: '*', schema: cfg.SCHEMA || 'sdm_eventi', table: tb }, rif));
       ch.subscribe();
     } catch (e) { /* senza realtime restano gli aggiornamenti periodici */ }
+    try {   // chi è collegato in questo momento (presenza in tempo reale: app aperta)
+      const pr = stato.sb.channel('sdm-presenza', { config: { presence: { key: stato.persona.id } } });
+      pr.on('presence', { event: 'sync' }, () => {
+        P.online = new Set(Object.keys(pr.presenceState()));
+        P.elenco.forEach(p => { if (P.online.has(p.id) && !p.ultima_connessione) p.ultima_connessione = new Date().toISOString(); });
+        if (isAdmin() && $('#perLista') && stato.pagina === 'persone') renderPersone();
+      });
+      pr.subscribe(st => { if (st === 'SUBSCRIBED') pr.track({ t: Date.now() }); });
+    } catch (e) { /* senza presenza non si vede chi è online */ }
     sincronizza();
   }
 
@@ -1670,7 +1685,7 @@
       if (homeVista === 'persona') {
         const m = new Map();
         gestisco.forEach(n => (S.inc[n.id] || []).forEach(x => { if (!m.has(x.persona_id)) m.set(x.persona_id, []); m.get(x.persona_id).push(n); }));
-        m.forEach((l, id) => gruppi.push({ k: 'p' + id, nome: nomeP(id), l }));
+        m.forEach((l, id) => gruppi.push({ k: 'p' + id, id, nome: nomeP(id), l }));
         gruppi.sort((a, b) => (b.l.filter(n => n.stato === 'fatto').length - a.l.filter(n => n.stato === 'fatto').length) || a.nome.localeCompare(b.nome));
         const nessuno = gestisco.filter(n => !nIncarichi(n));   // tutte le attività senza incaricati, anche quelle già finite: così nessuna sparisce dall'elenco
         if (nessuno.length) gruppi.push({ k: 'senza', nome: 'Senza incaricati', l: nessuno });
@@ -1682,7 +1697,7 @@
       if (homeApriFiltro) { gv.forEach(g => homeAperti.add(g.k)); homeApriFiltro = false; }   // scegliendo una cella le righe con risultati si aprono una volta sola
       const righe = gv.map(g => {
         const cc = conteggio(g.l), aperto = homeAperti.has(g.k), nf = g.l.filter(n => n.stato === 'fatto').length;
-        const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, g.nome), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, (homeStatoF ? g.lf.length : cc.finito) + '/' + cc.tot), h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
+        const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, ...(homeVista === 'persona' ? [h('i', { class: 'cdot' + (g.id && S.coll[g.id] ? ' v' : ' vuoto') })] : []), g.nome), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, (homeStatoF ? g.lf.length : cc.finito) + '/' + cc.tot), h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
         gh.addEventListener('click', () => { if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); });
         const gr = h('div', { class: 'gr' }, gh);
         if (aperto) gr.append(h('div', { class: 'det' }, ...g.lf.map(n => {
