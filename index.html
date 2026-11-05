@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="4.9">
+<meta name="app-version" content="5.0">
 <meta name="theme-color" content="#1d4ed8">
 <meta name="description" content="SdM Eventi">
 <meta property="og:type" content="website">
@@ -385,6 +385,11 @@
         <div class="row"><span>Esci dall'account</span><button class="btn sec" id="esci2" type="button">Esci</button></div>
         <div class="row superOnly"><span>Parametri (solo proprietario)</span><button class="btn sec" id="vaiPar" type="button">Apri</button></div>
       </div>
+      <div class="card hidden" id="cardNot">
+        <h2>Notifiche delle scadenze</h2>
+        <div class="row"><span id="nStato">—</span><button class="btn sec" id="nBtn" type="button">Attiva</button></div>
+        <p class="note" id="nMsg" role="status"></p>
+      </div>
       <div class="card adminOnly">
         <h2>Backup</h2>
         <p class="sec" style="margin-top:-4px">Un unico file ZIP con tutti i dati (persone, eventi, struttura, incarichi, sponsor, parametri, registro modifiche): un file JSON per ogni tabella. Contiene dati personali: conservalo in un posto protetto.</p>
@@ -422,6 +427,13 @@
           <div class="grid2">
             <div><label for="pLiv">Livelli massimi dell'albero (1-10)</label><input type="number" id="pLiv" min="1" max="10"></div>
             <div><label for="pGg">Giorni di preavviso scadenza</label><input type="number" id="pGg" min="0" max="60"></div>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <div><b>Notifiche delle scadenze</b><div class="sec">Avvisa responsabili e amministratori delle attività in scadenza.</div></div>
+            <input type="checkbox" class="sw" id="pNot">
+          </div>
+          <div style="margin-top:12px;max-width:50%">
+            <label for="pNotGg">Giorni di anticipo per la notifica</label><input type="number" id="pNotGg" min="0" max="60">
           </div>
           <div class="row" style="margin-top:12px">
             <div><b>I responsabili possono creare sottorami</b><div class="sec">Se disattivo, i rami li crea solo l'amministratore.</div></div>

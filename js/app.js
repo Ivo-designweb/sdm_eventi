@@ -16,7 +16,8 @@
   const PARAM_DEFAULT = {
     nome_app: 'SDM Eventi', tema: 'chiaro', colore_primario: '#1d4ed8',
     max_livelli: 10, giorni_preavviso_scadenza: 7, responsabile_crea_rami: false, percorso_completo: false, logo: null, otp_obbligatorio: true,
-    privacy_url: '', privacy_testo: '', informativa_versione: 1, informativa_obbligatoria: false, conservazione_movimenti_mesi: 24
+    privacy_url: '', privacy_testo: '', informativa_versione: 1, informativa_obbligatoria: false, conservazione_movimenti_mesi: 24,
+    notifiche_scadenze: true, notifiche_giorni_anticipo: 3
   };
   const RUOLI = { admin: 'Amministratore', utente: 'Operatore' };
 
@@ -382,6 +383,7 @@
     if (p === 'persone') caricaPersone();
     if (p === 'str' || p === 'home') caricaStruttura();
     if (p === 'rev') renderRivedere();
+    if (p === 'imp') aggiornaNotifiche();
     if (p === 'log') apriLog();
     if (p === 'altro') renderAltro();
     window.scrollTo(0, 0);
@@ -2229,6 +2231,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#pResp').checked = !!p.responsabile_crea_rami; $('#pPerc').checked = p.percorso_completo === true; $('#pOtp').checked = p.otp_obbligatorio !== false;
     $('#pPrivUrl').value = p.privacy_url || ''; $('#pPrivTesto').value = p.privacy_testo || ''; $('#pInfoObb').checked = !!p.informativa_obbligatoria;
     $('#pInfoVer').value = p.informativa_versione || 1; $('#pMesi').value = p.conservazione_movimenti_mesi === undefined ? 24 : p.conservazione_movimenti_mesi; $('#pPulMsg').textContent = '';
+    $('#pNot').checked = p.notifiche_scadenze !== false; $('#pNotGg').value = p.notifiche_giorni_anticipo === undefined ? 3 : p.notifiche_giorni_anticipo; $('#pNotGg').disabled = !$('#pNot').checked;
     $('#parMsg').textContent = '';
   }
 
@@ -2240,6 +2243,8 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     if (!nome) { msg.textContent = 'Il nome applicazione è obbligatorio.'; return; }
     if (!(liv >= 1 && liv <= 10)) { msg.textContent = 'I livelli devono essere da 1 a 10.'; return; }
     if (!(gg >= 0 && gg <= 60)) { msg.textContent = 'I giorni di preavviso devono essere da 0 a 60.'; return; }
+    const ngg = parseInt($('#pNotGg').value, 10);
+    if (!(ngg >= 0 && ngg <= 60)) { msg.textContent = 'I giorni di anticipo per la notifica devono essere da 0 a 60.'; return; }
     const riattivato = stato.parametri.otp_obbligatorio === false && $('#pOtp').checked;
     const mesi = parseInt($('#pMesi').value, 10), iver = parseInt($('#pInfoVer').value, 10), purl = $('#pPrivUrl').value.trim();
     if (!(mesi >= 0 && mesi <= 120)) { msg.textContent = 'I mesi di conservazione devono essere da 0 a 120.'; return; }
@@ -2252,6 +2257,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
       ...stato.parametri,
       nome_app: nome, tema: $('#pTema').value, colore_primario: $('#pCol').value,
       max_livelli: liv, giorni_preavviso_scadenza: gg, responsabile_crea_rami: $('#pResp').checked, percorso_completo: $('#pPerc').checked, otp_obbligatorio: $('#pOtp').checked,
+      notifiche_scadenze: $('#pNot').checked, notifiche_giorni_anticipo: ngg,
       privacy_url: purl, privacy_testo: $('#pPrivTesto').value.trim(), informativa_obbligatoria: $('#pInfoObb').checked, informativa_versione: iver, conservazione_movimenti_mesi: mesi
     };
     // il logo si gestisce a parte; i valori vuoti (null) non si salvano: la colonna "valore" non accetta null
@@ -2264,6 +2270,55 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     applicaParametri(nuovi);
     msg.textContent = '✔ Salvato';
     if (riattivato) { msg.textContent = '✔ Salvato. Codice OTP riattivato: consigliato "Disconnetti tutti gli utenti" ed eliminare la funzione accesso-email (promemoria qui sopra).'; $('#promemoriaFn').open = true; $('#promemoriaFn').scrollIntoView({ block: 'center' }); }
+  }
+
+  // ---------- notifiche push delle scadenze (responsabili e amministratori) ----------
+  const pushSupportato = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const chiaveVapid = s => { const r = atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); };
+  async function sottoscrizione() { const reg = await navigator.serviceWorker.ready; return reg.pushManager.getSubscription(); }
+  async function aggiornaNotifiche() {
+    const card = $('#cardNot'); if (!card) return;
+    const ricevono = !!stato.persona && (isAdmin() || S.nodi.some(n => n.responsabile_id === stato.persona.id));
+    card.classList.toggle('hidden', !ricevono); if (!ricevono) return;
+    const st = $('#nStato'), b = $('#nBtn'), m = $('#nMsg'); m.textContent = ''; b.disabled = false; b.classList.remove('hidden');
+    if (stato.parametri.notifiche_scadenze === false) { st.textContent = 'Disattivate dal proprietario'; b.classList.add('hidden'); return; }
+    if (!pushSupportato()) {
+      const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      st.textContent = 'Non disponibili su questo dispositivo'; b.classList.add('hidden');
+      m.textContent = ios ? 'Su iPhone/iPad installa prima l\'app sulla schermata Home (Condividi → Aggiungi a Home) e aprila da lì.' : 'Questo browser non supporta le notifiche.'; return;
+    }
+    if (Notification.permission === 'denied') { st.textContent = 'Bloccate nelle impostazioni del browser'; b.classList.add('hidden'); m.textContent = 'Per riceverle consenti le notifiche per questo sito nelle impostazioni del telefono o del browser.'; return; }
+    let sub = null; try { sub = await sottoscrizione(); } catch (e) { /* service worker non pronto */ }
+    const on = !!sub && Notification.permission === 'granted';
+    st.textContent = on ? '✔ Attive su questo dispositivo' : 'Non attive su questo dispositivo';
+    b.textContent = on ? 'Disattiva' : 'Attiva';
+    b.onclick = on ? disattivaPush : attivaPush;
+  }
+  async function attivaPush() {
+    const m = $('#nMsg'), b = $('#nBtn'); b.disabled = true; m.textContent = '';
+    try {
+      if (!navigator.onLine) throw new Error('serve la connessione');
+      if (await Notification.requestPermission() !== 'granted') throw new Error('permesso non concesso');
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        const kp = await stato.sb.rpc('vapid_pubblica');
+        if (kp.error || !kp.data) throw new Error('notifiche non ancora configurate sul server (vedi docs/NOTIFICHE.md)');
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chiaveVapid(kp.data) });
+      }
+      const j = sub.toJSON();
+      const { error } = await stato.sb.rpc('registra_push', { _endpoint: j.endpoint, _p256dh: j.keys.p256dh, _auth: j.keys.auth, _dispositivo: (navigator.userAgent || '').slice(0, 120) });
+      if (error) { await sub.unsubscribe(); throw new Error(error.message); }
+    } catch (e) { m.textContent = 'Attivazione non riuscita: ' + (e && e.message ? e.message : e); }
+    aggiornaNotifiche();
+  }
+  async function disattivaPush() {
+    const m = $('#nMsg'); $('#nBtn').disabled = true;
+    try {
+      const sub = await sottoscrizione();
+      if (sub) { const ep = sub.endpoint; await sub.unsubscribe(); if (navigator.onLine) await stato.sb.rpc('rimuovi_push', { _endpoint: ep }); }
+    } catch (e) { m.textContent = 'Disattivazione non riuscita: ' + (e && e.message ? e.message : e); }
+    aggiornaNotifiche();
   }
 
   // ---------- installazione PWA ----------
@@ -2361,6 +2416,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#logIndietro').onclick = () => vai('altro'); $('#logEsporta').onclick = esportaLog; $('#logAltri').onclick = () => caricaLog(false);
     let tl; $('#logQ').addEventListener('input', () => { clearTimeout(tl); tl = setTimeout(() => caricaLog(true), 350); });
     ['#logEv', '#logAz', '#logTab', '#logPer'].forEach(s => $(s).addEventListener('change', () => caricaLog(true)));
+    $('#pNot').addEventListener('change', () => { $('#pNotGg').disabled = !$('#pNot').checked; });
     $('#rete').onclick = () => sincronizza(true); $('#iSync').onclick = () => sincronizza(true); $('#iRev').onclick = () => vai('rev');
     window.addEventListener('online', aggiornaRete);
     window.addEventListener('offline', aggiornaRete);

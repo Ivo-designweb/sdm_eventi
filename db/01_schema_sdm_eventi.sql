@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 1.8
+-- Versione script: 1.9
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -1173,6 +1173,92 @@ create policy movimenti_select on sdm_eventi.movimenti for select to authenticat
          or (nodo_id is not null and sdm_eventi.is_responsabile_di(nodo_id, true)));
 
 -- ---------------------------------------------------------------------
+-- NOTIFICHE PUSH DELLE SCADENZE
+-- ---------------------------------------------------------------------
+-- Un record per ogni dispositivo su cui una persona ha attivato le notifiche.
+-- Nessun accesso diretto dall'app: si usa registra_push / rimuovi_push; l'invio lo fa la funzione "notifiche-scadenze".
+create table if not exists sdm_eventi.push_sottoscrizioni (
+  id          uuid primary key default gen_random_uuid(),
+  persona_id  uuid not null references sdm_eventi.persone(id) on delete cascade,
+  endpoint    text not null unique,
+  p256dh      text not null,
+  auth        text not null,
+  dispositivo text,
+  creato_il   timestamptz not null default now()
+);
+create index if not exists push_persona_idx on sdm_eventi.push_sottoscrizioni (persona_id);
+alter table sdm_eventi.push_sottoscrizioni enable row level security;
+
+-- Chiavi delle notifiche (VAPID): le crea la funzione "notifiche-scadenze" alla prima esecuzione.
+-- La chiave privata resta solo qui: nessun accesso dall'app (nessun permesso né regola), la legge solo la funzione sul server.
+create table if not exists sdm_eventi.push_chiavi (
+  id        integer primary key default 1 check (id = 1),
+  pubblica  text not null,
+  privata   text not null,
+  creato_il timestamptz not null default now()
+);
+alter table sdm_eventi.push_chiavi enable row level security;
+-- La chiave pubblica serve all'app per attivare le notifiche (è pubblica per definizione)
+create or replace function sdm_eventi.vapid_pubblica() returns text
+language sql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
+  select pubblica from sdm_eventi.push_chiavi where id = 1
+$$;
+
+create or replace function sdm_eventi.registra_push(_endpoint text, _p256dh text, _auth text, _dispositivo text default null) returns void
+language plpgsql security definer set search_path = sdm_eventi, public, pg_temp as $$
+declare v_id uuid := sdm_eventi.persona_corrente();
+begin
+  if v_id is null then raise exception 'Utente non collegato all''anagrafica'; end if;
+  insert into sdm_eventi.push_sottoscrizioni (persona_id, endpoint, p256dh, auth, dispositivo)
+  values (v_id, _endpoint, _p256dh, _auth, _dispositivo)
+  on conflict (endpoint) do update set persona_id = v_id, p256dh = excluded.p256dh, auth = excluded.auth, dispositivo = excluded.dispositivo;
+end $$;
+
+create or replace function sdm_eventi.rimuovi_push(_endpoint text) returns void
+language plpgsql security definer set search_path = sdm_eventi, public, pg_temp as $$
+begin
+  delete from sdm_eventi.push_sottoscrizioni where endpoint = _endpoint and persona_id = sdm_eventi.persona_corrente();
+end $$;
+
+-- Attività da notificare (solo per la funzione "notifiche-scadenze", chiave service_role):
+-- foglie con scadenza entro _giorni da oggi (comprese le già scadute) non ancora "fatte", di eventi non conclusi.
+-- Senza data di scadenza l'attività non scade mai. Destinatari: il responsabile (proprio o ereditato dal ramo
+-- più vicino) e tutti gli amministratori attivi.
+create or replace function sdm_eventi.scadenze_da_notificare(_giorni integer, _percorso_completo boolean default false)
+returns table (persona_id uuid, nodo_id uuid, titolo text, ramo text, scadenza date, giorni integer)
+language plpgsql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
+declare oggi date := (now() at time zone 'Europe/Rome')::date;
+begin
+  if auth.uid() is not null then raise exception 'Funzione riservata al server'; end if;
+  return query
+  with f as (
+    select n.id, n.titolo, n.scadenza, n.percorso, n.responsabile_id
+    from sdm_eventi.nodi n
+    where n.scadenza is not null and n.stato in ('da_fare', 'in_corso')
+      and n.scadenza <= oggi + greatest(_giorni, 0)
+      and not exists (select 1 from sdm_eventi.nodi c where c.parent_id = n.id)
+      and exists (select 1 from sdm_eventi.eventi e where e.id = n.evento_id and e.stato in ('in_preparazione', 'attivo'))
+  ), r as (
+    select f.*,
+      coalesce(f.responsabile_id,
+        (select a.responsabile_id from unnest(f.percorso) with ordinality u(id, ord)
+           join sdm_eventi.nodi a on a.id = u.id
+          where a.responsabile_id is not null order by u.ord desc limit 1)) as resp,
+      (select a.titolo from unnest(f.percorso) with ordinality u(id, ord)
+         join sdm_eventi.nodi a on a.id = u.id order by u.ord limit 1) as radice,
+      (select string_agg(a.titolo, ' › ' order by u.ord) from unnest(f.percorso) with ordinality u(id, ord)
+         join sdm_eventi.nodi a on a.id = u.id) as completo
+    from f
+  )
+  select p.id, r.id, r.titolo,
+         case when _percorso_completo then r.completo else r.radice end,
+         r.scadenza, (r.scadenza - oggi)::integer
+  from r
+  join sdm_eventi.persone p on p.attivo and (p.ruolo = 'admin' or p.id = r.resp)
+  order by p.id, r.scadenza, r.titolo;
+end $$;
+
+-- ---------------------------------------------------------------------
 -- VISTE
 -- ---------------------------------------------------------------------
 
@@ -1261,6 +1347,7 @@ grant all on all tables in schema sdm_eventi to service_role;
 grant usage, select on all sequences in schema sdm_eventi to authenticated, service_role;
 revoke execute on all functions in schema sdm_eventi from public, anon;
 grant execute on all functions in schema sdm_eventi to authenticated, service_role;
+revoke execute on function sdm_eventi.scadenze_da_notificare(integer, boolean) from authenticated;
 grant usage on schema sdm_eventi to anon;
 grant execute on function sdm_eventi.informativa_pubblica() to anon;
 
@@ -1280,7 +1367,9 @@ insert into sdm_eventi.parametri (chiave, valore, descrizione) values
   ('otp_obbligatorio',         'true',          'Se false le persone (non admin) entrano con la sola email, senza codice OTP (serve la funzione accesso-email)'),
   ('informativa_versione',     '1',             'Versione dell''informativa: cambiandola gli utenti devono rileggerla'),
   ('informativa_obbligatoria', 'false',         'Se true chiede la presa visione dell''informativa al primo accesso'),
-  ('conservazione_movimenti_mesi', '24',        'Mesi di conservazione del registro dei movimenti (0 = senza limite)')
+  ('conservazione_movimenti_mesi', '24',        'Mesi di conservazione del registro dei movimenti (0 = senza limite)'),
+  ('notifiche_scadenze',       'true',          'Se true responsabili e amministratori ricevono la notifica push delle attività in scadenza'),
+  ('notifiche_giorni_anticipo','3',             'Giorni prima della scadenza da cui parte la notifica push')
 on conflict (chiave) do nothing;
 
 -- Primo amministratore.

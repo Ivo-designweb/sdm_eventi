@@ -1,6 +1,6 @@
 # SDM Eventi - funzionalità e storico delle versioni
 
-Versione dell'app: **4.9** · Script database: **1.8** · Ultimo aggiornamento di questo file: versione 4.9
+Versione dell'app: **5.0** · Script database: **1.9** · Ultimo aggiornamento di questo file: versione 5.0
 
 > Questo file va aggiornato a ogni nuova versione: sezione «Funzionalità» se cambia il comportamento, tabella «Storico» con una riga per versione (e l'indicazione se serve rieseguire `db/01_schema_sdm_eventi.sql`).
 
@@ -49,6 +49,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 ### Persone (amministratore) · Eventi · Altro · Impostazioni
 - **Backup completo (ZIP)** (amministratori, in *Impostazioni → Backup*, serve la connessione): un unico file `sdm_eventi_backup_AAAA-MM-GG_HHMM.zip` con un file JSON per ogni tabella (`persone`, `eventi`, `nodi`, `incarichi`, `nodi_sponsor`, `parametri`, `movimenti`) più `_info.json` (versione, data, conteggi). I dati si leggono da Supabase a pacchetti di 500 record ordinati per chiave, ripartendo dall'ultima chiave letta, quindi nessun record è scritto due volte; `_info.json` segnala se i dati sono cambiati durante il backup. Il file contiene dati personali: va conservato in un posto protetto. Non esiste ancora il ripristino da file.
+- **Notifiche delle scadenze (v5.0):** vedi `docs/NOTIFICHE.md`. Ogni mattina alle 08:00 (ora italiana) responsabili e amministratori ricevono una notifica push per le attività con scadenza entro N giorni (Parametri: interruttore, default attivo, e *Giorni di anticipo per la notifica*, default 3), comprese le scadute e non ancora «fatte»; senza data di scadenza l'attività non scade mai. Titolo = attività, testo = ramo e scadenza, icona dell'app; max 3 singole poi «e altre N attività in scadenza». Ogni dispositivo si attiva da *Impostazioni → Notifiche delle scadenze*. Richiede la funzione `notifiche-scadenze` e il job Cron su Supabase.
 - **Ultima connessione:** a ogni ingresso nell'app il server registra data e ora (colonna `persone.ultima_connessione`, non finisce nel registro modifiche). Nella lista Persone (amministratore) ogni nome ha un puntino a destra: grigio se la persona non si è mai connessa, verde se si è connessa almeno una volta (lampeggiante se è online adesso). Sotto il nome la riga «Connesso: gg/mm/aaaa hh:mm»: verde se online, blu se connessa almeno una volta, grigia con «—» se mai connessa. «Online» = app aperta, rilevato con la presenza in tempo reale di Supabase. Nella Home «Per persona» di amministratore e responsabile un puntino verde a sinistra del nome indica chi si è connesso almeno una volta (nessun puntino se mai); il responsabile non vede data e ora.
 - **Persone:** anagrafica completa (i rami di cui una persona è responsabile vanno a capo, la pagina resta nella larghezza dello schermo), **Invita all'app** nella scheda di una persona salvata: apre WhatsApp (solo telefono e tablet, non PC; serve il cellulare) o la mail (serve l'email) con un messaggio già scritto («Ciao nome, questo è un invito a usare l'app… Apri l'app da qui: link… entra con la tua email»), il link è quello dell'app in uso; il logo (`assets/og-logo.png`, il logo in alto nella Home su fondo bianco) con la scritta «SdM Eventi» sotto il link lo mostra WhatsApp grazie ai tag `og:` di `index.html` (indirizzo fisso `https://sdmeventi.ivotaffarel.it/`; non segue un logo cambiato dai Parametri); disattivato per le persone non attive; ricerca e filtri, contatto rapido (chiama, WhatsApp, mail), import/export Excel, eliminazione definitiva e dati della persona (GDPR).
 - **Eventi:** titolo, date, aree con colore, duplicazione dell'evento (con date spostate, responsabili e incaricati opzionali).
@@ -69,6 +70,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 | Versione | Novità | DB |
 |---|---|---|
+| 5.0 | Notifiche push delle scadenze a responsabili e amministratori (parametri, attivazione per dispositivo, funzione server alle 08:00) | 1.9 |
 | 4.9 | Ultima connessione di ogni persona (riga «Connesso:» e puntino nella lista Persone, puntino verde nella Home «Per persona»), online in tempo reale | 1.8 |
 | 4.8 | Invita all'app (WhatsApp / mail) nella scheda persona, anteprima del link con icona | – |
 | 4.7 | Cerca compatta: nella riga del filtro area (operatore, con «Ciao, nome») e a destra dei bottoni di stato (amministratore/responsabile) | – |
