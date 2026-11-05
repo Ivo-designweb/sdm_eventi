@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="app-version" content="1.0">
+<title>SDM Eventi - Anteprima notifiche scadenze</title>
+<style>
+:root{--primario:#1d4ed8;--bg:#f4f6fa;--card:#fff;--testo:#1c2333;--sec:#5b6578;--bordo:#dde2ec;--ok:#15803d;--warn:#b45309;--err:#b91c1c}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#cfd5e1;color:var(--testo)}
+button,input{font:inherit}
+.demo{background:#111827;color:#e5e7eb;padding:8px 14px;font-size:13px;display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:50}
+.demo button{background:#1f2937;color:#fff;border:1px solid #374151;border-radius:6px;padding:4px 10px;cursor:pointer;min-height:30px}
+.demo button.on{background:#2563eb;border-color:#2563eb}.demo span{opacity:.75}
+.hidden{display:none!important}
+.vista{margin:0 auto;max-width:900px;padding:18px}
+/* parametri */
+.pag{background:var(--bg);padding:16px;border-radius:12px;max-width:760px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--bordo);border-radius:12px;padding:14px;margin-bottom:12px}
+h2{font-size:18px;margin:0 0 10px}
+label{display:block;font-size:14px;font-weight:600;margin:0 0 4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.grid2{grid-template-columns:1fr}}
+input[type=number]{width:100%;padding:10px 12px;border:1px solid var(--bordo);border-radius:8px;background:#fff;color:var(--testo);min-height:44px}
+input[type=number]:disabled{background:#eef1f6;color:#9aa3b5}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px}
+.sec{color:var(--sec);font-size:13px}
+.sw{appearance:none;width:46px;height:26px;border-radius:99px;background:#cbd2df;position:relative;flex:none;cursor:pointer;transition:.15s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.15s}
+.sw:checked{background:var(--primario)}.sw:checked::after{left:23px}
+.btn{background:var(--primario);color:#fff;border:0;border-radius:8px;padding:10px 16px;font-weight:600;min-height:44px;cursor:pointer}
+.btn.sec2{background:none;color:var(--primario);border:1px solid var(--primario)}
+.badge{font-size:12px;border-radius:99px;padding:2px 10px;background:#dcfce7;color:var(--ok);font-weight:600}
+/* telefoni */
+.tel{display:flex;gap:28px;flex-wrap:wrap;justify-content:center}
+.phone{width:360px;border-radius:34px;padding:46px 14px 26px;color:#fff;box-shadow:0 0 0 8px #0b0f1a}
+.phone.and{background:linear-gradient(160deg,#27456b,#14213a 60%,#2b1e45)}
+.phone.ios{background:linear-gradient(160deg,#3b5b8e,#1e2f52 55%,#5b3a6e)}
+.ora{text-align:center;font-size:58px;font-weight:300;line-height:1}
+.dataL{text-align:center;font-size:14px;opacity:.85;margin:4px 0 22px}
+.etich{font-size:12px;opacity:.7;margin:0 4px 6px}
+/* notifica Android */
+.na{background:rgba(255,255,255,.96);color:#1c2333;border-radius:20px;padding:12px 14px;margin-bottom:6px;display:grid;grid-template-columns:40px 1fr;gap:6px 12px}
+.na .app{grid-column:1/-1;display:flex;align-items:center;gap:6px;font-size:12px;color:#5b6578}
+.na .app img{width:16px;height:16px;border-radius:4px}
+.na .ic{width:40px;height:40px;border-radius:10px;border:1px solid #dde2ec;background:#fff;grid-row:2/4}
+.na .t{font-weight:700;font-size:14.5px;line-height:1.25}
+.na .b{font-size:13.5px;color:#3a4357;line-height:1.3}
+/* notifica iOS */
+.ni{background:rgba(250,250,252,.92);color:#111;border-radius:22px;padding:11px 13px;margin-bottom:8px;display:grid;grid-template-columns:38px 1fr auto;gap:2px 11px}
+.ni .ic{width:38px;height:38px;border-radius:9px;border:1px solid #dde2ec;background:#fff;grid-row:1/4}
+.ni .t{font-weight:600;font-size:14.5px;line-height:1.25}
+.ni .b{font-size:14px;color:#2d3340;line-height:1.3;grid-column:2/4}
+.ni .q{font-size:12px;color:#777}
+.ni.sum .t{font-weight:600}
+/* desktop */
+.desk{background:#fff;color:#1c2333;border:1px solid #cfd5e1;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.2);width:360px;padding:12px;display:grid;grid-template-columns:44px 1fr;gap:3px 12px;margin:0 auto 10px}
+.desk .ic{width:44px;height:44px;border-radius:10px;border:1px solid #dde2ec;grid-row:1/4}
+.desk .t{font-weight:700;font-size:14px}.desk .b{font-size:13px;color:#3a4357}.desk .s{font-size:11.5px;color:#7a8396}
+</style>
+</head>
+<body>
+<div class="demo"><b>Anteprima: notifiche scadenze</b>
+  <span>Vedi:</span><button id="tP" class="on">Parametri</button><button id="tA">Notifica Android</button><button id="tI">Notifica iPhone</button><button id="tD">Notifica PC</button>
+  <span>Flag notifiche:</span><button id="fOn" class="on">Attive</button><button id="fOff">Disattive</button></div>
+
+<div class="vista">
+<!-- PARAMETRI -->
+<div id="vP" class="pag">
+  <div class="card">
+    <h2>Eventi e albero</h2>
+    <div class="grid2">
+      <div><label>Livelli massimi dell'albero (1-10)</label><input type="number" value="10" min="1" max="10"></div>
+      <div><label>Giorni di preavviso scadenza</label><input type="number" value="7" min="0" max="60"></div>
+    </div>
+    <div class="row">
+      <div><b>Notifiche delle scadenze</b><div class="sec">Avvisa responsabili e amministratori delle attività in scadenza.</div></div>
+      <input type="checkbox" class="sw" id="swN" checked aria-label="Notifiche delle scadenze">
+    </div>
+    <div style="margin-top:12px;max-width:50%" id="boxGg">
+      <label for="ggN">Giorni di anticipo per la notifica</label><input type="number" id="ggN" value="3" min="0" max="60">
+    </div>
+    <div class="row">
+      <div><b>I responsabili possono creare sottorami</b><div class="sec">Se disattivo, i rami li crea solo l'amministratore.</div></div>
+      <input type="checkbox" class="sw" checked>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Notifiche su questo dispositivo</h2>
+    <div class="row" style="margin-top:0">
+      <div><b>Ricevi le notifiche delle scadenze</b><div class="sec">Serve il permesso del telefono. Su iPhone l'app deve essere installata sulla schermata Home.</div></div>
+      <button class="btn" type="button" id="bAttiva">Attiva</button>
+    </div>
+  </div>
+</div>
+
+<!-- ANDROID -->
+<div id="vA" class="hidden tel"><div class="phone and">
+  <div class="ora">08:00</div><div class="dataL">giovedì 5 novembre</div>
+  <div class="etich">Notifiche</div>
+  <div class="na"><div class="app"><img src="../assets/notifica-icon.png" alt="">SDM Eventi · ora</div><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Montaggio gazebo</div><div class="b">Logistica · scade il 07/11/2026 (tra 2 giorni)</div></div>
+  <div class="na"><div class="app"><img src="../assets/notifica-icon.png" alt="">SDM Eventi · ora</div><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Rifornimento bar</div><div class="b">Ristoro · scade il 08/11/2026 (tra 3 giorni)</div></div>
+  <div class="na"><div class="app"><img src="../assets/notifica-icon.png" alt="">SDM Eventi · ora</div><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Pulizia finale</div><div class="b">Servizi · scaduta il 04/11/2026 (1 giorno fa)</div></div>
+  <div class="na"><div class="app"><img src="../assets/notifica-icon.png" alt="">SDM Eventi · ora</div><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">e altre 4 attività in scadenza</div><div class="b">Tocca per aprire l'elenco</div></div>
+</div></div>
+
+<!-- IPHONE -->
+<div id="vI" class="hidden tel"><div class="phone ios">
+  <div class="ora">08:00</div><div class="dataL">giovedì 5 novembre</div>
+  <div class="ni"><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Montaggio gazebo</div><div class="q">ora</div><div class="b">Logistica · scade il 07/11/2026 (tra 2 giorni)</div></div>
+  <div class="ni"><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Rifornimento bar</div><div class="q">ora</div><div class="b">Ristoro · scade il 08/11/2026 (tra 3 giorni)</div></div>
+  <div class="ni"><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Pulizia finale</div><div class="q">ora</div><div class="b">Servizi · scaduta il 04/11/2026 (1 giorno fa)</div></div>
+  <div class="ni sum"><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">e altre 4 attività in scadenza</div><div class="q">ora</div><div class="b">Tocca per aprire l'elenco</div></div>
+</div></div>
+
+<!-- PC -->
+<div id="vD" class="hidden">
+  <div class="desk"><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Montaggio gazebo</div><div class="b">Logistica · scade il 07/11/2026 (tra 2 giorni)</div><div class="s">SDM Eventi</div></div>
+  <div class="desk"><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Rifornimento bar</div><div class="b">Ristoro · scade il 08/11/2026 (tra 3 giorni)</div><div class="s">SDM Eventi</div></div>
+  <div class="desk"><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">e altre 5 attività in scadenza</div><div class="b">Tocca per aprire l'elenco</div><div class="s">SDM Eventi</div></div>
+</div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const T={tP:'vP',tA:'vA',tI:'vI',tD:'vD'};
+Object.keys(T).forEach(k=>$('#'+k).onclick=()=>{Object.keys(T).forEach(j=>{$('#'+j).classList.toggle('on',j===k);$('#'+T[j]).classList.toggle('hidden',j!==k)})});
+function flag(on){$('#swN').checked=on;$('#ggN').disabled=!on;$('#boxGg').style.opacity=on?1:.5;$('#fOn').classList.toggle('on',on);$('#fOff').classList.toggle('on',!on)}
+$('#fOn').onclick=()=>flag(true);$('#fOff').onclick=()=>flag(false);$('#swN').onchange=e=>flag(e.target.checked);
+$('#bAttiva').onclick=()=>{$('#bAttiva').outerHTML='<span class="badge">✔ Attive su questo dispositivo</span>'};
+</script>
+</body>
+</html>
