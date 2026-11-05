@@ -14,6 +14,7 @@ button{font:inherit}
 .demo button{background:#1f2937;color:#fff;border:1px solid #374151;border-radius:6px;padding:4px 10px;cursor:pointer;min-height:30px}
 .demo button.on{background:#2563eb;border-color:#2563eb}.demo span{opacity:.75}
 .vista{background:var(--bg);margin:0 auto;max-width:900px;min-height:calc(100vh - 44px);padding:18px}
+.phone .conn{font-size:11px}
 .vista.phone{max-width:390px;padding:12px;box-shadow:0 0 0 1px #b8c0d0}
 .sec{color:var(--sec);font-size:14px}
 .note2{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 10px;font-size:13px;margin:0 0 12px}
@@ -28,8 +29,8 @@ h2{font-size:18px;margin:0 0 10px}
 .dot.v{background:#16a34a}
 .dot.live{background:#16a34a;box-shadow:0 0 0 0 rgba(22,163,74,.6);animation:pulsa 1.8s infinite}
 @keyframes pulsa{70%{box-shadow:0 0 0 7px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
-.conn{font-size:13px;margin-top:1px}
-.conn.mai{color:var(--sec)}.conn.blu{color:var(--blu)}.conn.verde{color:var(--ok);font-weight:600}
+.conn{font-size:12px;margin-top:1px;white-space:nowrap}
+.conn.mai{color:var(--sec)}.conn.blu{color:var(--blu)}.conn.verde{color:var(--ok)}
 .badge{font-size:11px;border-radius:99px;padding:1px 8px;background:#eef2ff;color:var(--primario);font-weight:600;white-space:nowrap}
 .badge.ok{background:#dcfce7;color:var(--ok)}.badge.w{background:#fef3c7;color:var(--warn)}
 .az{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
@@ -60,21 +61,13 @@ h2{font-size:18px;margin:0 0 10px}
 <div class="vista" id="vista">
   <!-- PERSONE -->
   <div id="paginaL">
-    <div class="note2">Dati finti. Oggi (finto): <b>05/11/2026 ore 10:30</b>. Il puntino sta a destra del nome; sotto la riga con data e ora dell'ultima connessione.</div>
     <div class="card">
       <h2>Persone</h2>
-      <div class="leg">
-        <span><i class="dot"></i> mai collegata</span>
-        <span><i class="dot v"></i> collegata almeno una volta</span>
-        <span style="color:var(--ok)"><i class="dot live"></i> collegata adesso (scritta verde)</span>
-        <span style="color:var(--blu)">scritta blu = non collegata adesso</span>
-      </div>
       <div id="lista"></div>
     </div>
   </div>
   <!-- HOME -->
   <div id="paginaH" class="hidden">
-    <div class="note2" id="notaH"></div>
     <div class="card">
       <div class="seg"><button class="on">Per persona</button><button>Per ramo</button></div>
       <div id="gruppi"></div>
@@ -92,12 +85,10 @@ const P=[
  {n:'Neri Giulia',mail:'giulia.neri@example.it',tel:'339 7778899',isc:'non iscritto',conn:null,online:false,f:[0,0,4]}
 ];
 function conn(p){
-  if(!p.conn)return '<div class="conn mai">Mai collegata</div>';
-  return p.online
-   ?`<div class="conn verde">● Collegata adesso · ultimo accesso ${p.conn}</div>`
-   :`<div class="conn blu">Ultima connessione: ${p.conn}</div>`;
+  const c=p.online?'verde':(p.conn?'blu':'mai');
+  return `<div class="conn ${c}">Connesso: ${p.conn||'—'}</div>`;
 }
-function dot(p){return `<i class="dot ${p.conn?(p.online?'live':'v'):''}" title="${p.conn?(p.online?'Collegata adesso':'Si è collegata almeno una volta'):'Non si è mai collegata'}"></i>`}
+function dot(p){return `<i class="dot ${p.conn?(p.online?'live':'v'):''}" ></i>`}
 function lista(){
   $('#lista').innerHTML=P.map(p=>`<div class="row"><div class="info"><span class="nome">${p.n} ${dot(p)}</span>
    <div class="sec">${p.mail}${p.tel?' · '+p.tel:''}</div>${conn(p)}</div>
@@ -105,10 +96,6 @@ function lista(){
    ${p.tel?'<button class="btn">📞</button><button class="btn">💬</button>':''}<button class="btn">✉️</button></div></div>`).join('');
 }
 function home(){
-  const adm=$('#rA').classList.contains('on');
-  $('#notaH').textContent=adm
-   ?'Amministratore: puntino verde a sinistra del nome di chi si è collegato almeno una volta. Chi non si è mai collegato non ha puntino (lo spazio resta, così i nomi restano allineati).'
-   :'Responsabile: vede solo il puntino verde (collegato almeno una volta sì/no), senza data e ora: quelle restano visibili solo agli amministratori nella lista Persone.';
   $('#gruppi').innerHTML=P.map(p=>{const t=p.f[0]+p.f[1]+p.f[2],w=x=>100*x/t;
    return `<div class="gh"><span class="nm">${p.conn?'<i class="dot v"></i>':'<i class="vuoto"></i>'}${p.n}</span>
    <span class="bar"><i style="width:${w(p.f[0])}%;background:#15803d"></i><i style="width:${w(p.f[1])}%;background:#60a5fa"></i></span>
