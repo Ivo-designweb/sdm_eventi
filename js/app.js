@@ -194,7 +194,10 @@
       const { data, error: e2 } = await stato.sb.from('persone')
         .select('id, cognome, nome, email, ruolo').eq('id', pid).single();
       if (e2) throw e2;
-      try { await stato.sb.rpc('registra_connessione'); } catch (e) { /* script SQL non ancora aggiornato */ }   // ultima connessione
+      try {   // ultima connessione: se fallisce (es. script SQL non aggiornato) lo dico in console e, se sei amministratore, a schermo
+        const rc = await stato.sb.rpc('registra_connessione');
+        if (rc.error) { console.warn('registra_connessione:', rc.error.message); if (persona.ruolo === 'admin') setTimeout(() => toast('Ultima connessione non salvata: riesegui lo script del database (' + rc.error.message + ')', true), 3000); }
+      } catch (e) { console.warn('registra_connessione:', e); }
       persona = { ...data, uid, informativa_ver: 0 };
       // colonne opzionali: se lo script SQL non è aggiornato non devono bloccare l'accesso
       persona.superadmin = persona.ruolo === 'admin';       // senza il campo "proprietario" ogni amministratore vale come prima
@@ -1492,9 +1495,13 @@
     try {   // chi è collegato in questo momento (presenza in tempo reale: app aperta)
       const pr = stato.sb.channel('sdm-presenza', { config: { presence: { key: stato.persona.id } } });
       pr.on('presence', { event: 'sync' }, () => {
+        const prima = P.online;
         P.online = new Set(Object.keys(pr.presenceState()));
-        P.elenco.forEach(p => { if (P.online.has(p.id) && !p.ultima_connessione) p.ultima_connessione = new Date().toISOString(); });
-        if (isAdmin() && $('#perLista') && stato.pagina === 'persone') renderPersone();
+        if (!isAdmin() || !$('#perLista')) return;
+        if (stato.pagina === 'persone') renderPersone();
+        if ([...P.online].some(id => !prima.has(id))) {   // qualcuno è appena entrato: rileggo dal server la sua ultima connessione
+          clearTimeout(P.tRel); P.tRel = setTimeout(() => { if (navigator.onLine && stato.pagina === 'persone') caricaPersone(); }, 2000);
+        }
       });
       pr.subscribe(st => { if (st === 'SUBSCRIBED') pr.track({ t: Date.now() }); });
     } catch (e) { /* senza presenza non si vede chi è online */ }
@@ -1504,7 +1511,7 @@
   // ---------- home: avanzamento e le mie attività ----------
   let homeFinite = false;
   const aggiornaTutto = () => Promise.all([caricaStruttura(), caricaEventi()]);
-  function toast(m) { const t = h('div', { class: 'toastm' }, '✔ ' + m); document.body.append(t); setTimeout(() => t.remove(), 1600); }
+  function toast(m, errore) { const t = h('div', { class: 'toastm' }, (errore ? '⚠ ' : '✔ ') + m); document.body.append(t); setTimeout(() => t.remove(), errore ? 7000 : 1600); }
   function conteggio(ls) {
     const c = { da_fare: 0, in_corso: 0, fatto: 0, finito: 0 };
     ls.forEach(n => { c[n.stato] = (c[n.stato] || 0) + 1; });
