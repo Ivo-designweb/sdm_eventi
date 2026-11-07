@@ -1504,6 +1504,7 @@
       pr.on('presence', { event: 'sync' }, () => {
         const prima = P.online;
         P.online = new Set(Object.keys(pr.presenceState()));
+        aggiornaPuntiHome();   // Home: puntini aggiornati sul posto, senza ridisegnare la pagina
         if (!isAdmin() || !$('#perLista')) return;
         if (stato.pagina === 'persone') renderPersone();
         if ([...P.online].some(id => !prima.has(id))) {   // qualcuno è appena entrato: rileggo dal server la sua ultima connessione
@@ -1711,7 +1712,7 @@
       if (homeApriFiltro) { gv.forEach(g => homeAperti.add(g.k)); homeApriFiltro = false; }   // scegliendo una cella le righe con risultati si aprono una volta sola
       const righe = gv.map(g => {
         const cc = conteggio(g.l), aperto = homeAperti.has(g.k), nf = g.l.filter(n => n.stato === 'fatto').length;
-        const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, ...(homeVista === 'persona' ? [h('i', { class: 'cdot' + (g.id && S.coll[g.id] ? ' v' : ' vuoto') })] : []), g.nome), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, (homeStatoF ? g.lf.length : cc.finito) + '/' + cc.tot), h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
+        const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, ...(homeVista === 'persona' ? [h('i', { class: 'cdot' + (g.id && (S.coll[g.id] || P.online.has(g.id)) ? ' v' : ' vuoto') + (g.id && P.online.has(g.id) ? ' live' : ''), 'data-pid': g.id || null })] : []), g.nome), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, (homeStatoF ? g.lf.length : cc.finito) + '/' + cc.tot), h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
         gh.addEventListener('click', () => { if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); });
         const gr = h('div', { class: 'gr' }, gh);
         if (aperto) gr.append(h('div', { class: 'det' }, ...g.lf.map(n => {
@@ -2275,6 +2276,14 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     applicaParametri(nuovi);
     msg.textContent = '✔ Salvato';
     if (riattivato) { msg.textContent = '✔ Salvato. Codice OTP riattivato: consigliato "Disconnetti tutti gli utenti" ed eliminare la funzione accesso-email (promemoria qui sopra).'; $('#promemoriaFn').open = true; $('#promemoriaFn').scrollIntoView({ block: 'center' }); }
+  }
+
+  // puntino della Home «Per persona»: verde se connessa almeno una volta, lampeggiante se è online adesso (stessa logica della lista Persone)
+  function aggiornaPuntiHome() {
+    $$('#homeCorpo .cdot[data-pid]').forEach(e => {
+      const id = e.getAttribute('data-pid'), on = P.online.has(id), v = on || !!S.coll[id];
+      e.classList.toggle('live', on); e.classList.toggle('v', v); e.classList.toggle('vuoto', !v);
+    });
   }
 
   // ---------- apertura da notifica: l'attività (o la Home «In scadenza») indicata dalla notifica ----------
