@@ -7,12 +7,12 @@ Ogni mattina alle **08:00 (ora italiana)** responsabili e amministratori ricevon
 - Un'attività **senza data di scadenza non scade mai**: non genera notifiche.
 - Non si notificano le attività di eventi *conclusi* o *archiviati*.
 - **Destinatari:** il responsabile dell'attività (proprio o ereditato dal ramo più vicino) e tutti gli amministratori attivi.
-- Ogni notifica ha l'icona dell'app (`assets/notifica-icon.png`), il nome dell'attività, poi evento, ramo e scadenza. Al massimo **3 notifiche singole** per persona, poi «e altre N attività in scadenza». Si ripete ogni giorno.
+- Ogni notifica ha l'icona dell'app (`assets/notifica-icon.png`), un pallino di urgenza (🔴 scaduta, 🟠 scade oggi o domani, 🟡 scade nei giorni successivi) e il nome dell'attività; sotto, su tre righe, evento, ramo e scadenza. Su Android e PC c'è anche il pulsante «Apri». Toccando la notifica si apre direttamente quell'attività (il riepilogo apre la Home «In scadenza»). Al massimo **3 notifiche singole** per persona, poi «e altre N attività in scadenza». Si ripete ogni giorno.
 - Parametri (solo proprietario): *Notifiche delle scadenze* (sì/no, default sì) e *Giorni di anticipo per la notifica*.
 - Ogni persona deve **attivare le notifiche su ogni suo dispositivo**: *Impostazioni → Notifiche delle scadenze → Attiva* (il telefono chiede il permesso). Su **iPhone/iPad** l'app deve essere installata sulla schermata Home (iOS 16.4 o successivo) e aperta da lì.
 
 ## Installazione (una sola volta)
-1. **Database:** esegui `db/01_schema_sdm_eventi.sql` (versione 1.9) nell'SQL Editor di Supabase.
+1. **Database:** esegui `db/01_schema_sdm_eventi.sql` (versione 2.0) nell'SQL Editor di Supabase.
 2. **Segreto:** Supabase → *Edge Functions* → *Secrets* → aggiungi `CRON_SECRET` con una parola d'ordine lunga e casuale (scrivila da parte). Facoltativo: `VAPID_SUBJECT` = `mailto:ivotaffarel@gmail.com`.
 3. **Funzione:** *Edge Functions* → *Deploy a new function* → *Via Editor* → nome `notifiche-scadenze` → incolla `supabase/functions/notifiche-scadenze/index.ts` → **disattiva *Verify JWT*** (la funzione si protegge con `CRON_SECRET`) → Deploy.
 4. **Chiavi delle notifiche:** esegui la funzione una volta per creare le chiavi (restano nel database; la privata non esce dal server). Da terminale:

@@ -245,7 +245,7 @@
     renderNav();
     vai('eventi', true);
     aggiornaRete();
-    caricaEventi().then(() => vai(stato.evento !== null ? 'home' : 'eventi', true));
+    caricaEventi().then(() => vai(stato.evento !== null ? 'home' : 'eventi', true)).then(eseguiNotifica);
     avviaSincronizzazione();
     verificaInformativa(); pulizieAutomatiche();
   }
@@ -2272,6 +2272,30 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     if (riattivato) { msg.textContent = '✔ Salvato. Codice OTP riattivato: consigliato "Disconnetti tutti gli utenti" ed eliminare la funzione accesso-email (promemoria qui sopra).'; $('#promemoriaFn').open = true; $('#promemoriaFn').scrollIntoView({ block: 'center' }); }
   }
 
+  // ---------- apertura da notifica: l'attività (o la Home «In scadenza») indicata dalla notifica ----------
+  let daNotifica = null;
+  function leggiNotifica() {   // l'indirizzo arriva dal tocco con l'app chiusa: ?attivita=…&evento=… oppure ?scadenze=1
+    const q = new URLSearchParams(location.search);
+    if (!q.get('attivita') && !q.get('scadenze')) return;
+    daNotifica = { nodo: q.get('attivita') || '', evento: q.get('evento') || '', scadenze: !!q.get('scadenze') };
+    ['attivita', 'evento', 'scadenze'].forEach(k => q.delete(k));
+    try { history.replaceState(history.state, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); } catch (e) { /* niente */ }
+  }
+  async function eseguiNotifica() {
+    const d = daNotifica; if (!d || !stato.persona || !stato.avviata) return;   // se non sei ancora dentro, riparte dopo l'accesso
+    daNotifica = null;
+    if (d.evento && d.evento !== stato.evento) { if (!stato.eventi.some(e => e.id === d.evento)) { toast('Evento non disponibile', true); return; } selezionaEvento(d.evento, false); }
+    if (stato.evento === null) { vai('eventi'); return; }
+    await caricaStruttura();
+    vai('home');
+    if (d.nodo) { if (nodo(d.nodo)) apriScheda(d.nodo); else toast('Attività non trovata (forse è stata eliminata o non è più tua)', true); }
+    else if (d.scadenze) { homeStatoF = 'scad'; homeLuce = 'scad'; homeApriFiltro = true; renderHome(); }
+  }
+  if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => {   // app già aperta: il service worker manda il comando
+    const m = e.data; if (!m || m.tipo !== 'apri-notifica') return;
+    daNotifica = { nodo: m.nodo || '', evento: m.evento || '', scadenze: !!m.scadenze }; eseguiNotifica();
+  });
+
   // ---------- notifiche push delle scadenze (responsabili e amministratori) ----------
   const pushSupportato = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
   const chiaveVapid = s => { const r = atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); };
@@ -2431,6 +2455,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
 
+    leggiNotifica();
     aggiornaPrivacy();
     stato.sb.rpc('informativa_pubblica').then(r => { if (r && r.data) { LS.set('sdm_privacy', { url: r.data.url || '', testo: r.data.testo || '' }); aggiornaPrivacy(); } }).catch(() => {});
     stato.sb.auth.onAuthStateChange((evento, session) => {

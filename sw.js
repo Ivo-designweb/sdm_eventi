@@ -1,6 +1,6 @@
 // Service worker: l'app si apre anche senza rete.
 // Ad ogni nuova versione dell'app cambiare VERSIONE (stesso numero di index.html).
-const VERSIONE = '5.0';
+const VERSIONE = '5.1';
 const BUILD = 'b1';   // aumenta a ogni modifica ai file in cache, anche senza cambio di versione
 const CACHE = 'sdm-eventi-' + VERSIONE + '-' + BUILD;
 const SHELL = [
@@ -46,13 +46,24 @@ self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: 'SDM Eventi', body: e.data ? e.data.text() : '' }; }
   const icona = new URL('assets/notifica-icon.png', self.registration.scope).href;
-  e.waitUntil(self.registration.showNotification(d.title || 'SDM Eventi', { body: d.body || '', icon: icona, badge: icona, tag: d.tag || undefined, data: { url: self.registration.scope } }));
+  e.waitUntil(self.registration.showNotification(d.title || 'SDM Eventi', {
+    body: d.body || '', icon: icona, badge: icona, tag: d.tag || undefined,
+    actions: [{ action: 'apri', title: 'Apri' }],   // pulsante su Android e PC (iPhone lo ignora)
+    data: { tipo: d.tipo || '', nodo: d.nodo || '', evento: d.evento || '' }
+  }));
 });
+// Al tocco: apre l'attività (o la Home «In scadenza» per il riepilogo); se l'app è già aperta le manda il comando
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  const url = (e.notification.data && e.notification.data.url) || self.registration.scope;
+  const d = e.notification.data || {};
+  const msg = { tipo: 'apri-notifica', nodo: d.nodo || '', evento: d.evento || '', scadenze: d.tipo === 'riepilogo' };
+  const url = new URL(self.registration.scope);
+  if (msg.nodo) { url.searchParams.set('attivita', msg.nodo); if (msg.evento) url.searchParams.set('evento', msg.evento); }
+  else if (msg.scadenze) url.searchParams.set('scadenze', '1');
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(l => {
     const aperta = l.find(c => c.url.startsWith(self.registration.scope));
-    return aperta ? aperta.focus() : self.clients.openWindow(url);
+    if (!aperta) return self.clients.openWindow(url.href);
+    aperta.postMessage(msg);
+    return aperta.focus();
   }));
 });

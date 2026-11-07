@@ -13,11 +13,13 @@ const ORA_INVIO = 8;   // ora italiana
 const ggMm = (iso: string) => iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4);
 function testoScadenza(iso: string, gg: number): string {
   const d = ggMm(iso);
-  if (gg === 0) return 'scade oggi (' + d + ')';
-  if (gg === 1) return 'scade domani (' + d + ')';
-  if (gg > 1) return 'scade il ' + d + ' (tra ' + gg + ' giorni)';
-  return 'scaduta il ' + d + ' (' + (gg === -1 ? '1 giorno' : -gg + ' giorni') + ' fa)';
+  if (gg === 0) return 'Scade oggi ' + d;
+  if (gg === 1) return 'Scade domani ' + d;
+  if (gg > 1) return 'Scade il ' + d + ' (tra ' + gg + ' giorni)';
+  return 'Scaduta il ' + d + ' (' + (gg === -1 ? '1 giorno' : -gg + ' giorni') + ' fa)';
 }
+// pallino di urgenza: rosso scaduta, arancione oggi o domani, giallo nei giorni successivi
+const pallino = (gg: number) => (gg < 0 ? '🔴' : gg <= 1 ? '🟠' : '🟡');
 
 Deno.serve(async (req: Request) => {
   const segreto = Deno.env.get('CRON_SECRET');
@@ -50,7 +52,7 @@ Deno.serve(async (req: Request) => {
 
   webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT') || 'mailto:ivotaffarel@gmail.com', chiavi.pubblica, chiavi.privata);
 
-  type Riga = { persona_id: string; nodo_id: string; titolo: string; evento: string; ramo: string | null; scadenza: string; giorni: number };
+  type Riga = { persona_id: string; nodo_id: string; evento_id: string; titolo: string; evento: string; ramo: string | null; scadenza: string; giorni: number };
   const perPersona = new Map<string, Riga[]>();
   (righe as Riga[]).forEach(r => { if (!perPersona.has(r.persona_id)) perPersona.set(r.persona_id, []); perPersona.get(r.persona_id)!.push(r); });
   const { data: subs } = await sb.from('push_sottoscrizioni').select('id, persona_id, endpoint, p256dh, auth').in('persona_id', [...perPersona.keys()]);
@@ -58,8 +60,15 @@ Deno.serve(async (req: Request) => {
   let inviate = 0, errori = 0; const morte: string[] = [];
   for (const s of (subs || []) as { id: string; persona_id: string; endpoint: string; p256dh: string; auth: string }[]) {
     const l = perPersona.get(s.persona_id) || [];
-    const msg = l.slice(0, MAX_SINGOLE).map(r => ({ title: r.titolo, body: [r.evento, r.ramo].filter(Boolean).join(' · ') + ' · ' + testoScadenza(r.scadenza, r.giorni), tag: 'scad-' + r.nodo_id }));
-    if (l.length > MAX_SINGOLE) { const n = l.length - MAX_SINGOLE; msg.push({ title: 'e altre ' + n + (n === 1 ? ' attività in scadenza' : ' attività in scadenza'), body: 'Tocca per aprire l\'elenco', tag: 'scad-altre' }); }
+    const msg: Record<string, unknown>[] = l.slice(0, MAX_SINGOLE).map(r => ({
+      title: pallino(r.giorni) + ' ' + r.titolo,
+      body: [r.evento, r.ramo, testoScadenza(r.scadenza, r.giorni)].filter(Boolean).join('\n'),   // tre righe: evento, ramo, scadenza
+      tag: 'scad-' + r.nodo_id, tipo: 'attivita', nodo: r.nodo_id, evento: r.evento_id
+    }));
+    if (l.length > MAX_SINGOLE) {
+      const n = l.length - MAX_SINGOLE;
+      msg.push({ title: n === 1 ? 'e un\'altra attività in scadenza' : 'e altre ' + n + ' attività in scadenza', body: 'Tocca per vedere l\'elenco', tag: 'scad-altre', tipo: 'riepilogo' });
+    }
     for (const m of msg) {
       try {
         await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(m), { TTL: 12 * 3600, urgency: 'high' });

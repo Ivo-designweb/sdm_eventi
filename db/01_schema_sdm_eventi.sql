@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 1.9
+-- Versione script: 2.0
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -1226,14 +1226,14 @@ end $$;
 -- più vicino) e tutti gli amministratori attivi.
 drop function if exists sdm_eventi.scadenze_da_notificare(integer, boolean);   -- cambia l'elenco dei campi restituiti
 create or replace function sdm_eventi.scadenze_da_notificare(_giorni integer, _percorso_completo boolean default false)
-returns table (persona_id uuid, nodo_id uuid, titolo text, evento text, ramo text, scadenza date, giorni integer)
+returns table (persona_id uuid, nodo_id uuid, evento_id uuid, titolo text, evento text, ramo text, scadenza date, giorni integer)
 language plpgsql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
 declare oggi date := (now() at time zone 'Europe/Rome')::date;
 begin
   if auth.uid() is not null then raise exception 'Funzione riservata al server'; end if;
   return query
   with f as (
-    select n.id, n.titolo, n.scadenza, n.percorso, n.responsabile_id, ev.titolo as evento
+    select n.id, n.evento_id, n.titolo, n.scadenza, n.percorso, n.responsabile_id, ev.titolo as evento
     from sdm_eventi.nodi n
     join sdm_eventi.eventi ev on ev.id = n.evento_id
     where n.scadenza is not null and n.stato in ('da_fare', 'in_corso')
@@ -1252,7 +1252,7 @@ begin
          join sdm_eventi.nodi a on a.id = u.id) as completo
     from f
   )
-  select p.id, r.id, r.titolo, r.evento,
+  select p.id, r.id, r.evento_id, r.titolo, r.evento,
          case when _percorso_completo then r.completo else r.radice end,
          r.scadenza, (r.scadenza - oggi)::integer
   from r
