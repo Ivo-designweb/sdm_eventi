@@ -1106,15 +1106,17 @@
   // apriScheda(id)            apre la scheda
   // apriScheda(id, true)      propone una copia (stesso livello) con la descrizione vuota
   // apriScheda(id, false, true) come la prima, scorrendo fino alla check-list
-  function apriScheda(id, duplica, vaiCheck) {
+  function apriScheda(id, duplica, vaiCheck, vista) {   // vista = true: sola lettura compatta (apertura da notifica), con pulsante Modifica
     const orig = nodo(id); if (!orig) return;
     const bozza = !!duplica;
     const n = bozza ? { ...orig, id: null, descrizione: null, stato: 'da_fare', checklist_esito: {} } : orig;
     S.att = n; S.bozza = bozza ? orig : null;
     S.attInc = (S.inc[id] || []).map(x => bozza ? { id: null, persona_id: x.persona_id, nota: '' } : { ...x });
     S.ckRighe = righeCheck(n).map(r => ({ ...r }));
-    const me = stato.persona.id, opMode = inModoOp(), adm = isAdmin() && !opMode, ed = bozza || (canEdit(n) && !opMode), isInc = !bozza && S.attInc.some(x => x.persona_id === me), chiuso = n.stato === 'finito';
-    const puoStato = adm || (!chiuso && (ed || isInc));
+    const sl = !!vista && !bozza; S.vista = sl;
+    const me = stato.persona.id, opMode = inModoOp(), adm0 = isAdmin() && !opMode, edOrig = bozza || (canEdit(n) && !opMode), isInc = !bozza && S.attInc.some(x => x.persona_id === me), chiuso = n.stato === 'finito';
+    const adm = adm0 && !sl, ed = edOrig && !sl;   // in sola lettura niente campi modificabili
+    const puoStato0 = adm0 || (!chiuso && (edOrig || isInc)), puoStato = !sl && puoStato0;
     const corpo = [];
     if (ed) {
       corpo.push(campo('Titolo *', h('input', { type: 'text', id: 'aTit', maxlength: '120', value: n.titolo })),
@@ -1163,8 +1165,8 @@
           h('div', { class: 'grid2' }, campo('Cellulare', h('input', { type: 'tel', id: 'aSpCel', maxlength: '40', value: (sp && sp.cellulare) || '' })), campo('Importo del contributo (€)', h('input', { type: 'number', id: 'aSpImp', min: '0', step: '0.01', inputmode: 'decimal', value: sp && sp.importo != null ? sp.importo : '' }))))));
     }
     corpo.push(h('label', {}, 'Persone incaricate'), h('div', { id: 'aInc' }));
-    const mob = isMobile(); S.cmpt = mob;
-    if (mob && !ed) {   // smartphone: scheda compatta (informazioni in poche righe, stato a pulsanti, incaricati ripiegati)
+    const mob = isMobile(); S.cmpt = mob || sl;
+    if ((mob || sl) && !ed) {   // smartphone (o sola lettura da notifica): scheda compatta (informazioni in poche righe, stato a pulsanti, incaricati ripiegati)
       corpo.length = 0;
       const ca0 = colArea(n.area);
       selStato.classList.add('hidden');
@@ -1177,11 +1179,11 @@
       corpo.push(h('div', { class: 'chips' }, h('span', { class: 'ar' }, ca0 ? h('i', { style: 'background:' + ca0 }) : '', n.area || 'Tutte le aree'), n.scadenza ? badgeScad(n) : '', h('span', { class: 'badge' }, '👥 ' + S.attInc.length)),
         (n.descrizione || n.note) ? h('div', { class: 'info' }, n.descrizione ? h('div', {}, h('span', { class: 'l' }, 'Descrizione: '), n.descrizione) : '', n.note ? h('div', {}, h('span', { class: 'l' }, 'Note: '), n.note) : '') : '',
         seg, selStato, chiuW, ...(righeCheck(n).length ? [h('div', { class: 'ckfill', id: 'aCompila' })] : []), h('div', { id: 'aInc' }));
-      if (chiuso && !adm) corpo.push(h('p', { class: 'note' }, 'Attività finita: la riapre solo l\'amministratore.'));
+      if (chiuso && !adm0) corpo.push(h('p', { class: 'note' }, 'Attività finita: la riapre solo l\'amministratore.'));
     }
     if (ed) corpo.push(h('div', { style: 'display:flex;gap:8px;margin-top:8px' }, h('select', { class: 'f', id: 'aIncSel', style: 'flex:1' }),
       (() => { const b = h('button', { class: 'btn sec need-net', type: 'button' }, '+ Aggiungi'); b.addEventListener('click', aggiungiIncarico); return b; })()));
-    $('#modAtt').classList.toggle('cmpt', mob);
+    $('#modAtt').classList.toggle('cmpt', mob); $('#modAtt').classList.toggle('vista', sl);
     const ca = colArea(n.area);
     if ($('#aHead')) {   // intestazione compatta (smartphone): colore dell'area, titolo e percorso
       $('#aHead').style.cssText = ca ? 'background:color-mix(in srgb,' + ca + ' 24%,var(--card));border-left:6px solid ' + ca : '';
@@ -1198,7 +1200,9 @@
     }
     if (adm) $('#aSpOn').addEventListener('change', e => $('#aSpBox').classList.toggle('hidden', !e.target.checked));
     if (!navigator.onLine) $('#aCorpo').querySelectorAll('#aTit,#aDes,#aNot,#aScad,#aArea,.so input,.so select,.so button').forEach(i => { i.disabled = true; });
-    $$('.js-salva').forEach(x => x.classList.toggle('hidden', !(ed || puoStato || isInc)));
+    $$('.js-salva').forEach(x => x.classList.toggle('hidden', sl || !(ed || puoStato || isInc)));
+    const puoModif = sl && (edOrig || puoStato0 || isInc);   // chi può cambiare qualcosa vede «Modifica»
+    $$('.js-modifica').forEach(x => x.classList.toggle('hidden', !puoModif));
     renderIncarichi();
     if (!bozza) renderCompila(n, adm || (puoStato && (ed || isInc)));
     $('#modAtt').classList.remove('hidden');
@@ -1245,11 +1249,12 @@
   function leggiNoteScheda() { $('#aInc').querySelectorAll('[data-pid]').forEach(i => { const w = S.attInc.find(x => x.persona_id === i.dataset.pid); if (w) w.nota = i.value; }); }
 
   function renderIncarichi() {
-    const n = S.att, me = stato.persona.id, ed = !!S.bozza || (canEdit(n) && !inModoOp());
+    const n = S.att, me = stato.persona.id, ed = !S.vista && (!!S.bozza || (canEdit(n) && !inModoOp()));
     if (S.cmpt && !ed) {   // compatto: la mia nota su una riga, gli altri incaricati ripiegati
       const mio = S.attInc.find(x => x.persona_id === me), altri = S.attInc.filter(x => x.persona_id !== me);
       const els = [];
-      if (mio) els.push(h('div', { class: 'nota' }, h('span', { class: 'l2' }, '✎'), h('input', { type: 'text', 'data-pid': mio.persona_id, maxlength: '500', value: mio.nota || '', placeholder: 'La mia nota…' })));
+      if (mio && S.vista) els.push(h('div', { class: 'info' }, h('span', { class: 'l' }, '✎ La mia nota: '), mio.nota || 'nessuna'));
+      else if (mio) els.push(h('div', { class: 'nota' }, h('span', { class: 'l2' }, '✎'), h('input', { type: 'text', 'data-pid': mio.persona_id, maxlength: '500', value: mio.nota || '', placeholder: 'La mia nota…' })));
       if (altri.length) {
         const det = h('div', { class: 'det hidden' }, ...altri.map(x => h('div', {}, h('b', {}, nomeP(x.persona_id)), ' — ', h('span', { class: 'sec' }, x.nota || 'nessuna nota'))));
         const ln = h('div', { class: 'inc' }, '👥 Altri incaricati: ' + altri.map(x => nomeP(x.persona_id)).join(', '), h('span', { style: 'float:right' }, '›'), det);
@@ -2288,7 +2293,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     if (stato.evento === null) { vai('eventi'); return; }
     await caricaStruttura();
     vai('home');
-    if (d.nodo) { if (nodo(d.nodo)) apriScheda(d.nodo); else toast('Attività non trovata (forse è stata eliminata o non è più tua)', true); }
+    if (d.nodo) { if (nodo(d.nodo)) apriScheda(d.nodo, false, false, true); else toast('Attività non trovata (forse è stata eliminata o non è più tua)', true); }
     else if (d.scadenze) { homeStatoF = 'scad'; homeLuce = 'scad'; homeApriFiltro = true; renderHome(); }
   }
   if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => {   // app già aperta: il service worker manda il comando
@@ -2414,7 +2419,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#dupRForm').addEventListener('submit', eseguiDuplicaRamo); $('#drAnnulla').onclick = () => $('#modDupR').classList.add('hidden');
     $('#dupForm').addEventListener('submit', eseguiDuplica); $('#dAnnulla').onclick = () => $('#modDup').classList.add('hidden');
     $('#nodoForm').addEventListener('submit', salvaNodo);
-    $('#attForm').addEventListener('submit', salvaScheda); $('#aChiudi').onclick = chiudiScheda; if ($('#aBack')) $('#aBack').onclick = chiudiScheda;
+    $('#attForm').addEventListener('submit', salvaScheda); $$('.js-modifica').forEach(b => { b.onclick = () => { if (S.att && S.att.id) apriScheda(S.att.id); }; }); $('#aChiudi').onclick = chiudiScheda; if ($('#aBack')) $('#aBack').onclick = chiudiScheda;
     $('#nAnnulla').onclick = chiudiNodo;
     if (window.matchMedia) window.matchMedia(MQ_SMARTPHONE).addEventListener('change', () => { renderNav(); if (stato.pagina === 'str') renderStruttura(); if (isMobile() && !isAdmin() && stato.pagina === 'str') vai('home'); renderHome(); });
     if ($('#strArea')) $('#strArea').onchange = e => { S.areaF = e.target.value; renderStruttura(); renderHome(); };

@@ -630,3 +630,18 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
 .conn.mai{color:var(--sec)}.conn.blu{color:#2563eb}.conn.verde{color:var(--ok)}
 .gr .gh .nm{display:flex;align-items:center;gap:7px}
 @media (max-width:760px){.conn{font-size:11px}}
+
+/* v5.2: scheda attività in sola lettura compatta (apertura da notifica), anche su PC */
+#modAtt.vista .chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}
+#modAtt.vista .info{font-size:13px;line-height:1.35;margin-bottom:8px}
+#modAtt.vista .info .l{color:var(--sec);font-weight:600}
+#modAtt.vista .seg2{display:flex;border:1px solid var(--bordo);border-radius:10px;overflow:hidden;margin-bottom:8px}
+#modAtt.vista .seg2 button{flex:1;border:0;background:var(--card);padding:9px 2px;font:inherit;font-size:13px;font-weight:600;color:var(--sec);border-right:1px solid var(--bordo)}
+#modAtt.vista .seg2 button:last-child{border:0}
+#modAtt.vista .seg2 button.on{background:var(--primario);color:#fff}
+#modAtt.vista .seg2 button:disabled{opacity:.6}
+#modAtt.vista .ckfill{padding:6px 10px 4px;margin-top:0;margin-bottom:8px}
+#modAtt.vista .ckr{padding:3px 0;gap:8px}
+#modAtt.vista .inc{font-size:13px;color:var(--sec);padding:4px 0;cursor:pointer}
+#modAtt.vista .inc .det{margin-top:4px;color:var(--testo)}
+#modAtt.vista #attForm{max-width:520px !important}
