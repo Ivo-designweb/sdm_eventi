@@ -58,6 +58,10 @@ input[type=number]:disabled{background:#eef1f6;color:#9aa3b5}
 .desk{background:#fff;color:#1c2333;border:1px solid #cfd5e1;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.2);width:360px;padding:12px;display:grid;grid-template-columns:44px 1fr;gap:3px 12px;margin:0 auto 10px}
 .desk .ic{width:44px;height:44px;border-radius:10px;border:1px solid #dde2ec;grid-row:1/4}
 .desk .t{font-weight:700;font-size:14px}.desk .b{font-size:13px;color:#3a4357}.desk .s{font-size:11.5px;color:#7a8396}
+.b{white-space:pre-line}
+.azioni{grid-column:2/-1;display:flex;gap:14px;margin-top:6px;padding-top:6px;border-top:1px solid #e6e9f1}
+.azioni span{font-size:13px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.3px}
+.desk .azioni{grid-column:2/-1}
 </style>
 </head>
 <body>
@@ -96,30 +100,11 @@ input[type=number]:disabled{background:#eef1f6;color:#9aa3b5}
 </div>
 
 <!-- ANDROID -->
-<div id="vA" class="hidden tel"><div class="phone and">
-  <div class="ora">08:00</div><div class="dataL">giovedì 5 novembre</div>
-  <div class="etich">Notifiche</div>
-  <div class="na"><div class="app"><img src="../assets/notifica-icon.png" alt="">SDM Eventi · ora</div><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Montaggio gazebo</div><div class="b">Logistica · scade il 07/11/2026 (tra 2 giorni)</div></div>
-  <div class="na"><div class="app"><img src="../assets/notifica-icon.png" alt="">SDM Eventi · ora</div><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Rifornimento bar</div><div class="b">Ristoro · scade il 08/11/2026 (tra 3 giorni)</div></div>
-  <div class="na"><div class="app"><img src="../assets/notifica-icon.png" alt="">SDM Eventi · ora</div><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Pulizia finale</div><div class="b">Servizi · scaduta il 04/11/2026 (1 giorno fa)</div></div>
-  <div class="na"><div class="app"><img src="../assets/notifica-icon.png" alt="">SDM Eventi · ora</div><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">e altre 4 attività in scadenza</div><div class="b">Tocca per aprire l'elenco</div></div>
-</div></div>
-
+<div id="vA" class="hidden tel"><div class="phone and"><div class="ora">08:00</div><div class="dataL">sabato 7 novembre</div><div class="etich">Notifiche</div><div id="listaA"></div></div></div>
 <!-- IPHONE -->
-<div id="vI" class="hidden tel"><div class="phone ios">
-  <div class="ora">08:00</div><div class="dataL">giovedì 5 novembre</div>
-  <div class="ni"><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Montaggio gazebo</div><div class="q">ora</div><div class="b">Logistica · scade il 07/11/2026 (tra 2 giorni)</div></div>
-  <div class="ni"><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Rifornimento bar</div><div class="q">ora</div><div class="b">Ristoro · scade il 08/11/2026 (tra 3 giorni)</div></div>
-  <div class="ni"><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Pulizia finale</div><div class="q">ora</div><div class="b">Servizi · scaduta il 04/11/2026 (1 giorno fa)</div></div>
-  <div class="ni sum"><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">e altre 4 attività in scadenza</div><div class="q">ora</div><div class="b">Tocca per aprire l'elenco</div></div>
-</div></div>
-
+<div id="vI" class="hidden tel"><div class="phone ios"><div class="ora">08:00</div><div class="dataL">sabato 7 novembre</div><div id="listaI"></div></div></div>
 <!-- PC -->
-<div id="vD" class="hidden">
-  <div class="desk"><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Montaggio gazebo</div><div class="b">Logistica · scade il 07/11/2026 (tra 2 giorni)</div><div class="s">SDM Eventi</div></div>
-  <div class="desk"><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">Rifornimento bar</div><div class="b">Ristoro · scade il 08/11/2026 (tra 3 giorni)</div><div class="s">SDM Eventi</div></div>
-  <div class="desk"><img class="ic" src="../assets/notifica-icon.png" alt=""><div class="t">e altre 5 attività in scadenza</div><div class="b">Tocca per aprire l'elenco</div><div class="s">SDM Eventi</div></div>
-</div>
+<div id="vD" class="hidden"><div id="listaD"></div></div>
 </div>
 
 <script>
@@ -129,6 +114,19 @@ Object.keys(T).forEach(k=>$('#'+k).onclick=()=>{Object.keys(T).forEach(j=>{$('#'
 function flag(on){$('#swN').checked=on;$('#ggN').disabled=!on;$('#boxGg').style.opacity=on?1:.5;$('#fOn').classList.toggle('on',on);$('#fOff').classList.toggle('on',!on)}
 $('#fOn').onclick=()=>flag(true);$('#fOff').onclick=()=>flag(false);$('#swN').onchange=e=>flag(e.target.checked);
 $('#bAttiva').onclick=()=>{$('#bAttiva').outerHTML='<span class="badge">✔ Attive su questo dispositivo</span>'};
+
+const N=[
+ {t:'🟡 Montaggio gazebo',ev:'Torneo 2026',ra:'Logistica',sc:'Scade il 09/11/2026 (tra 2 giorni)'},
+ {t:'🟠 Rifornimento bar',ev:'Torneo 2026',ra:'Ristoro',sc:'Scade domani 08/11/2026'},
+ {t:'🔴 Pulizia finale',ev:'Torneo 2026',ra:'Servizi',sc:'Scaduta il 06/11/2026 (1 giorno fa)'},
+ {t:'e altre 4 attività in scadenza',b:'Tocca per vedere l\'elenco'}
+];
+const corpo=n=>n.b||(n.ev+'\n'+n.ra+'\n'+n.sc);
+const img='<img class="ic" src="../assets/notifica-icon.png" alt="">';
+const az='<div class="azioni"><span>Apri</span></div>';
+$('#listaA').innerHTML=N.map(n=>`<div class="na"><div class="app"><img src="../assets/notifica-icon.png" alt="">SDM Eventi · ora</div>${img}<div class="t">${n.t}</div><div class="b">${corpo(n)}</div>${az}</div>`).join('');
+$('#listaI').innerHTML=N.map(n=>`<div class="ni">${img}<div class="t">${n.t}</div><div class="q">ora</div><div class="b">${corpo(n)}</div></div>`).join('');
+$('#listaD').innerHTML=N.slice(0,3).concat([{t:'e altre 4 attività in scadenza',b:'Tocca per vedere l\'elenco'}]).map(n=>`<div class="desk">${img}<div class="t">${n.t}</div><div class="b" style="white-space:pre-line">${corpo(n)}</div>${az}</div>`).join('');
 </script>
 </body>
 </html>
