@@ -337,6 +337,7 @@
       voce('🔔', 'Da rivedere', () => vai('rev'), r ? h('span', { class: 'badge e' }, String(r)) : ''),
       dueRuoli() ? voce('🔁', 'Entri come ' + (modoScelto() === 'op' ? 'Operatore' : nomeGestione()), cambiaModo, h('span', { class: 'badge' }, 'Cambia')) : '',
       voce('⚙️', 'Impostazioni', () => vai('imp')),
+      voce('❓', 'Guida all\'uso', () => { location.href = 'help.html'; }),
       isAdmin() ? voce('📜', 'Registro modifiche', () => vai('log')) : '',
       isSuper() ? voce('🎛️', 'Parametri', () => vai('par')) : '',
       (i.url || i.testo) ? voce('🔒', 'Informativa privacy', () => apriInformativa()) : '',
