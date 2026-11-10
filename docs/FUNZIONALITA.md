@@ -1,6 +1,6 @@
 # SDM Eventi - funzionalità e storico delle versioni
 
-Versione dell'app: **5.2** · Script database: **2.0** · Ultimo aggiornamento di questo file: versione 5.2
+Versione dell'app: **5.4** · Script database: **2.0** · Ultimo aggiornamento di questo file: versione 5.4
 
 > Questo file va aggiornato a ogni nuova versione: sezione «Funzionalità» se cambia il comportamento, tabella «Storico» con una riga per versione (e l'indicazione se serve rieseguire `db/01_schema_sdm_eventi.sql`).
 
@@ -58,7 +58,8 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 - **Ultima connessione:** a ogni ingresso nell'app il server registra data e ora (colonna `persone.ultima_connessione`, non finisce nel registro modifiche). Nella lista Persone (amministratore) ogni nome ha un puntino a destra: grigio se la persona non si è mai connessa, verde se si è connessa almeno una volta (lampeggiante se è online adesso). Sotto il nome la riga «Connesso: gg/mm/aaaa hh:mm»: verde se online, blu se connessa almeno una volta, grigia con «—» se mai connessa. «Online» = app aperta, rilevato con la presenza in tempo reale di Supabase (canale `sdm-presenza`, chiave = id persona; la presenza la pubblicano tutti gli utenti collegati). Nella Home «Per persona» di amministratore e responsabile un puntino a sinistra del nome: verde se la persona si è connessa almeno una volta, **verde lampeggiante se è online adesso** (stessa logica della lista Persone, aggiornato sul posto senza ridisegnare la pagina), nessun puntino se mai connessa; il responsabile non vede data e ora, ma vede chi è online. Il dato è **della persona, non dell'evento**: un solo campo, aggiornato solo all'ingresso nell'app (non a ogni sincronizzazione). Per amministratori e responsabili l'elenco dei «collegati almeno una volta» arriva dalla funzione `persone_collegate()` (il responsabile non legge l'anagrafica). Se il salvataggio all'ingresso fallisce (es. script SQL non aggiornato) l'amministratore vede un avviso.
 - **Persone:** anagrafica completa (i rami di cui una persona è responsabile vanno a capo, la pagina resta nella larghezza dello schermo), **Invita all'app** nella scheda di una persona salvata: apre WhatsApp (solo telefono e tablet, non PC; serve il cellulare) o la mail (serve l'email) con un messaggio già scritto («Ciao nome, questo è un invito a usare l'app… Apri l'app da qui: link… entra con la tua email»), il link è quello dell'app in uso; il logo (`assets/og-logo.png`, il logo in alto nella Home su fondo bianco) con la scritta «SdM Eventi» sotto il link lo mostra WhatsApp grazie ai tag `og:` di `index.html` (indirizzo fisso `https://sdmeventi.ivotaffarel.it/`; non segue un logo cambiato dai Parametri); disattivato per le persone non attive; ricerca e filtri, contatto rapido (chiama, WhatsApp, mail), import/export Excel, eliminazione definitiva e dati della persona (GDPR).
 - **Eventi:** titolo, date, aree con colore, duplicazione dell'evento (con date spostate, responsabili e incaricati opzionali).
-- **Altro:** Excel della struttura (esporta, importa, modello), **Registro modifiche** (amministratori), Da rivedere, Impostazioni, Parametri (proprietario), Informativa privacy, Esci.
+- **Guida all'uso (v5.3, logo v5.4):** pagina `help.html` con il manuale pratico per gli utenti (accesso, ruoli, attività, caricamento dati da Excel, ricerche, problemi frequenti) e schermate in `assets/help/` (da rigenerare se cambia molto l'interfaccia). Si apre da *Altro → Guida all'uso*, **toccando il logo SdM Eventi in qualsiasi videata** e dal link «Guida all'uso» nella schermata di accesso; funziona offline. Va aggiornata quando cambia il comportamento dell'app.
+- **Altro:** Guida all'uso, Excel della struttura (esporta, importa, modello), **Registro modifiche** (amministratori), Da rivedere, Impostazioni, Parametri (proprietario), Informativa privacy, Esci.
 - **Registro modifiche** (amministratori): chi ha cambiato cosa e quando, filtri (testo, evento, azione, tipo, periodo), dettaglio «vecchio → nuovo», carica altri, esporta in Excel. Il registro si compila in automatico nel database e si conserva per i mesi indicati nei Parametri.
 - **Da rivedere:** modifiche fatte offline che il server non ha potuto applicare.
 
@@ -75,6 +76,8 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 | Versione | Novità | DB |
 |---|---|---|
+| 5.4 | Il logo SdM Eventi, in qualsiasi videata, apre la Guida all'uso; schermate della guida con nomi di esempio generici | – |
+| 5.3 | Pagina «Guida all'uso» (`help.html`) con manuale per gli utenti e schermate; voce in Altro e link dall'accesso | – |
 | 5.2 | Aprendo un'attività dalla notifica la scheda è in sola lettura e compatta (anche su PC), con pulsante «Modifica». Build b2: puntino verde lampeggiante per chi è online anche nella Home «Per persona» | – |
 | 5.1 | Notifiche: pallino di urgenza, testo su tre righe (evento, ramo, scadenza), pulsante «Apri»; il tocco apre direttamente l'attività (o la Home «In scadenza» per il riepilogo) | 2.0 |
 | 5.0 | Notifiche push delle scadenze a responsabili e amministratori (parametri, attivazione per dispositivo, funzione server alle 08:00) | 1.9 |

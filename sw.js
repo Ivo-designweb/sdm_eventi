@@ -1,11 +1,12 @@
 // Service worker: l'app si apre anche senza rete.
 // Ad ogni nuova versione dell'app cambiare VERSIONE (stesso numero di index.html).
-const VERSIONE = '5.2';
-const BUILD = 'b2';   // aumenta a ogni modifica ai file in cache, anche senza cambio di versione
+const VERSIONE = '5.4';
+const BUILD = 'b1';   // aumenta a ogni modifica ai file in cache, anche senza cambio di versione
 const CACHE = 'sdm-eventi-' + VERSIONE + '-' + BUILD;
 const SHELL = [
-  './', 'index.html', 'assets/app.css', 'js/config.js', 'js/zip.js', 'js/app.js', 'vendor/supabase.js', 'vendor/sortable.min.js', 'vendor/xlsx.mini.min.js',
-  'assets/logo.png', 'assets/notifica-icon.png', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'
+  './', 'index.html', 'help.html', 'assets/app.css', 'js/config.js', 'js/zip.js', 'js/app.js', 'vendor/supabase.js', 'vendor/sortable.min.js', 'vendor/xlsx.mini.min.js',
+  'assets/logo.png', 'assets/notifica-icon.png', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png',
+  'assets/help/01-login.jpg', 'assets/help/03-cerca.jpg', 'assets/help/04-home-ramo.jpg', 'assets/help/05-struttura.jpg', 'assets/help/06-persone.jpg', 'assets/help/07-scheda-persona.jpg', 'assets/help/08-eventi.jpg', 'assets/help/09-nuovo-evento.jpg', 'assets/help/10-altro.jpg', 'assets/help/12-importa-persone.jpg', 'assets/help/13-home-operatore.jpg', 'assets/help/14-scheda-attivita.jpg', 'assets/help/15-scheda-attivita-2.jpg', 'assets/help/16-menu-struttura.jpg', 'assets/help/17-importa-struttura.jpg', 'assets/help/18-scheda-operatore.jpg'
 ];
 
 self.addEventListener('install', e => {

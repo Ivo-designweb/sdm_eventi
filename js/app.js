@@ -337,6 +337,7 @@
       voce('🔔', 'Da rivedere', () => vai('rev'), r ? h('span', { class: 'badge e' }, String(r)) : ''),
       dueRuoli() ? voce('🔁', 'Entri come ' + (modoScelto() === 'op' ? 'Operatore' : nomeGestione()), cambiaModo, h('span', { class: 'badge' }, 'Cambia')) : '',
       voce('⚙️', 'Impostazioni', () => vai('imp')),
+      voce('❓', 'Guida all\'uso', () => { location.href = 'help.html'; }),
       isAdmin() ? voce('📜', 'Registro modifiche', () => vai('log')) : '',
       isSuper() ? voce('🎛️', 'Parametri', () => vai('par')) : '',
       (i.url || i.testo) ? voce('🔒', 'Informativa privacy', () => apriInformativa()) : '',
@@ -2461,6 +2462,8 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#rete').onclick = () => sincronizza(true); $('#iSync').onclick = () => sincronizza(true); $('#iRev').onclick = () => vai('rev');
     window.addEventListener('online', aggiornaRete);
     window.addEventListener('offline', aggiornaRete);
+    // il logo, in qualsiasi videata, apre la guida all'uso
+    $$('.brandimg').forEach(i => { i.style.cursor = 'pointer'; i.setAttribute('role', 'link'); i.setAttribute('tabindex', '0'); i.setAttribute('title', 'Guida all\'uso'); i.addEventListener('click', () => { location.href = 'help.html'; }); i.addEventListener('keydown', e => { if (e.key === 'Enter') location.href = 'help.html'; }); });
 
     if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || !window.supabase) { mostra('setup'); return; }
 
