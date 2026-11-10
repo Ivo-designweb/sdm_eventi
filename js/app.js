@@ -337,7 +337,7 @@
       voce('🔔', 'Da rivedere', () => vai('rev'), r ? h('span', { class: 'badge e' }, String(r)) : ''),
       dueRuoli() ? voce('🔁', 'Entri come ' + (modoScelto() === 'op' ? 'Operatore' : nomeGestione()), cambiaModo, h('span', { class: 'badge' }, 'Cambia')) : '',
       voce('⚙️', 'Impostazioni', () => vai('imp')),
-      voce('❓', 'Guida all\'uso', () => { location.href = 'help.html'; }),
+      voce('❓', 'Guida all\'uso', apriGuida),
       isAdmin() ? voce('📜', 'Registro modifiche', () => vai('log')) : '',
       isSuper() ? voce('🎛️', 'Parametri', () => vai('par')) : '',
       (i.url || i.testo) ? voce('🔒', 'Informativa privacy', () => apriInformativa()) : '',
@@ -1601,6 +1601,9 @@
   const inModoOp = () => dueRuoli() && modoScelto() === 'op';
   const isOperatore = () => !!stato.persona && (inModoOp() || (!isAdmin() && !S.nodi.some(n => n.responsabile_id === stato.persona.id)));
   const nomeGestione = () => isAdmin() ? 'Amministratore' : 'Responsabile';
+  // la guida si adatta al ruolo: login (non entrato), operatore, responsabile, admin (&s=1 se proprietario)
+  const urlGuida = () => 'help.html?r=' + (!stato.persona ? 'login' : isOperatore() ? 'operatore' : isAdmin() ? 'admin' : 'responsabile') + (stato.persona && isSuper() && !isOperatore() ? '&s=1' : '');
+  const apriGuida = () => { location.href = urlGuida(); };
   function aggiornaModo() {
     const c = $('#hdModo'); if (!c) return;
     const on = dueRuoli() && !!modoScelto();
@@ -2463,7 +2466,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     window.addEventListener('online', aggiornaRete);
     window.addEventListener('offline', aggiornaRete);
     // il logo, in qualsiasi videata, apre la guida all'uso
-    $$('.brandimg').forEach(i => { i.style.cursor = 'pointer'; i.setAttribute('role', 'link'); i.setAttribute('tabindex', '0'); i.setAttribute('title', 'Guida all\'uso'); i.addEventListener('click', () => { location.href = 'help.html'; }); i.addEventListener('keydown', e => { if (e.key === 'Enter') location.href = 'help.html'; }); });
+    $$('.brandimg').forEach(i => { i.style.cursor = 'pointer'; i.setAttribute('role', 'link'); i.setAttribute('tabindex', '0'); i.setAttribute('title', 'Guida all\'uso'); i.addEventListener('click', apriGuida); i.addEventListener('keydown', e => { if (e.key === 'Enter') apriGuida(); }); });
 
     if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || !window.supabase) { mostra('setup'); return; }
 

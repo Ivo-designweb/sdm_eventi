@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1d4ed8">
-<meta name="app-version" content="5.4">
+<meta name="app-version" content="5.5">
 <meta name="robots" content="noindex">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
@@ -12,8 +12,9 @@
 <title>SdM Eventi - Guida all'uso</title>
 <style>
 :root{--primario:#1d4ed8;--bg:#f4f6fa;--card:#fff;--testo:#1c2333;--sec:#5b6578;--bordo:#dde2ec;--ok:#166534;--okbg:#e8f7ee;--avv:#92400e;--avvbg:#fff4de;--riga:#eef2fb}
-@media (prefers-color-scheme:dark){:root:not([data-tema=chiaro]){--primario:#6b95ff;--bg:#0f1523;--card:#182033;--testo:#e8ecf5;--sec:#9aa6bd;--bordo:#2a3550;--ok:#7ee0a0;--okbg:#12301f;--avv:#fbc77a;--avvbg:#3a2a10;--riga:#1d2740}}
+@media (prefers-color-scheme:dark){:root{--primario:#6b95ff;--bg:#0f1523;--card:#182033;--testo:#e8ecf5;--sec:#9aa6bd;--bordo:#2a3550;--ok:#7ee0a0;--okbg:#12301f;--avv:#fbc77a;--avvbg:#3a2a10;--riga:#1d2740}}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html{scroll-behavior:smooth;scroll-padding-top:70px}
 body{margin:0;background:var(--bg);color:var(--testo);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
 a{color:var(--primario)}
@@ -29,6 +30,7 @@ h3{font-size:17px;margin:20px 0 6px}
 p,ul,ol{margin:8px 0}
 li{margin:4px 0}
 .sec{color:var(--sec)}
+.ruolo{display:inline-block;margin:6px 0 2px;padding:6px 14px;border-radius:99px;background:var(--riga);border:1px solid var(--bordo);font-size:14px}
 .card{background:var(--card);border:1px solid var(--bordo);border-radius:14px;padding:18px;margin:16px 0}
 .indice{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;padding:0;list-style:none;margin:12px 0}
 .indice a{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border:1px solid var(--bordo);background:var(--card);border-radius:10px;text-decoration:none;color:var(--testo)}
@@ -51,7 +53,6 @@ th{background:var(--riga)}
 details{border:1px solid var(--bordo);border-radius:10px;background:var(--card);margin:8px 0;padding:0 14px}
 summary{cursor:pointer;font-weight:600;padding:12px 0;min-height:44px}
 details[open] summary{border-bottom:1px solid var(--bordo);margin-bottom:8px}
-.ruoli span{display:inline-block;border-radius:99px;padding:0 10px;font-size:13px;font-weight:600;background:var(--riga);border:1px solid var(--bordo);margin-right:4px;vertical-align:middle}
 footer{max-width:980px;margin:0 auto;padding:10px 16px 30px;text-align:center;color:var(--sec);font-size:14px}
 @media print{.bar,.indice{display:none}body{background:#fff}.card{break-inside:avoid}}
 </style>
@@ -60,77 +61,102 @@ footer{max-width:980px;margin:0 auto;padding:10px 16px 30px;text-align:center;co
 <header class="bar">
   <a class="indietro" href="index.html" aria-label="Torna all'app" title="Torna all'app">‹</a>
   <b>Guida all'uso</b>
-  <span class="v">Versione 5.4</span>
+  <span class="v">Versione 5.5</span>
 </header>
 <main>
 <h1>SdM Eventi – Guida all'uso</h1>
-<p class="sec">Manuale pratico per chi usa l'app: come entrare, caricare i dati, aggiornare le attività e cercare quello che serve. Le schermate sono di esempio, con dati finti.</p>
+<p class="ruolo" id="ruoloEt"></p>
+<nav aria-label="Indice"><ul class="indice" id="indice"></ul></nav>
 
-<nav aria-label="Indice">
-<ul class="indice">
-  <li><a href="#primi-passi">🚀 1. Primi passi</a></li>
-  <li><a href="#muoversi">🧭 2. Muoversi nell'app</a></li>
-  <li><a href="#operatore">📋 3. Se sei Operatore</a></li>
-  <li><a href="#gestione">🏠 4. Se sei Responsabile o Amministratore</a></li>
-  <li><a href="#caricare">⬆ 5. Caricare i dati</a></li>
-  <li><a href="#cercare">🔎 6. Cercare i dati</a></li>
-  <li><a href="#altro">☰ 7. Altre funzioni</a></li>
-  <li><a href="#problemi">🛟 8. Problemi frequenti</a></li>
+<!-- ==================== SCHERMATA DI ACCESSO (non ancora entrati) ==================== -->
+<section class="card" id="lg-cosa" data-solo="login">
+<h2>A cosa serve l'app</h2>
+<p><b>SdM Eventi</b> serve a organizzare gli eventi sportivi: si costruisce un elenco ad albero di <b>rami e attività</b>, si affidano le attività alle persone, si fissano le <b>scadenze</b> e si segue lo <b>stato di avanzamento</b> fino al consuntivo.</p>
+<ul>
+  <li>Ogni persona vede le attività che le competono e le aggiorna dal telefono.</li>
+  <li>Chi coordina vede l'avanzamento di tutto l'evento e riceve le <b>notifiche</b> delle scadenze.</li>
+  <li>Si installa come un'app sul telefono e funziona anche senza rete per le operazioni principali.</li>
 </ul>
-</nav>
+</section>
 
-<!-- 1 -->
-<section class="card" id="primi-passi">
-<h2>1. Primi passi</h2>
+<section class="card" id="lg-entrare" data-solo="login">
+<h2>Entrare nell'app (e come registrarsi)</h2>
 <div class="pass con-foto">
 <div>
-<h3>Entrare nell'app</h3>
 <ol>
-  <li>Apri il link dell'app (o l'icona sulla Home del telefono).</li>
-  <li>Scrivi la tua <b>email</b> e tocca <span class="btn">Invia codice di accesso</span>. Devi usare l'email che l'amministratore ha inserito per te nell'anagrafica.</li>
-  <li>Ricevi per mail un <b>codice</b>: scrivilo nell'app. Il codice vale pochi minuti; se scade, richiedilo di nuovo.</li>
+  <li>Scrivi la tua <b>email</b> e tocca <span class="btn">Invia codice di accesso</span>.</li>
+  <li>Ricevi per mail un <b>codice</b>: scrivilo nell'app. Vale pochi minuti; se scade, richiedilo di nuovo.</li>
+  <li>Se l'amministratore ha attivato l'accesso semplificato, per gli utenti che non sono amministratori basta la sola email.</li>
 </ol>
-<p class="sec">Se l'amministratore ha attivato l'accesso semplificato, gli utenti che non sono amministratori entrano con la sola email, senza codice. Gli amministratori entrano sempre con il codice.</p>
-<div class="attenzione">Se compare «non hai accesso», la tua email non è in anagrafica o la tua scheda non è attiva: chiedi all'amministratore.</div>
+<div class="nota"><b>Registrazione:</b> non ci si registra da soli. L'accesso è per invito: l'amministratore ti inserisce in anagrafica (cognome, nome, email) e ti manda l'invito con il link all'app, via WhatsApp o mail. Da quel momento entri con la tua email.</div>
+<div class="attenzione">Se compare «accesso non abilitato», la tua email non è in anagrafica o la tua scheda non è attiva: chiedi all'amministratore.</div>
 </div>
 <figure><img src="assets/help/01-login.jpg" alt="Schermata di accesso con campo email" loading="lazy"><figcaption>Schermata di accesso</figcaption></figure>
 </div>
+</section>
+
+<section class="card" id="lg-installa" data-solo="login">
+<h2>Installare l'app sul telefono</h2>
+<ul>
+  <li><b>Android / PC (Chrome, Edge):</b> dal menu del browser scegli «Installa app» o «Aggiungi a schermata Home».</li>
+  <li><b>iPhone / iPad (Safari):</b> tocca il tasto <i>Condividi</i> e scegli <i>Aggiungi a Home</i>. Su iPhone le notifiche funzionano solo con l'app installata.</li>
+</ul>
+</section>
+
+<section class="card" id="lg-problemi" data-solo="login">
+<h2>Problemi di accesso</h2>
+<details><summary>Non arriva il codice</summary>
+<p>Controlla la cartella spam e che l'email sia quella inserita in anagrafica. Il codice vale pochi minuti: se è scaduto richiedilo. Se continua a non arrivare, chiedi all'amministratore di verificare la tua scheda (email corretta e persona attiva).</p></details>
+<details><summary>Dice che non ho accesso</summary>
+<p>La tua email non è tra quelle abilitate. Chiedi all'amministratore di inserirla (o correggerla) in anagrafica.</p></details>
+<details><summary>Vedo una versione vecchia dell'app</summary>
+<p>Chiudi completamente l'app e riaprila: scarica la nuova versione.</p></details>
+<p class="sec">Dopo l'accesso, riaprendo questa guida (dall'icona del logo o da <i>Altro → Guida all'uso</i>) vedrai le istruzioni del tuo ruolo.</p>
+</section>
+
+<!-- ==================== DOPO L'ACCESSO ==================== -->
+<!-- 1 -->
+<section class="card" id="primi-passi" data-min="1">
+<h2>Primi passi</h2>
 
 <h3>Installare l'app sul telefono</h3>
 <ul>
   <li><b>Android / PC (Chrome, Edge):</b> in <i>Altro → Impostazioni</i> tocca <span class="btn">Installa app</span>, oppure usa «Installa» / «Aggiungi a schermata Home» dal menu del browser.</li>
   <li><b>iPhone / iPad (Safari):</b> tocca il tasto <i>Condividi</i> e scegli <i>Aggiungi a Home</i>. Su iPhone le notifiche funzionano solo con l'app installata.</li>
 </ul>
-<p>Dopo l'installazione l'app si apre come un'applicazione normale e funziona anche senza rete per le operazioni principali.</p>
 
 <h3>I ruoli</h3>
 <table>
 <tr><th>Ruolo</th><th>Cosa può fare</th></tr>
 <tr><td><b>Operatore</b></td><td>Vede le attività di cui è incaricato: cambia lo stato, scrive la nota, compila la check-list, consuntiva.</td></tr>
-<tr><td><b>Responsabile</b></td><td>Gestisce uno o più rami (e tutto ciò che sta sotto): avanzamento, persone, attività da confermare. Può creare sottorami solo se l'amministratore lo consente.</td></tr>
-<tr><td><b>Amministratore</b></td><td>Vede e gestisce tutti gli eventi: persone, eventi, struttura, conferma «Finito», registro modifiche, Excel, backup.</td></tr>
-<tr><td><b>Proprietario</b></td><td>È un amministratore che in più gestisce i <i>Parametri</i> dell'app.</td></tr>
+<tr data-min="2"><td><b>Responsabile</b></td><td>In più gestisce uno o più rami (e tutto ciò che sta sotto): avanzamento, persone, attività da confermare. Può creare sottorami solo se l'amministratore lo consente.</td></tr>
+<tr data-min="3"><td><b>Amministratore</b></td><td>In più vede e gestisce tutti gli eventi: persone, eventi, struttura, conferma «Finito», registro modifiche, Excel, backup.</td></tr>
+<tr data-super><td><b>Proprietario</b></td><td>È un amministratore che in più gestisce i <i>Parametri</i> dell'app.</td></tr>
 </table>
 
-<div class="pass con-foto">
+<div class="pass con-foto" data-min="2">
 <div>
 <h3>Se hai due ruoli nello stesso evento</h3>
 <p>Se sei sia incaricato di attività sia responsabile (o amministratore), all'ingresso l'app chiede <b>«Come vuoi entrare?»</b>: scegli <b>Operatore</b> per lavorare sulle tue attività, oppure <b>Responsabile / Amministratore</b> per gestire. Con la spunta «Ricorda la scelta» non te lo chiederà più su quel dispositivo. Puoi cambiare in ogni momento da <i>Altro → Entri come…</i>.</p>
-<p class="sec">In modalità Operatore non si può modificare la struttura né confermare «Finito».</p>
+<p class="sec">In modalità Operatore non si può modificare la struttura né confermare «Finito», e questa guida mostra solo le funzioni dell'operatore.</p>
 </div>
-<figure><img src="assets/help/13-home-operatore.jpg" alt="Home dell'operatore con le sue attività" loading="lazy"><figcaption>Home in modalità Operatore</figcaption></figure>
+<figure><img src="assets/help/13-home-operatore.jpg" alt="Home in modalità Operatore" loading="lazy"><figcaption>Home in modalità Operatore</figcaption></figure>
 </div>
+<p data-max="1" class="sec">Se oltre alle attività ti viene affidato anche un ramo, all'ingresso potrai scegliere se lavorare come Operatore o come Responsabile.</p>
 </section>
 
 <!-- 2 -->
-<section class="card" id="muoversi">
-<h2>2. Muoversi nell'app</h2>
+<section class="card" id="muoversi" data-min="1">
+<h2>Muoversi nell'app</h2>
 <ul>
-  <li><b>Barra in basso</b> (smartphone): <i>Home/Attività, Persone, Eventi, Struttura</i> (solo amministratore) e <i>Altro</i>. Su PC le stesse voci stanno nel menu laterale o in alto.</li>
-  <li><b>Logo SdM Eventi</b>: toccandolo, in qualsiasi videata, si apre questa guida (si torna all'app con la freccia ‹ in alto).</li>
+  <li><b>Barra in basso</b> (smartphone):
+    <span data-max="1"><i>Attività, Eventi</i> e <i>Altro</i>.</span>
+    <span data-min="2"><i>Home, Persone, Eventi</i>, <i>Struttura</i> (solo amministratore) e <i>Altro</i>.</span>
+    Su PC le stesse voci stanno nel menu laterale o in alto.</li>
   <li><b>Evento in uso</b>: il nome è in alto a sinistra. Per cambiarlo vai in <i>Eventi</i> e tocca quello che ti serve.</li>
-  <li><b>Freccia indietro ‹</b> in alto: compare nelle sottopagine (Registro modifiche, Da rivedere, Impostazioni, Parametri, scheda attività). Il <b>tasto indietro del telefono</b> chiude prima la scheda o il dialogo aperto, poi torna alla pagina precedente.</li>
-  <li><b>Indicatore di rete</b> (icona in alto a destra): se sei offline puoi comunque consultare i dati e, da Operatore, cambiare stato, nota e check-list. Le modifiche partono da sole al ritorno della rete (se la stessa informazione è stata cambiata da qualcun altro vince la modifica più recente). Le altre modifiche richiedono la connessione.</li>
+  <li><b>Logo SdM Eventi</b>: toccandolo, in qualsiasi videata, si apre questa guida (si torna all'app con la freccia ‹ in alto).</li>
+  <li><b>Freccia indietro ‹</b> in alto: compare nelle sottopagine (<span data-min="3">Registro modifiche, </span>Da rivedere, Impostazioni, <span data-super>Parametri, </span>scheda attività). Il <b>tasto indietro del telefono</b> chiude prima la scheda o il dialogo aperto, poi torna alla pagina precedente.</li>
+  <li><b>Indicatore di rete</b> (icona in alto a destra): se sei offline puoi comunque consultare i dati e cambiare stato, nota e check-list. Le modifiche partono da sole al ritorno della rete (se la stessa informazione è stata cambiata da qualcun altro vince la modifica più recente). Le altre modifiche richiedono la connessione.</li>
   <li><b>Da rivedere</b> (in <i>Altro</i>): elenca le modifiche fatte offline che il server non ha potuto applicare.</li>
 </ul>
 <div class="fig2">
@@ -139,8 +165,8 @@ footer{max-width:980px;margin:0 auto;padding:10px 16px 30px;text-align:center;co
 </section>
 
 <!-- 3 -->
-<section class="card" id="operatore">
-<h2>3. Se sei Operatore</h2>
+<section class="card" id="operatore" data-min="1">
+<h2>Operatore: attività e consuntivo</h2>
 <div class="pass con-foto">
 <div>
 <h3>Le mie attività</h3>
@@ -168,12 +194,14 @@ footer{max-width:980px;margin:0 auto;padding:10px 16px 30px;text-align:center;co
 </div>
 <figure><img src="assets/help/18-scheda-operatore.jpg" alt="Scheda attività vista dall'operatore" loading="lazy"><figcaption>Scheda attività dell'operatore</figcaption></figure>
 </div>
-<p>Le note di ciascun incaricato sono separate: tu modifichi solo la tua. Le notifiche delle scadenze vanno solo a responsabili e amministratori.</p>
+<p>Le note di ciascun incaricato sono separate: tu modifichi solo la tua.</p>
 </section>
 
 <!-- 4 -->
-<section class="card" id="gestione">
-<h2>4. Se sei Responsabile o Amministratore</h2>
+<section class="card" id="gestione" data-min="2">
+<h2>Responsabile: Home e Struttura</h2>
+<p class="sec" data-min="2" data-max="2">Come responsabile, oltre alle funzioni dell'operatore (sezione precedente), gestisci i rami che ti sono affidati e tutto ciò che sta sotto.</p>
+<p class="sec" data-min="3">Come amministratore hai anche tutte le funzioni dell'operatore e del responsabile, estese a <b>tutti</b> i rami e gli eventi.</p>
 
 <div class="pass con-foto">
 <div>
@@ -181,33 +209,35 @@ footer{max-width:980px;margin:0 auto;padding:10px 16px 30px;text-align:center;co
 <ul>
   <li><b>Totalizzatore</b>: cinque celle-filtro <i>Tutte, Da fare, In corso, Fatte, In scadenza</i>. Toccane una per vedere solo quelle attività; <i>Tutte</i> toglie il filtro.</li>
   <li><b>Avanzamento</b>: percentuale e barra (finite, da confermare, in corso, da fare).</li>
-  <li><b>Da confermare</b>: le attività messe «Fatto» dagli operatori. L'amministratore tocca <span class="btn">✔ Finito</span> per confermarle (i responsabili le vedono «in attesa di conferma»).</li>
+  <li><b>Da confermare</b>: le attività messe «Fatto» dagli operatori. <span data-min="3">Tu, come amministratore, tocchi <span class="btn">✔ Finito</span> per confermarle.</span><span data-max="2"> Le conferma l'amministratore: tu le vedi «in attesa di conferma».</span></li>
   <li><b>Per persona / Per ramo</b>: righe chiuse; toccane una per aprirla, oppure <i>Apri tutti / Chiudi tutti</i>. Un puntino verde accanto al nome indica chi si è già collegato alla app, <b>lampeggiante</b> se è online in quel momento.</li>
   <li><b>Tutte le aree</b>: filtra per area dell'evento.</li>
 </ul>
 </div>
-<figure><img src="assets/help/04-home-ramo.jpg" alt="Home dell'amministratore con elenco per ramo" loading="lazy"><figcaption>Home amministratore, «Per ramo»</figcaption></figure>
+<figure><img src="assets/help/04-home-ramo.jpg" alt="Home di gestione con elenco per ramo" loading="lazy"><figcaption>Home di gestione, «Per ramo»</figcaption></figure>
 </div>
 
 <div class="pass con-foto sx">
 <div>
 <h3>La Struttura (albero di rami e attività)</h3>
-<p>È la pagina dove si costruisce l'evento (solo amministratore su smartphone). Ogni riga ha i suoi pulsanti:</p>
+<p data-max="2" class="attenzione">Su smartphone la pagina <i>Struttura</i> è riservata all'amministratore; da PC la trovi nel menu.</p>
+<p>È la pagina dove si costruisce l'evento. Ogni riga ha i suoi pulsanti:</p>
 <ul>
   <li><span class="btn">✎</span> <b>modifica</b> la riga (titolo, descrizione, note, responsabile del ramo).</li>
-  <li><span class="btn">⋯</span> apre il menu: <b>＋ Aggiungi sotto</b>, <b>⧉ Duplica</b> (solo amministratore), <b>🗑 Elimina</b>. Su PC questi pulsanti sono già visibili sulla riga.</li>
-  <li><span class="btn">+ Ramo di primo livello</span> in alto crea un nuovo ramo principale.</li>
+  <li><span class="btn">⋯</span> apre il menu: <b>＋ Aggiungi sotto</b>, <span data-min="3"><b>⧉ Duplica</b>, </span><b>🗑 Elimina</b>. Su PC questi pulsanti sono già visibili sulla riga.</li>
+  <li data-min="3"><span class="btn">+ Ramo di primo livello</span> in alto crea un nuovo ramo principale.</li>
   <li><b>Spostare</b>: tieni premuta la maniglia <b>⋮⋮</b> a sinistra (circa un decimo di secondo) e trascina nel punto desiderato. La destinazione si evidenzia; in rosso se non è permessa. <span class="btn">↶ Annulla spostamento</span> riporta indietro gli ultimi 3 spostamenti.</li>
-  <li><b>Duplica</b>: chiede titolo e descrizione della copia; con la spunta «Duplica anche tutti i sottorami» copia l'intera catena.</li>
+  <li data-min="3"><b>Duplica</b>: chiede titolo e descrizione della copia; con la spunta «Duplica anche tutti i sottorami» copia l'intera catena.</li>
   <li><b>Espandi / Comprimi</b> aprono o chiudono tutto l'albero.</li>
 </ul>
 <p>I numeri (01, 01.01, 01.02.01…) sono automatici e seguono l'ordine dell'albero. L'ultimo livello di ogni ramo è una <b>attività</b> (con scadenza, stato, incaricati); gli altri sono <b>rami</b> (contenitori). Il <b>responsabile</b> di un ramo vale anche per i sottorami che non ne hanno uno proprio (👤 impostato, ↳ ereditato).</p>
+<p data-max="2">Come responsabile puoi creare sottorami solo se l'amministratore lo ha consentito nei Parametri.</p>
 </div>
 <figure><img src="assets/help/05-struttura.jpg" alt="Albero della struttura con rami e attività" loading="lazy"><figcaption>La struttura ad albero</figcaption></figure>
 </div>
 
 <div class="fig2">
-<figure><img src="assets/help/14-scheda-attivita.jpg" alt="Scheda attività vista dall'amministratore: titolo, scadenza, stato, area" loading="lazy"><figcaption>Scheda attività (parte alta)</figcaption></figure>
+<figure><img src="assets/help/14-scheda-attivita.jpg" alt="Scheda attività: titolo, scadenza, stato, area" loading="lazy"><figcaption>Scheda attività (parte alta)</figcaption></figure>
 <figure><img src="assets/help/15-scheda-attivita-2.jpg" alt="Scheda attività: check-list, sponsor e persone incaricate" loading="lazy"><figcaption>Check-list, sponsor, incaricati</figcaption></figure>
 <figure><img src="assets/help/16-menu-struttura.jpg" alt="Menu ⋯ di una riga della struttura" loading="lazy"><figcaption>Menu ⋯ di una riga</figcaption></figure>
 </div>
@@ -218,7 +248,7 @@ footer{max-width:980px;margin:0 auto;padding:10px 16px 30px;text-align:center;co
   <li><b>Titolo, descrizione, note, scadenza</b> (senza scadenza l'attività non risulta mai «scaduta» e non genera notifiche).</li>
   <li><b>Stato</b> e <b>Area</b> (le aree si definiscono nell'evento; «Tutte» vale per ogni area).</li>
   <li><b>Check-list</b>: spunta «Questa attività ha una check-list», dai una descrizione e aggiungi le voci con la quantità prevista (<span class="btn">+ Aggiungi voce</span>).</li>
-  <li><b>Sponsor</b> (fornitore, referente, cellulare, importo): solo amministratori.</li>
+  <li data-min="3"><b>Sponsor</b> (fornitore, referente, cellulare, importo): solo amministratori.</li>
   <li><b>Persone incaricate</b>: scegli la persona e tocca <span class="btn">+ Aggiungi</span>; ognuna ha la sua nota. La ✕ rossa toglie l'incarico.</li>
 </ul>
 
@@ -227,11 +257,11 @@ footer{max-width:980px;margin:0 auto;padding:10px 16px 30px;text-align:center;co
 </section>
 
 <!-- 5 -->
-<section class="card" id="caricare">
-<h2>5. Caricare i dati <span class="sec" style="font-size:14px;font-weight:400">(Amministratore)</span></h2>
+<section class="card" id="caricare" data-min="3">
+<h2>Amministratore: caricare i dati</h2>
 <div class="nota"><b>Ordine consigliato:</b> 1) le <b>persone</b>, 2) l'<b>evento</b>, 3) la <b>struttura</b> (rami e attività) con gli incaricati. Le email degli incaricati e dei responsabili devono già essere in anagrafica.</div>
 
-<h3>5.1 Persone</h3>
+<h3>Persone</h3>
 <div class="pass con-foto">
 <div>
 <p><b>A mano:</b> in <i>Persone</i> tocca <span class="btn">+ Nuova persona</span>, compila <b>Cognome, Nome, Email</b> (obbligatori; l'email serve per l'accesso). Facoltativi: cellulare, data di nascita, ruolo (Operatore o Amministratore), iscritto (se sì il <i>Numero iscritto</i> è obbligatorio e univoco), note. <b>Attivo</b> lascia accedere la persona: se lo togli non può entrare e non compare negli elenchi. Poi <span class="btn">Salva</span>.</p>
@@ -256,7 +286,7 @@ footer{max-width:980px;margin:0 auto;padding:10px 16px 30px;text-align:center;co
 <figure><img src="assets/help/12-importa-persone.jpg" alt="Finestra Importa persone" loading="lazy"><figcaption>Importazione persone</figcaption></figure>
 </div>
 
-<h3>5.2 Evento</h3>
+<h3>Evento</h3>
 <div class="pass con-foto">
 <div>
 <p>In <i>Eventi</i> tocca <span class="btn">+ Nuovo evento</span>: <b>titolo</b> e <b>data di inizio</b> sono obbligatori, la data fine serve solo se dura più giorni. Le <b>aree</b> (facoltative, max 10) sono sotto-aree dell'evento (es. Gara, Accoglienza), ognuna con il suo colore: poi ogni attività potrà essere assegnata a una sola area, oppure a «Tutte».</p>
@@ -266,8 +296,8 @@ footer{max-width:980px;margin:0 auto;padding:10px 16px 30px;text-align:center;co
 <figure><img src="assets/help/09-nuovo-evento.jpg" alt="Finestra Nuovo evento" loading="lazy"><figcaption>Nuovo evento</figcaption></figure>
 </div>
 
-<h3>5.3 Struttura</h3>
-<p><b>A mano:</b> vai in <i>Struttura</i>, crea il ramo con <span class="btn">+ Ramo di primo livello</span> e aggiungi i livelli sotto con <span class="btn">⋯ → ＋ Aggiungi sotto</span> (vedi paragrafo 4). Poi apri le attività con <span class="btn">✎</span> per scadenza, incaricati e check-list.</p>
+<h3>Struttura a mano</h3>
+<p>Vai in <i>Struttura</i>, crea il ramo con <span class="btn">+ Ramo di primo livello</span> e aggiungi i livelli sotto con <span class="btn">⋯ → ＋ Aggiungi sotto</span> (vedi «La Struttura» nella sezione di gestione). Poi apri le attività con <span class="btn">✎</span> per scadenza, incaricati e check-list.</p>
 
 <h3>Da Excel: struttura dell'evento</h3>
 <div class="pass con-foto sx">
@@ -291,8 +321,8 @@ footer{max-width:980px;margin:0 auto;padding:10px 16px 30px;text-align:center;co
 </section>
 
 <!-- 6 -->
-<section class="card" id="cercare">
-<h2>6. Cercare i dati</h2>
+<section class="card" id="cercare" data-min="1">
+<h2>Cercare i dati</h2>
 
 <div class="pass con-foto">
 <div>
@@ -303,7 +333,7 @@ footer{max-width:980px;margin:0 auto;padding:10px 16px 30px;text-align:center;co
   <li>Più parole: devono esserci <b>tutte</b>, in qualsiasi ordine; maiuscole e accenti non contano (es. <i>sedie marco</i>).</li>
   <li>Totali, percentuale ed elenchi seguono la ricerca. La <b>✕</b> a destra cancella e chiude il campo.</li>
 </ol>
-<p class="sec">Vedi le attività che gestisci: le tue se sei Operatore, quelle dei tuoi rami se sei Responsabile, tutte se sei Amministratore. La ricerca si azzera cambiando evento o uscendo.</p>
+<p class="sec">Vedi le attività che ti competono: le tue se sei Operatore<span data-min="2">, quelle dei tuoi rami se sei Responsabile</span><span data-min="3">, tutte se sei Amministratore</span>. La ricerca si azzera cambiando evento o uscendo.</p>
 </div>
 <figure><img src="assets/help/03-cerca.jpg" alt="Ricerca libera nella Home" loading="lazy"><figcaption>Ricerca «sedie»</figcaption></figure>
 </div>
@@ -311,61 +341,82 @@ footer{max-width:980px;margin:0 auto;padding:10px 16px 30px;text-align:center;co
 <h3>Altri modi per trovare le cose</h3>
 <table>
 <tr><th>Dove</th><th>Come</th></tr>
-<tr><td><b>Home</b></td><td>Le celle <i>Da fare, In corso, Fatte, In scadenza</i> mostrano solo quel gruppo; il menu «Tutte le aree» filtra per area; «Per persona / Per ramo» raggruppa.</td></tr>
-<tr><td><b>Struttura</b> (amministratore)</td><td>Barra filtri: testo (<i>Cerca…</i>), <i>Stato</i>, <i>Area</i>, <i>Persona</i>, <i>Scadenza</i> (scadute, in scadenza, con/senza scadenza). <span class="btn">✕ Azzera</span> toglie i filtri; il contatore mostra quante righe corrispondono.</td></tr>
-<tr><td><b>Persone</b></td><td>Il campo <i>Cerca per cognome, nome, email, telefono…</i> e il filtro (Tutte, Solo iscritti, Non iscritti, Amministratori, Responsabili di rami); la spunta «anche non attivi» include chi è disattivato. Dalla lista puoi chiamare, scrivere su WhatsApp o inviare una mail con un tocco.</td></tr>
-<tr><td><b>Registro modifiche</b> (amministratore)</td><td><i>Altro → Registro modifiche</i>: chi ha cambiato cosa e quando. Filtri per testo, evento, azione, tipo, periodo; tocca una riga per il dettaglio «vecchio → nuovo»; <i>Carica altri</i> per i meno recenti; esportabile in Excel.</td></tr>
+<tr><td><b>Home</b></td><td>Le celle <i>Da fare, In corso, Fatte, In scadenza</i> mostrano solo quel gruppo; il menu «Tutte le aree» filtra per area<span data-min="2">; «Per persona / Per ramo» raggruppa</span>.</td></tr>
+<tr data-min="3"><td><b>Struttura</b></td><td>Barra filtri: testo (<i>Cerca…</i>), <i>Stato</i>, <i>Area</i>, <i>Persona</i>, <i>Scadenza</i> (scadute, in scadenza, con/senza scadenza). <span class="btn">✕ Azzera</span> toglie i filtri; il contatore mostra quante righe corrispondono.</td></tr>
+<tr data-min="3"><td><b>Persone</b></td><td>Il campo <i>Cerca per cognome, nome, email, telefono…</i> e il filtro (Tutte, Solo iscritti, Non iscritti, Amministratori, Responsabili di rami); la spunta «anche non attivi» include chi è disattivato. Dalla lista puoi chiamare, scrivere su WhatsApp o inviare una mail con un tocco.</td></tr>
+<tr data-min="3"><td><b>Registro modifiche</b></td><td><i>Altro → Registro modifiche</i>: chi ha cambiato cosa e quando. Filtri per testo, evento, azione, tipo, periodo; tocca una riga per il dettaglio «vecchio → nuovo»; <i>Carica altri</i> per i meno recenti; esportabile in Excel.</td></tr>
 <tr><td><b>Eventi</b></td><td>Elenco degli eventi con le date; quelli passati hanno l'etichetta «concluso».</td></tr>
 </table>
 
-<div class="fig2">
+<div class="fig2" data-min="3">
 <figure><img src="assets/help/06-persone.jpg" alt="Elenco Persone con ricerca e filtri" loading="lazy"><figcaption>Elenco Persone</figcaption></figure>
 <figure><img src="assets/help/08-eventi.jpg" alt="Elenco degli eventi" loading="lazy"><figcaption>Elenco Eventi</figcaption></figure>
 </div>
 
 <h3>Esportare i dati in Excel</h3>
 <ul>
-  <li><b>Persone</b> e <b>Struttura</b>: <i>Altro → Excel → ⬇ Esporta</i> (amministratore).</li>
-  <li><b>I miei dati</b>: <i>Impostazioni → Scarica i miei dati (Excel)</i> (ogni utente).</li>
-  <li><b>Registro modifiche</b>: pulsante di esportazione nella pagina del registro.</li>
+  <li data-min="3"><b>Persone</b> e <b>Struttura</b>: <i>Altro → Excel → ⬇ Esporta</i>.</li>
+  <li><b>I miei dati</b>: <i>Impostazioni → Scarica i miei dati (Excel)</i>.</li>
+  <li data-min="3"><b>Registro modifiche</b>: pulsante di esportazione nella pagina del registro.</li>
 </ul>
 </section>
 
 <!-- 7 -->
-<section class="card" id="altro">
-<h2>7. Altre funzioni</h2>
+<section class="card" id="altro" data-min="1">
+<h2>Altre funzioni</h2>
 <ul>
-  <li><b>Impostazioni</b> (<i>Altro → Impostazioni</i>): i tuoi dati, versione, ultima sincronizzazione, modifiche in attesa di invio, <span class="btn">Sincronizza</span>, tema, installazione, informativa privacy, scarica i tuoi dati, notifiche, backup, <span class="btn">Esci</span>.</li>
-  <li><b>Parametri</b> (solo proprietario): nome e logo dell'app, livelli massimi dell'albero, permessi dei responsabili, accesso con sola email, notifiche delle scadenze e giorni di anticipo, conservazione del registro, informativa privacy.</li>
-  <li><b>Privacy (GDPR)</b>: nella scheda di una persona l'amministratore può scaricare i dati della persona o eliminarla definitivamente (non si può annullare).</li>
+  <li><b>Impostazioni</b> (<i>Altro → Impostazioni</i>): i tuoi dati, versione, ultima sincronizzazione, modifiche in attesa di invio, <span class="btn">Sincronizza</span>, tema, installazione, informativa privacy, scarica i tuoi dati<span data-min="2">, notifiche</span><span data-min="3">, backup</span>, <span class="btn">Esci</span>.</li>
+  <li data-super><b>Parametri</b> (solo proprietario): nome e logo dell'app, livelli massimi dell'albero, permessi dei responsabili, accesso con sola email, notifiche delle scadenze e giorni di anticipo, conservazione del registro, informativa privacy.</li>
+  <li data-min="3"><b>Privacy (GDPR)</b>: nella scheda di una persona l'amministratore può scaricare i dati della persona o eliminarla definitivamente (non si può annullare).</li>
 </ul>
 </section>
 
 <!-- 8 -->
-<section class="card" id="problemi">
-<h2>8. Problemi frequenti</h2>
-<details><summary>Non arriva il codice di accesso</summary>
-<p>Controlla la cartella spam e che l'email sia quella inserita in anagrafica. Il codice vale pochi minuti: se è scaduto richiedilo. Se continua a non arrivare, chiedi all'amministratore di verificare la tua scheda (email corretta e persona attiva).</p></details>
+<section class="card" id="problemi" data-min="1">
+<h2>Problemi frequenti</h2>
 <details><summary>Non vedo nessuna attività o nessun evento</summary>
-<p>Probabilmente non sei ancora stato incaricato di attività: l'evento compare quando ti viene assegnata almeno un'attività. Verifica di avere scelto l'evento giusto in <i>Eventi</i>. Se hai due ruoli controlla anche la modalità in <i>Altro → Entri come…</i>.</p></details>
+<p>Probabilmente non sei ancora stato incaricato di attività: l'evento compare quando ti viene assegnata almeno un'attività. Verifica di avere scelto l'evento giusto in <i>Eventi</i>. <span data-min="2">Se hai due ruoli controlla anche la modalità in <i>Altro → Entri come…</i>.</span></p></details>
 <details><summary>Sono senza rete: cosa posso fare?</summary>
-<p>Puoi consultare l'ultima copia dei dati e, da Operatore, cambiare stato, tua nota e check-list: partiranno da sole alla riconnessione. Il pulsante <span class="btn">Sincronizza</span> in <i>Impostazioni</i> forza l'invio. Se qualcosa non viene accettato lo trovi in <i>Da rivedere</i>.</p></details>
-<details><summary>L'importazione Excel mostra errori</summary>
+<p>Puoi consultare l'ultima copia dei dati e cambiare stato, tua nota e check-list: partiranno da sole alla riconnessione. Il pulsante <span class="btn">Sincronizza</span> in <i>Impostazioni</i> forza l'invio. Se qualcosa non viene accettato lo trovi in <i>Da rivedere</i>.</p></details>
+<details data-min="3"><summary>L'importazione Excel mostra errori</summary>
 <p>Controlla che ci siano le colonne obbligatorie (Cognome, Nome, Email per le persone) e che le date siano nel formato gg/mm/aaaa. Per la struttura verifica che le email di responsabili e incaricati esistano in anagrafica. Le righe con errori sono segnalate in anteprima e vengono saltate: correggile e ricarica il file. Se compare un errore generale non viene importato nulla.</p></details>
-<details><summary>Non riesco a trascinare una riga nella Struttura</summary>
+<details data-min="2"><summary>Non riesco a trascinare una riga nella Struttura</summary>
 <p>Si trascina solo dalla maniglia <b>⋮⋮</b> a sinistra, tenendola premuta un istante. Se la destinazione è rossa lo spostamento non è permesso (ad esempio supera il numero massimo di livelli).</p></details>
 <details><summary>L'app non si aggiorna / vedo una versione vecchia</summary>
 <p>Chiudi completamente l'app e riaprila: scarica la nuova versione. Il numero di versione è in alto accanto all'icona della rete e in <i>Impostazioni</i>.</p></details>
-<details><summary>Ho sbagliato a eliminare o spostare qualcosa</summary>
-<p>Gli ultimi 3 spostamenti si annullano con <span class="btn">↶ Annulla spostamento</span>. Per il resto l'amministratore può ricostruire cosa è successo dal <i>Registro modifiche</i>.</p></details>
+<details data-min="2"><summary>Ho sbagliato a eliminare o spostare qualcosa</summary>
+<p>Gli ultimi 3 spostamenti si annullano con <span class="btn">↶ Annulla spostamento</span>. <span data-min="3">Per il resto puoi ricostruire cosa è successo dal <i>Registro modifiche</i>.</span><span data-max="2"> Per il resto chiedi all'amministratore.</span></p></details>
 </section>
 </main>
 
 <footer>
-  <p>Versione guida 5.4 · <a href="index.html">Torna all'app</a></p>
+  <p>Versione guida 5.5 · <a href="index.html">Torna all'app</a></p>
   <p>Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></p>
 </footer>
 <script>
+/* La guida si adatta da sola al ruolo con cui si è entrati nell'app.
+   L'app apre help.html?r=login|operatore|responsabile|admin  (&s=1 se proprietario).
+   Livelli: 0 = non entrato, 1 = operatore, 2 = responsabile (include operatore), 3 = amministratore (include tutto).
+   data-solo="login": solo prima dell'accesso · data-min="N": da livello N in su · data-max="N": fino a livello N · data-super: solo proprietario. */
+(function () {
+  var q = new URLSearchParams(location.search), r = q.get('r');
+  var lvl = { operatore: 1, responsabile: 2, admin: 3 }[r] || 0, login = lvl === 0, sup = lvl === 3 && q.get('s') === '1';
+  var nomi = { 0: 'Guida generale · accedi per vedere le istruzioni del tuo ruolo', 1: 'Guida per: Operatore', 2: 'Guida per: Responsabile (comprende le funzioni dell\'operatore)', 3: sup ? 'Guida per: Amministratore e proprietario (comprende le funzioni di responsabile e operatore)' : 'Guida per: Amministratore (comprende le funzioni di responsabile e operatore)' };
+  document.getElementById('ruoloEt').textContent = nomi[lvl];
+  document.querySelectorAll('[data-solo]').forEach(function (e) { if (!login) e.hidden = true; });
+  document.querySelectorAll('[data-min]').forEach(function (e) { if (login || +e.getAttribute('data-min') > lvl) e.hidden = true; });
+  document.querySelectorAll('[data-max]').forEach(function (e) { if (!login && +e.getAttribute('data-max') < lvl) e.hidden = true; });
+  document.querySelectorAll('[data-super]').forEach(function (e) { if (!sup) e.hidden = true; });
+  /* indice e numerazione delle sezioni visibili */
+  var ul = document.getElementById('indice'), n = 0;
+  document.querySelectorAll('main > section.card').forEach(function (s) {
+    if (s.hidden) return;
+    n++;
+    var h = s.querySelector('h2'); h.textContent = n + '. ' + h.textContent;
+    var li = document.createElement('li'), a = document.createElement('a');
+    a.href = '#' + s.id; a.textContent = h.textContent; li.appendChild(a); ul.appendChild(li);
+  });
+})();
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').catch(function () {}); }
 </script>
 </body>
