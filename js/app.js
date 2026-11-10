@@ -2462,6 +2462,8 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#rete').onclick = () => sincronizza(true); $('#iSync').onclick = () => sincronizza(true); $('#iRev').onclick = () => vai('rev');
     window.addEventListener('online', aggiornaRete);
     window.addEventListener('offline', aggiornaRete);
+    // il logo, in qualsiasi videata, apre la guida all'uso
+    $$('.brandimg').forEach(i => { i.style.cursor = 'pointer'; i.setAttribute('role', 'link'); i.setAttribute('tabindex', '0'); i.setAttribute('title', 'Guida all\'uso'); i.addEventListener('click', () => { location.href = 'help.html'; }); i.addEventListener('keydown', e => { if (e.key === 'Enter') location.href = 'help.html'; }); });
 
     if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || !window.supabase) { mostra('setup'); return; }
 
