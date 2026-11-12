@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="app-version" content="1.0">
+<title>SDM Eventi - Anteprima messaggio WhatsApp a più persone</title>
+<style>
+:root{--primario:#1d4ed8;--bg:#f4f6fa;--card:#fff;--testo:#1c2333;--sec:#5b6578;--bordo:#dde2ec;--ok:#15803d;--warn:#b45309;--err:#b91c1c;--wa:#128c7e}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#cfd5e1;color:var(--testo)}
+.demo{background:#111827;color:#e5e7eb;padding:10px 14px;font-size:13px}
+.wrap{display:flex;flex-wrap:wrap;gap:16px 28px;justify-content:center;align-items:flex-start;padding:14px 10px 24px}
+.passi{width:320px;max-width:100%;font-size:13.5px;color:#374151}
+.passi h2{font-size:15px;margin:0 0 6px}.passi ol{margin:0;padding-left:20px}.passi li{margin-bottom:7px}.passi li.qui{font-weight:700;color:#111827}
+.passi p{margin:10px 0 0;font-size:12.5px;color:#4b5563}
+.phone{position:relative;width:360px;max-width:100%;height:700px;background:var(--bg);border:1px solid #b8c0d0;border-radius:18px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.18);display:flex;flex-direction:column}
+.hd{flex:none;display:flex;align-items:center;gap:8px;padding:0 8px;min-height:46px;background:var(--card);border-bottom:1px solid var(--bordo)}
+.hd b{flex:1;font-size:15px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hd span{font-size:12px;color:var(--sec)}
+.back{flex:none;width:44px;height:44px;border:0;background:none;font-size:22px;color:var(--primario);cursor:pointer;margin-left:-6px}
+main{flex:1;overflow-y:auto;padding:10px}
+.foot{flex:none;display:flex;gap:8px;align-items:center;padding:8px 10px;background:var(--card);border-top:1px solid var(--bordo);box-shadow:0 -4px 14px rgba(0,0,0,.08)}
+button{font:inherit}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--primario);outline-offset:2px}
+.btn{min-height:46px;padding:0 16px;border:0;border-radius:11px;background:var(--primario);color:#fff;font-weight:700;font-size:15px;cursor:pointer}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.wa{background:var(--wa)}.btn.full{width:100%}.btn.big{min-height:58px;font-size:17px}
+.btn.sec{background:var(--card);color:var(--testo);border:1px solid var(--bordo);font-weight:600}
+.lk{border:0;background:none;color:var(--primario);font-weight:600;font-size:13.5px;min-height:44px;padding:0 6px;cursor:pointer}
+.card{background:var(--card);border:1px solid var(--bordo);border-radius:12px;padding:8px 12px;margin-bottom:8px}
+.seg{display:flex;background:#e8ecf4;border-radius:10px;padding:3px;margin-bottom:6px}
+.seg span{flex:1;text-align:center;padding:6px;border-radius:8px;font-size:13px;font-weight:600;color:var(--sec)}
+.seg span.on{background:var(--card);color:var(--primario);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.rigaOrd{display:flex;align-items:center;gap:6px;margin:2px 0 4px}
+.pill{display:inline-flex;align-items:center;gap:4px;min-height:36px;padding:4px 12px;border:1px solid var(--bordo);border-radius:99px;background:var(--card);color:var(--primario);font-size:12.5px;font-weight:600;white-space:nowrap;cursor:pointer}
+.pill.wa{border-color:var(--wa);color:var(--wa)}.pill.wa.on{background:var(--wa);color:#fff}
+.sp{flex:1}
+.avv{background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:7px 10px;font-size:13px;margin:4px 0 6px;color:#065f46}
+.gh{display:flex;align-items:center;gap:8px;min-height:46px;border-top:1px solid var(--bordo);cursor:pointer;width:100%;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;padding:0 2px;color:inherit}
+.gh .nm{flex:1;min-width:0;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gh .nm small{display:block;font-weight:400;font-size:11.5px;color:var(--sec)}
+.gh .fr{font-size:12px;color:var(--sec)}.gh .ar{color:var(--sec);width:12px}
+.gh .bar{flex:0 0 56px;height:6px;border-radius:99px;background:linear-gradient(90deg,#15803d var(--p),#cbd5e1 0)}
+.gh.no{opacity:.55;cursor:default}
+.ck{flex:none;width:24px;height:24px;border:2px solid #94a3b8;border-radius:7px;display:grid;place-items:center;font-size:15px;font-weight:800;color:#fff;background:var(--card)}
+.ck.on{background:var(--wa);border-color:var(--wa)}
+.ck.dis{border-style:dashed}
+.cdot{flex:none;width:9px;height:9px;border-radius:50%;background:#22c55e}
+h3{font-size:13px;margin:10px 0 5px;color:var(--sec);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:2px;background:#eef2ff;color:var(--primario);border-radius:99px;font-size:13.5px;font-weight:600;padding:0 4px 0 12px;min-height:36px}
+.chip button{width:32px;height:32px;border:0;background:none;color:inherit;font-size:16px;cursor:pointer}
+textarea{width:100%;min-height:120px;border:1px solid var(--bordo);border-radius:11px;padding:10px;font:inherit;font-size:16px;resize:vertical;background:var(--card);color:var(--testo)}
+.opt{display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px;cursor:pointer}
+.opt input{width:22px;height:22px;accent-color:var(--wa)}
+.bolla{background:#dcf8c6;border-radius:10px 10px 2px 10px;padding:8px 10px;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 1px 1px rgba(0,0,0,.12)}
+.nota{font-size:12px;color:var(--sec);margin:6px 0 0}
+.prog{height:8px;border-radius:99px;background:var(--bordo);overflow:hidden;margin:2px 0 10px}.prog i{display:block;height:100%;background:var(--wa);transition:width .25s}
+.cur{text-align:center;padding:14px 12px}
+.cur .n{font-size:22px;font-weight:800;margin:2px 0}.cur .t{font-size:13px;color:var(--sec);margin-bottom:10px}
+.cur .bolla{text-align:left;margin-bottom:12px;max-height:120px;overflow:auto}
+.el{display:flex;align-items:center;gap:8px;min-height:40px;border-top:1px dashed var(--bordo);font-size:14px}
+.el .s{flex:none;width:22px;text-align:center}.el .n2{flex:1}.el.att{font-weight:700}.el small{color:var(--sec);font-size:12px}
+.fine{text-align:center;padding:30px 10px}.fine .e{font-size:44px}.fine h1{font-size:20px;margin:6px 0}
+/* finto WhatsApp */
+.wah{flex:none;display:flex;align-items:center;gap:8px;min-height:50px;padding:0 10px;background:#075e54;color:#fff;font-weight:700}
+.wam{flex:1;background:#e5ddd5;padding:12px;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;overflow:auto}
+.wam .bolla{align-self:flex-end;max-width:88%}
+.waf{flex:none;display:flex;gap:8px;align-items:flex-end;padding:8px;background:#f0f0f0}
+.waf div{flex:1;background:#fff;border-radius:18px;padding:9px 12px;font-size:14px;white-space:pre-wrap;max-height:130px;overflow:auto}
+.waf button{flex:none;width:46px;height:46px;border-radius:50%;border:0;background:var(--wa);color:#fff;font-size:20px;cursor:pointer}
+.wat{align-self:center;background:#fff8c4;border-radius:8px;padding:5px 10px;font-size:12px;color:#555;text-align:center}
+</style>
+</head>
+<body>
+<div class="demo"><b>Anteprima · Messaggio WhatsApp a più persone (amministratore, smartphone)</b> — prova tutto il giro: tocca <b>💬 Messaggio</b>, scegli le persone, scrivi, poi invia uno per uno. WhatsApp qui è finto: nessun messaggio parte davvero.</div>
+<div class="wrap">
+  <div class="phone" id="ph"></div>
+  <div class="passi">
+    <h2>Come funziona</h2>
+    <ol id="passi">
+      <li><b>💬 Messaggio</b> nella Home («Per persona») accende la selezione.</li>
+      <li>Tocchi le persone: un tocco = selezionata. In basso resta fissa la barra con il conteggio.</li>
+      <li>Scrivi il testo una volta sola; «Ciao &lt;nome&gt;,» lo aggiunge l'app per ognuno.</li>
+      <li>Invio uno per uno: un tocco sul bottone verde apre WhatsApp sulla chat giusta con il testo pronto; premi Invia in WhatsApp e torni all'app, che è già passata alla persona successiva.</li>
+      <li>Riepilogo finale.</li>
+    </ol>
+    <p><b>Tocchi per persona:</b> 1 nell'app + «Invia» in WhatsApp + tornare all'app. Di meno WhatsApp non lo consente.</p>
+    <p><b>Limiti reali:</b> l'app non può sapere se hai davvero premuto «Invia»: segna la persona come «aperta» e puoi ripeterla. Chi non ha il cellulare in anagrafica non è selezionabile. Se il telefono chiude l'app mentre sei in WhatsApp, al rientro l'invio riprende dal punto giusto.</p>
+  </div>
+</div>
+<script>
+const P = [
+  { id: 1, n: 'Verdi Luca', nome: 'Luca', cel: '+39 333 1234567', tot: 4, fin: 1 },
+  { id: 2, n: 'Neri Giulia', nome: 'Giulia', cel: '+39 347 7654321', tot: 3, fin: 2 },
+  { id: 3, n: 'Bianchi Marco', nome: 'Marco', cel: '', tot: 2, fin: 0 },
+  { id: 4, n: 'Rossi Anna', nome: 'Anna', cel: '+39 320 1112223', tot: 2, fin: 2 },
+  { id: 5, n: 'Gallo Paolo', nome: 'Paolo', cel: '+39 339 4445556', tot: 1, fin: 0 }
+];
+const ph = document.getElementById('ph');
+const S = { vista: 'home', selMode: false, sel: new Set(), testo: 'ricordati di aggiornare lo stato delle tue attività entro venerdì. Grazie!', saluto: true, coda: [], i: 0, esito: {}, inviatoWa: false };
+const h = (tag, a, ...f) => { const e = document.createElement(tag); for (const k in a || {}) { if (k === 'class') e.className = a[k]; else if (k.startsWith('on')) e.addEventListener(k.slice(2), a[k]); else if (a[k] !== false && a[k] != null) e.setAttribute(k, a[k]); } e.append(...f.filter(x => x !== '' && x != null)); return e; };
+const msg = p => (S.saluto ? 'Ciao ' + p.nome + ', ' : '') + S.testo.trim();
+const passo = n => document.querySelectorAll('#passi li').forEach((li, i) => li.classList.toggle('qui', i === n));
+const vai = v => { S.vista = v; render(); };
+
+function home() {
+  passo(S.selMode ? 1 : 0);
+  const righe = P.map(p => {
+    const on = S.sel.has(p.id), no = S.selMode && !p.cel;
+    return h('button', { type: 'button', class: 'gh' + (no ? ' no' : ''), 'aria-pressed': S.selMode ? String(on) : null, 'aria-disabled': no ? 'true' : null,
+      onclick: () => { if (!S.selMode || no) return; if (on) S.sel.delete(p.id); else S.sel.add(p.id); render(); } },
+      S.selMode ? h('span', { class: 'ck' + (on ? ' on' : '') + (no ? ' dis' : '') }, on ? '✓' : '') : h('i', { class: 'cdot' }),
+      h('span', { class: 'nm' }, p.n, no ? h('small', {}, 'senza cellulare in anagrafica') : ''),
+      h('span', { class: 'bar', style: '--p:' + Math.round(p.fin / p.tot * 100) + '%' }), h('span', { class: 'fr' }, p.fin + '/' + p.tot), S.selMode ? '' : h('span', { class: 'ar' }, '▸'));
+  });
+  const conCel = P.filter(p => p.cel), tutti = conCel.every(p => S.sel.has(p.id));
+  const main = h('main', {},
+    h('div', { class: 'card' },
+      h('div', { class: 'seg' }, h('span', { class: 'on' }, 'Per persona'), h('span', {}, 'Per ramo')),
+      h('div', { class: 'rigaOrd' }, h('span', { class: 'pill' }, '⇅ Scadenza'),
+        h('button', { type: 'button', class: 'pill wa' + (S.selMode ? ' on' : ''), 'aria-pressed': String(S.selMode), onclick: () => { S.selMode = !S.selMode; if (!S.selMode) S.sel.clear(); render(); } }, '💬 Messaggio'),
+        h('span', { class: 'sp' }), S.selMode ? h('button', { type: 'button', class: 'lk', onclick: () => { conCel.forEach(p => tutti ? S.sel.delete(p.id) : S.sel.add(p.id)); render(); } }, tutti ? 'Nessuno' : 'Tutti') : h('span', { class: 'lk', style: 'display:inline-flex;align-items:center' }, 'Apri tutti')),
+      S.selMode ? h('div', { class: 'avv' }, 'Tocca le persone a cui vuoi scrivere.') : '',
+      ...righe));
+  const els = [h('div', { class: 'hd' }, h('b', {}, 'Gara Sociale 2027'), h('span', {}, 'Amministratore')), main];
+  if (S.selMode) els.push(h('div', { class: 'foot' },
+    h('button', { type: 'button', class: 'btn sec', onclick: () => { S.selMode = false; S.sel.clear(); render(); } }, 'Annulla'),
+    h('button', { type: 'button', class: 'btn wa', style: 'flex:1', disabled: S.sel.size ? null : '', onclick: () => vai('scrivi') }, S.sel.size ? 'Scrivi a ' + S.sel.size + (S.sel.size === 1 ? ' persona' : ' persone') + ' →' : 'Scegli le persone')));
+  return els;
+}
+
+function scrivi() {
+  passo(2);
+  const scelti = P.filter(p => S.sel.has(p.id));
+  if (!scelti.length) { S.vista = 'home'; return home(); }
+  const ta = h('textarea', { 'aria-label': 'Testo del messaggio', placeholder: 'Scrivi qui il messaggio…', maxlength: '1000' }); ta.value = S.testo;
+  const bolla = h('div', { class: 'bolla' }), tit = h('h3', {}, ''), vai2 = h('button', { type: 'button', class: 'btn wa full', onclick: () => { S.coda = scelti.map(p => p.id); S.i = 0; S.esito = {}; vai('invio'); } }, '');
+  const agg = () => { tit.textContent = 'Come lo riceve ' + scelti[0].nome; bolla.textContent = msg(scelti[0]) || '…'; vai2.disabled = !S.testo.trim(); vai2.textContent = 'Inizia l\'invio (' + scelti.length + ') →'; };
+  ta.addEventListener('input', () => { S.testo = ta.value; agg(); });
+  const cb = h('input', { type: 'checkbox' }); cb.checked = S.saluto; cb.addEventListener('change', () => { S.saluto = cb.checked; agg(); });
+  agg();
+  return [h('div', { class: 'hd' }, h('button', { type: 'button', class: 'back', 'aria-label': 'Torna alla selezione', onclick: () => vai('home') }, '←'), h('b', {}, 'Messaggio WhatsApp')),
+    h('main', {},
+      h('h3', { style: 'margin-top:0' }, 'A ' + scelti.length + (scelti.length === 1 ? ' persona' : ' persone')),
+      h('div', { class: 'chips' }, ...scelti.map(p => h('span', { class: 'chip' }, p.n, h('button', { type: 'button', 'aria-label': 'Togli ' + p.n, onclick: () => { S.sel.delete(p.id); render(); } }, '✕')))),
+      h('h3', {}, 'Messaggio'), ta,
+      h('label', { class: 'opt' }, cb, 'Inizia con «Ciao <nome>,»'),
+      tit, bolla,
+      h('p', { class: 'nota' }, 'Ognuno riceve il messaggio nella sua chat privata: nessuno vede gli altri destinatari.')),
+    h('div', { class: 'foot' }, vai2)];
+}
+
+function invio() {
+  passo(3);
+  const tot = S.coda.length, p = P.find(x => x.id === S.coda[S.i]);
+  if (!p) return fine();
+  const prec = S.i > 0 ? P.find(x => x.id === S.coda[S.i - 1]) : null;
+  return [h('div', { class: 'hd' }, h('b', {}, 'Invio ' + (S.i + 1) + ' di ' + tot), h('button', { type: 'button', class: 'lk', onclick: () => { if (confirm('Interrompere l\'invio? Le persone rimaste non riceveranno il messaggio.')) vai('fine'); } }, 'Interrompi')),
+    h('main', {},
+      h('div', { class: 'prog' }, h('i', { style: 'width:' + Math.round(S.i / tot * 100) + '%' })),
+      h('div', { class: 'card cur' },
+        h('div', { class: 't' }, 'Adesso scrivi a'), h('div', { class: 'n' }, p.n), h('div', { class: 't' }, p.cel),
+        h('div', { class: 'bolla' }, msg(p)),
+        h('button', { type: 'button', class: 'btn wa full big', onclick: () => { S.inviatoWa = false; vai('wa'); } }, '💬 Apri WhatsApp · ' + p.nome),
+        h('button', { type: 'button', class: 'lk', onclick: () => { S.esito[p.id] = 'saltato'; S.i++; render(); } }, 'Salta ' + p.nome)),
+      prec && S.esito[prec.id] === 'aperto' ? h('div', { class: 'avv', style: 'display:flex;align-items:center;gap:6px' }, h('span', { style: 'flex:1' }, '✓ WhatsApp aperto per ' + prec.nome), h('button', { type: 'button', class: 'lk', onclick: () => { S.i--; delete S.esito[prec.id]; render(); } }, '↩ Ripeti')) : '',
+      h('div', { class: 'card' }, ...S.coda.map((id, k) => { const q = P.find(x => x.id === id), e = S.esito[id];
+        return h('div', { class: 'el' + (k === S.i ? ' att' : '') }, h('span', { class: 's' }, e === 'aperto' ? '✅' : e === 'saltato' ? '⏭' : k === S.i ? '👉' : '•'), h('span', { class: 'n2' }, q.n), h('small', {}, e === 'aperto' ? 'aperto' : e === 'saltato' ? 'saltato' : k === S.i ? 'adesso' : 'in attesa')); })))];
+}
+
+function wa() {
+  const p = P.find(x => x.id === S.coda[S.i]);
+  const torna = () => { S.esito[p.id] = 'aperto'; S.i++; vai('invio'); };
+  return [h('div', { class: 'wah' }, h('button', { type: 'button', class: 'back', style: 'color:#fff', 'aria-label': 'Torna a SDM Eventi', onclick: torna }, '←'), p.n.split(' ').reverse().join(' ')),
+    h('div', { class: 'wam' }, h('div', { class: 'wat' }, 'Qui sei in WhatsApp (finto). ' + (S.inviatoWa ? 'Messaggio inviato: ora torna all\'app con ← o con il tasto indietro del telefono.' : 'Il testo è già scritto: premi ➤ per inviare.')), S.inviatoWa ? h('div', { class: 'bolla' }, msg(p) + '  ✓✓') : ''),
+    S.inviatoWa ? h('div', { class: 'waf' }, h('button', { type: 'button', class: 'btn full', style: 'width:100%;border-radius:11px;height:46px;background:#075e54', onclick: torna }, '← Torna a SDM Eventi'))
+      : h('div', { class: 'waf' }, h('div', {}, msg(p)), h('button', { type: 'button', 'aria-label': 'Invia', onclick: () => { S.inviatoWa = true; render(); } }, '➤'))];
+}
+
+function fine() {
+  passo(4);
+  const ap = S.coda.filter(id => S.esito[id] === 'aperto').length, sa = S.coda.filter(id => S.esito[id] === 'saltato').length, no = S.coda.length - ap - sa;
+  return [h('div', { class: 'hd' }, h('b', {}, 'Invio terminato')),
+    h('main', {}, h('div', { class: 'fine' }, h('div', { class: 'e' }, ap === S.coda.length ? '🎉' : '📋'), h('h1', {}, ap + ' di ' + S.coda.length + (ap === 1 ? ' messaggio aperto' : ' messaggi aperti') + ' in WhatsApp'),
+      h('p', { class: 'nota' }, (sa ? sa + ' saltat' + (sa === 1 ? 'o' : 'i') + '. ' : '') + (no ? no + ' non raggiunt' + (no === 1 ? 'o' : 'i') + ' (invio interrotto).' : ''))),
+      h('div', { class: 'card' }, ...S.coda.map(id => { const q = P.find(x => x.id === id), e = S.esito[id]; return h('div', { class: 'el' }, h('span', { class: 's' }, e === 'aperto' ? '✅' : e === 'saltato' ? '⏭' : '•'), h('span', { class: 'n2' }, q.n), h('small', {}, e || 'non inviato')); }))),
+    h('div', { class: 'foot' }, h('button', { type: 'button', class: 'btn full', onclick: () => { S.selMode = false; S.sel.clear(); vai('home'); } }, 'Torna alla Home'))];
+}
+
+function render() { ph.replaceChildren(...({ home, scrivi, invio, wa, fine })[S.vista]()); }
+render();
+</script>
+</body>
+</html>

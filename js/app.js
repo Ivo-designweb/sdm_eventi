@@ -1655,6 +1655,87 @@
     verificaScelta();
   }
 
+  // ---- v5.8: messaggio WhatsApp a più persone (amministratore) ----
+  // L'app non può inviare da sola: apre WhatsApp sulla chat di ogni persona con il testo già scritto, una alla volta; «Invia» lo preme l'utente.
+  let homeSel = null;   // insieme degli id selezionati quando la selezione è accesa, altrimenti null
+  const WA = { inv: null, ripreso: false, blocco: 0 };   // inv = { uid, t, fase: 'scrivi'|'invio'|'fine', coda: [{ id, et, nome, cel }], i, esito: {}, testo, saluto }
+  const WA_LS = 'sdm_wa_invio';
+  const waTesto = d => (WA.inv.saluto ? 'Ciao ' + d.nome + ', ' : '') + WA.inv.testo.trim();
+  const waSalva = () => { WA.inv.t = Date.now(); LS.set(WA_LS, WA.inv); };
+  function waChiudi() { WA.inv = null; LS.del(WA_LS); $('#modWa').classList.add('hidden'); }
+  function waScrivi(coda) {
+    if (!coda.length) return;
+    WA.inv = { uid: stato.persona.uid, fase: 'scrivi', coda, i: 0, esito: {}, testo: '', saluto: true };
+    $('#modWa').classList.remove('hidden'); renderWa();
+    const ta = $('#waTesto'); if (ta) ta.focus();
+  }
+  // se il telefono ha chiuso l'app mentre si era in WhatsApp, al rientro l'invio riprende dal punto giusto (entro 2 ore)
+  function waRiprendi() {
+    if (WA.ripreso || WA.inv || !isAdmin()) return;
+    WA.ripreso = true;
+    const s = LS.get(WA_LS);
+    if (!s) return;
+    if (s.uid !== stato.persona.uid || !Array.isArray(s.coda) || !s.coda.length || s.fase === 'scrivi' || Date.now() - (s.t || 0) > 2 * 3600 * 1000) { LS.del(WA_LS); return; }
+    WA.inv = s; $('#modWa').classList.remove('hidden'); renderWa();
+  }
+  function waEsc() {   // Esc: chiude la scrittura e il riepilogo; durante l'invio chiede conferma
+    const v = WA.inv; if (!v || $('#modWa').classList.contains('hidden')) return;
+    if (v.fase === 'invio') { if (confirm('Interrompere l\'invio? Le persone rimaste non riceveranno il messaggio.')) { v.fase = 'fine'; waSalva(); renderWa(); } }
+    else { const fine = v.fase === 'fine'; waChiudi(); if (fine) { homeSel = null; renderHome(); } }
+  }
+  function renderWa() {
+    const v = WA.inv, box = $('#waCorpo'); if (!v || !box) return;
+    const bt = (cls, txt, fn, attr) => { const b = h('button', { type: 'button', class: cls, ...(attr || {}) }, txt); b.addEventListener('click', fn); return b; };
+    const stato1 = e => e === 'aperto' ? ['✅', 'aperto'] : e === 'saltato' ? ['⏭', 'saltato'] : null;
+    if (v.fase === 'scrivi') {
+      const ta = h('textarea', { id: 'waTesto', 'aria-label': 'Testo del messaggio', placeholder: 'Scrivi qui il messaggio…', maxlength: '1000', rows: '5' }); ta.value = v.testo;
+      const cb = h('input', { type: 'checkbox' }); cb.checked = v.saluto;
+      const tit = h('h3', {}, ''), bolla = h('div', { class: 'waBolla' }), via = bt('btn wa', '', () => { v.testo = ta.value; if (!v.testo.trim()) return; v.fase = 'invio'; v.i = 0; v.esito = {}; waSalva(); renderWa(); });
+      const agg = () => { tit.textContent = 'Come lo riceve ' + v.coda[0].nome; bolla.textContent = waTesto(v.coda[0]) || '…'; via.disabled = !v.testo.trim(); via.textContent = 'Inizia l\'invio (' + v.coda.length + ') →'; };
+      ta.addEventListener('input', () => { v.testo = ta.value; agg(); }); cb.addEventListener('change', () => { v.saluto = cb.checked; agg(); });
+      agg();
+      box.replaceChildren(
+        h('div', { class: 'waHd' }, bt('waBk', '←', () => waChiudi(), { 'aria-label': 'Torna alla selezione' }), h('b', {}, 'Messaggio WhatsApp')),
+        h('div', { class: 'waMain' },
+          h('h3', { style: 'margin-top:0' }, 'A ' + v.coda.length + (v.coda.length === 1 ? ' persona' : ' persone')),
+          h('div', { class: 'waChips' }, ...v.coda.map(d => h('span', { class: 'waChip' }, d.et, bt('', '✕', () => { v.coda = v.coda.filter(x => x.id !== d.id); if (homeSel) homeSel.delete(d.id); renderHome(); if (v.coda.length) { v.testo = ta.value; renderWa(); } else waChiudi(); }, { 'aria-label': 'Togli ' + d.et })))),
+          h('h3', {}, 'Messaggio'), ta,
+          h('label', { class: 'waOpt' }, cb, 'Inizia con «Ciao <nome>,»'),
+          tit, bolla,
+          h('p', { class: 'note' }, 'Ognuno riceve il messaggio nella sua chat privata: nessuno vede gli altri destinatari. L\'app apre WhatsApp con il testo già scritto, una persona alla volta: «Invia» lo premi tu in WhatsApp.')),
+        h('div', { class: 'waFoot' }, via));
+      return;
+    }
+    const elenco = corr => h('div', { class: 'card' }, ...v.coda.map((d, k) => { const s = stato1(v.esito[d.id]); return h('div', { class: 'waEl' + (k === corr ? ' att' : '') }, h('span', { class: 's' }, s ? s[0] : k === corr ? '👉' : '•'), h('span', { class: 'n2' }, d.et), h('small', {}, s ? s[1] : k === corr ? 'adesso' : corr < 0 ? 'non inviato' : 'in attesa')); }));
+    if (v.fase === 'invio' && v.coda[v.i]) {
+      const tot = v.coda.length, d = v.coda[v.i], prec = v.i > 0 ? v.coda[v.i - 1] : null;
+      const avanti = () => { v.i++; if (v.i >= tot) v.fase = 'fine'; waSalva(); renderWa(); };
+      const apri = bt('btn wa big', '💬 Apri WhatsApp · ' + d.nome, () => {
+        window.open('https://wa.me/' + waNumero(d.cel) + '?text=' + encodeURIComponent(waTesto(d)), '_blank', 'noopener');
+        v.esito[d.id] = 'aperto'; WA.blocco = Date.now() + 900; avanti();
+      });
+      const att = WA.blocco - Date.now(); if (att > 0) { apri.disabled = true; setTimeout(() => { apri.disabled = false; }, att); }   // evita il doppio tocco che aprirebbe subito la persona successiva
+      box.replaceChildren(
+        h('div', { class: 'waHd' }, h('b', {}, 'Invio ' + (v.i + 1) + ' di ' + tot), bt('lkAll', 'Interrompi', () => { if (confirm('Interrompere l\'invio? Le persone rimaste non riceveranno il messaggio.')) { v.fase = 'fine'; waSalva(); renderWa(); } })),
+        h('div', { class: 'waMain' },
+          h('div', { class: 'waProg' }, h('i', { style: 'width:' + Math.round(v.i / tot * 100) + '%' })),
+          h('div', { class: 'card waCur' }, h('div', { class: 't' }, 'Adesso scrivi a'), h('div', { class: 'n' }, d.et), h('div', { class: 't' }, d.cel), h('div', { class: 'waBolla' }, waTesto(d)), apri,
+            bt('lkAll', 'Salta ' + d.nome, () => { v.esito[d.id] = 'saltato'; avanti(); })),
+          prec && v.esito[prec.id] === 'aperto' ? h('div', { class: 'waAvv fx' }, h('span', {}, '✓ WhatsApp aperto per ' + prec.nome + '. Ricorda di premere «Invia».'), bt('lkAll', '↩ Ripeti', () => { v.i--; delete v.esito[prec.id]; WA.blocco = 0; waSalva(); renderWa(); })) : '',
+          elenco(v.i)));
+      return;
+    }
+    v.fase = 'fine';
+    const ap = v.coda.filter(d => v.esito[d.id] === 'aperto').length, sa = v.coda.filter(d => v.esito[d.id] === 'saltato').length, no = v.coda.length - ap - sa;
+    box.replaceChildren(
+      h('div', { class: 'waHd' }, h('b', {}, 'Invio terminato')),
+      h('div', { class: 'waMain' },
+        h('div', { class: 'waFine' }, h('div', { class: 'e' }, ap === v.coda.length ? '🎉' : '📋'), h('h2', {}, ap + ' di ' + v.coda.length + (ap === 1 ? ' messaggio aperto' : ' messaggi aperti') + ' in WhatsApp'),
+          h('p', { class: 'note' }, (sa ? sa + (sa === 1 ? ' saltato. ' : ' saltati. ') : '') + (no ? no + (no === 1 ? ' non raggiunto' : ' non raggiunti') + ' (invio interrotto). ' : '') + '«Aperto» significa che WhatsApp è stato aperto con il messaggio pronto: l\'app non può sapere se è stato inviato.')),
+        elenco(-1)),
+      h('div', { class: 'waFoot' }, bt('btn', 'Torna alla Home', () => { waChiudi(); homeSel = null; renderHome(); })));
+  }
+
   function renderHome() {
     const box = $('#homeCorpo');
     if (!box) return;
@@ -1735,10 +1816,18 @@
       const seg = h('div', { class: 'seg' }, ...[['persona', 'Per persona'], ['ramo', 'Per ramo']].map(([k, t]) => { const b = h('button', { type: 'button', class: homeVista === k ? 'on' : '' }, t); b.addEventListener('click', () => { homeVista = k; homeAperti = new Set(); renderHome(); }); return b; }));
       const gv = gruppi.map(g => ({ ...g, lf: g.l.filter(passaStatoHome) })).filter(g => g.lf.length);
       if (homeApriFiltro) { gv.forEach(g => homeAperti.add(g.k)); homeApriFiltro = false; }   // scegliendo una cella le righe con risultati si aprono una volta sola
+      // v5.8: messaggio WhatsApp a più persone (solo amministratore, vista «Per persona»): la selezione avviene sulle righe delle persone
+      if (!adm || homeVista !== 'persona') homeSel = null;
+      const selOn = !!homeSel, celDi = id => { const p = P.elenco.find(x => x.id === id); return p && cifre(p.cellulare) ? p : null; }, selOk = g => !!(g.id && celDi(g.id));
+      if (selOn) { const vis = new Set(gv.filter(selOk).map(g => g.id)); [...homeSel].forEach(id => { if (!vis.has(id)) homeSel.delete(id); }); }
+      waRiprendi();
       const righe = gv.map(g => {
-        const cc = conteggio(g.l), aperto = homeAperti.has(g.k), nf = g.l.filter(n => n.stato === 'fatto').length;
-        const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, ...(homeVista === 'persona' ? [h('i', { class: 'cdot' + (g.id && (S.coll[g.id] || P.online.has(g.id)) ? ' v' : ' vuoto') + (g.id && P.online.has(g.id) ? ' live' : ''), 'data-pid': g.id || null })] : []), g.nome), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, (homeStatoF ? g.lf.length : cc.finito) + '/' + cc.tot), h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
-        gh.addEventListener('click', () => { if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); });
+        const cc = conteggio(g.l), aperto = !selOn && homeAperti.has(g.k), nf = g.l.filter(n => n.stato === 'fatto').length;
+        const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, ...(selOn ? [h('i', { class: 'waCk' + (homeSel.has(g.id) ? ' on' : '') + (selOk(g) ? '' : ' dis') }, homeSel.has(g.id) ? '✓' : '')] : homeVista === 'persona' ? [h('i', { class: 'cdot' + (g.id && (S.coll[g.id] || P.online.has(g.id)) ? ' v' : ' vuoto') + (g.id && P.online.has(g.id) ? ' live' : ''), 'data-pid': g.id || null })] : []), g.nome, selOn && g.id && !selOk(g) ? h('small', { class: 'waNo' }, 'senza cellulare in anagrafica') : ''), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, (homeStatoF ? g.lf.length : cc.finito) + '/' + cc.tot), selOn ? '' : h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
+        if (selOn) { gh.classList.add('sel'); if (!selOk(g)) gh.classList.add('no'); gh.setAttribute('role', 'checkbox'); gh.setAttribute('aria-checked', homeSel.has(g.id) ? 'true' : 'false'); gh.setAttribute('tabindex', selOk(g) ? '0' : '-1'); }
+        const tocca = () => { if (selOn) { if (!selOk(g)) return; if (homeSel.has(g.id)) homeSel.delete(g.id); else homeSel.add(g.id); } else if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); };
+        gh.addEventListener('click', tocca);
+        if (selOn) gh.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); tocca(); } });
         const gr = h('div', { class: 'gr' }, gh);
         if (aperto) gr.append(h('div', { class: 'det' }, ...[...g.lf].sort(cmpHome).map(n => {
           const cL = colArea(n.area), ln = h('div', { class: 'ln', ...(cL ? { style: 'border-left:5px solid ' + cL + ';padding-left:8px' } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, homeVista === 'persona' ? percorsoAnt(n) : (nomiInc(n).join(', ') || 'nessun incaricato') + (stato.parametri.percorso_completo === true ? ' · ' + percorsoAnt(n) : ''), ar.length ? h('span', { class: 'ar', title: 'Area' }, h('i', { style: 'background:' + (colArea(n.area) || '#cbd5e1') }), n.area || 'Tutte') : '')), badgeScad(n),
@@ -1748,9 +1837,27 @@
         return gr;
       });
       const tuttiAperti = gv.length > 0 && gv.every(g => homeAperti.has(g.k));
-      const lkTutti = (() => { if (!gv.length) return h('div', { class: 'rigaOrd' }, bottoneOrdine()); const a = h('button', { type: 'button', class: 'lkAll' }, tuttiAperti ? 'Chiudi tutti' : 'Apri tutti'); a.addEventListener('click', () => { gv.forEach(g => (tuttiAperti ? homeAperti.delete(g.k) : homeAperti.add(g.k))); renderHome(); }); return h('div', { class: 'rigaOrd' }, bottoneOrdine(), a); })();
-      out.push(h('div', { class: 'card' }, seg, lkTutti, ...(righe.length ? righe : [h('p', { class: 'sec' }, 'Nessuna attività.')]),
-        h('p', { class: 'note', style: 'margin:8px 0 0;text-align:center' }, 'Tocca una riga per vedere le attività. ✔ n = da confermare.')));
+      const lkTutti = (() => {
+        const els = [bottoneOrdine()];
+        if (adm && homeVista === 'persona' && gv.some(g => g.id)) {
+          const m = h('button', { type: 'button', class: 'ordBtn waBtn' + (selOn ? ' on' : ''), 'aria-pressed': selOn ? 'true' : 'false', title: 'Scrivi un messaggio WhatsApp a più persone' }, '💬 ', h('span', {}, 'Messaggio'));
+          m.addEventListener('click', async () => { if (selOn) { homeSel = null; renderHome(); return; } if (!P.elenco.length) await caricaPersone(); homeSel = new Set(); renderHome(); });
+          els.push(m);
+        }
+        if (selOn) {
+          const ok = gv.filter(selOk), tutti = ok.length > 0 && ok.every(g => homeSel.has(g.id));
+          const a = h('button', { type: 'button', class: 'lkAll dx' }, tutti ? 'Nessuno' : 'Tutti'); a.addEventListener('click', () => { ok.forEach(g => (tutti ? homeSel.delete(g.id) : homeSel.add(g.id))); renderHome(); }); els.push(a);
+        } else if (gv.length) { const a = h('button', { type: 'button', class: 'lkAll dx' }, tuttiAperti ? 'Chiudi tutti' : 'Apri tutti'); a.addEventListener('click', () => { gv.forEach(g => (tuttiAperti ? homeAperti.delete(g.k) : homeAperti.add(g.k))); renderHome(); }); els.push(a); }
+        return h('div', { class: 'rigaOrd' }, ...els);
+      })();
+      const selBar = selOn ? (() => {
+        const n = homeSel.size, x = h('button', { type: 'button', class: 'btn sec' }, 'Annulla'), v = h('button', { type: 'button', class: 'btn wa' }, n ? 'Scrivi a ' + n + (n === 1 ? ' persona' : ' persone') + ' →' : 'Scegli le persone');
+        v.disabled = !n; x.addEventListener('click', () => { homeSel = null; renderHome(); });
+        v.addEventListener('click', () => waScrivi(gv.filter(g => homeSel.has(g.id)).map(g => { const p = celDi(g.id); return { id: g.id, et: g.nome, nome: p.nome || g.nome, cel: p.cellulare }; })));
+        return h('div', { class: 'selBar' }, x, v);
+      })() : '';
+      out.push(h('div', { class: 'card' }, seg, lkTutti, selOn ? h('div', { class: 'waAvv' }, 'Tocca le persone a cui vuoi scrivere.') : '', ...(righe.length ? righe : [h('p', { class: 'sec' }, 'Nessuna attività.')]),
+        h('p', { class: 'note', style: 'margin:8px 0 0;text-align:center' }, 'Tocca una riga per vedere le attività. ✔ n = da confermare.'), selBar));
     }
     // le mie attività
     const mie = tutte.filter(n => (S.inc[n.id] || []).some(x => x.persona_id === me)).sort(cmpHome);
@@ -2480,7 +2587,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#perNuova').onclick = () => apriPersona(null);
     $('#fIsc').onchange = () => $('#fNumW').classList.toggle('hidden', !$('#fIsc').checked);
     ['#perCerca', '#perFiltro', '#perNonAttivi'].forEach(id => $(id).addEventListener('input', renderPersone));
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') { chiudiPersona(); chiudiEvento(); chiudiNodo(); chiudiScheda(); chiudiImport(); $('#modDup').classList.add('hidden'); $('#modPriv').classList.add('hidden'); } });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (WA.inv && !$('#modWa').classList.contains('hidden')) { waEsc(); return; } chiudiPersona(); chiudiEvento(); chiudiNodo(); chiudiScheda(); chiudiImport(); $('#modDup').classList.add('hidden'); $('#modPriv').classList.add('hidden'); } });
     $('#installa').onclick = installa;
     $('#vaiPar').onclick = () => vai('par');
     $('#bkBtn').onclick = indietro;
