@@ -1589,6 +1589,7 @@
   }
   let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null, homeStatoF = '', homeLuce = '', homeApriFiltro = false;
   // v5.6: ordine delle attività in Home, scelto con il bottone e ricordato sul dispositivo: 'scad' = data di scadenza, 'num' = numero dell'attività (codice del ramo) e poi scadenza
+  let homeOpF = '';   // v5.7: filtro per stato di «Le mie attività» dell'operatore (tre bottoni sopra la lista); '' = tutte
   let homeOrd = LS.get('sdm_home_ord') === 'num' ? 'num' : 'scad';
   const cmpNum = (a, b) => {
     const x = numTxt(a), y = numTxt(b);
@@ -1754,9 +1755,16 @@
     // le mie attività
     const mie = tutte.filter(n => (S.inc[n.id] || []).some(x => x.persona_id === me)).sort(cmpHome);
     const nFin = mie.filter(n => n.stato === 'finito').length, aperte = mie.length - nFin;
-    const lista = homeFinite ? mie : mie.filter(n => n.stato !== 'finito');
+    // v5.7: l'operatore filtra con i tre bottoni sopra la lista; responsabile/amministratore con le celle del totalizzatore in alto
+    const filtroMie = op ? homeOpF : homeStatoF;
+    const lista = mie.filter(n => (homeFinite || n.stato !== 'finito' || (!op && homeStatoF === 'fatte')) && (op ? (!homeOpF || n.stato === homeOpF) : passaStatoHome(n)));
     if (op || mie.length) {
       out.push(h('div', { class: 'top', style: 'margin-top:' + (op ? '0' : '6px') }, op ? h('h1', {}, 'Le mie attività') : h('h2', { style: 'margin:0;font-size:16px' }, 'Le mie attività'), h('span', { class: 'ordDx' }, op ? bottoneOrdine() : '', h('span', { class: 'chip2' }, aperte + (aperte === 1 ? ' aperta' : ' aperte')))));
+      if (op && mie.length) out.push(h('div', { class: 'seg segSt', role: 'group', 'aria-label': 'Filtra le mie attività per stato' }, ...['da_fare', 'in_corso', 'fatto'].map(k => {
+        const b = h('button', { type: 'button', class: homeOpF === k ? 'on' : '', 'aria-pressed': homeOpF === k ? 'true' : 'false' }, STATI[k], h('i', {}, String(mie.filter(n => n.stato === k).length)));
+        b.addEventListener('click', () => { homeOpF = homeOpF === k ? '' : k; renderHome(); });
+        return b;
+      })));
       out.push(...(lista.length ? lista.map(n => {
         const chiuso = n.stato === 'finito', puoFin = adm;
         const sel = h('select', { class: 'st' }, ...['da_fare', 'in_corso', 'fatto', ...(puoFin || chiuso ? ['finito'] : [])].map(k => { const o = h('option', { value: k }, STATI[k].replace(' (confermato dall\'amministratore)', '')); if (n.stato === k) o.selected = true; if (chiuso && !puoFin && k !== 'finito') o.disabled = true; return o; }));
@@ -1775,7 +1783,7 @@
           return h('div', { class: 'ln mia', ...(cA ? { style: 'background:color-mix(in srgb,' + cA + ' 14%,var(--card));border-left-color:' + cA } : {}) }, tt, sel, ck, nota);
         }
         return h('div', { class: 'it', ...(cA ? { style: 'background:color-mix(in srgb,' + cA + ' 18%,var(--card));border-left:5px solid ' + cA } : {}) }, t1, t2, h('div', { class: 't3' }, sel, ck, nota, S.pend.has(n.id) ? h('span', { class: 'pend' }, '⏳ in attesa') : ''));
-      }) : [h('p', { class: 'sec', style: 'text-align:center' }, mie.length ? 'Tutte le tue attività sono finite. 🎉' : 'Non hai attività assegnate in questo evento.')]));
+      }) : [h('p', { class: 'sec', style: 'text-align:center' }, !mie.length ? 'Non hai attività assegnate in questo evento.' : filtroMie ? (op ? 'Nessuna attività «' + STATI[homeOpF] + '». Tocca di nuovo il bottone per vederle tutte.' : 'Nessuna tua attività per il filtro scelto in alto.') : 'Tutte le tue attività sono finite. 🎉')]));
       if (nFin) { const a = h('a', { href: '#' }, (homeFinite ? 'Nascondi' : 'Mostra') + ' le attività finite (' + nFin + ')'); a.addEventListener('click', e => { e.preventDefault(); homeFinite = !homeFinite; renderHome(); }); out.push(h('p', { class: 'sec', style: 'text-align:center' }, a)); }
       if (op) out.push(h('p', { class: 'note', style: 'text-align:center' }, 'Tocca "Consuntiva" per registrare cosa hai fatto, la nota e la check-list. Le modifiche partono da sole appena c\'è rete.'));
     }

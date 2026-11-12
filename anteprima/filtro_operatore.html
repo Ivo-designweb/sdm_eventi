@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="app-version" content="1.0">
+<title>SDM Eventi - Anteprima filtro per stato (operatore)</title>
+<style>
+:root{--primario:#1d4ed8;--bg:#f4f6fa;--card:#fff;--testo:#1c2333;--sec:#5b6578;--bordo:#dde2ec;--ok:#15803d;--warn:#b45309;--err:#b91c1c}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#cfd5e1;color:var(--testo)}
+.demo{background:#111827;color:#e5e7eb;padding:10px 14px;font-size:13px}
+.wrap{display:flex;flex-wrap:wrap;gap:8px 28px;justify-content:center;padding:6px 10px 24px}
+.col{width:360px;max-width:100%}
+h2{font-size:14px;margin:14px 0 6px;padding:0 4px;color:#374151}
+h2 small{display:block;font-weight:400;color:#4b5563;font-size:12.5px}
+.phone{background:var(--bg);border:1px solid #b8c0d0;border-radius:18px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+.hd{display:flex;align-items:center;gap:6px;padding:7px 8px;background:var(--card);border-bottom:1px solid var(--bordo)}
+.hd b{flex:1;font-size:15px}.hd span{font-size:12px;color:var(--sec)}
+main{padding:10px 10px 14px;min-height:520px}
+.rigaOp{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.rigaOp .ciao{flex:1 1 0;min-width:0;margin:0;font-size:17px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rigaOp select{flex:none;max-width:122px;border:1px solid var(--bordo);background:var(--card);color:var(--testo);border-radius:99px;padding:0 2px 0 8px;height:30px;font:inherit;font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:0 11px;border-radius:99px;border:1.5px solid color-mix(in srgb,var(--primario) 40%,transparent);background:color-mix(in srgb,var(--primario) 10%,var(--card));color:var(--primario);font:inherit;font-size:14px;font-weight:700}
+.top{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px}
+.top h1{margin:0;font-size:19px}
+.ordDx{display:inline-flex;align-items:center;gap:8px}
+.ordBtn{display:inline-flex;align-items:center;gap:2px;min-height:34px;padding:4px 12px;border:1px solid var(--bordo);border-radius:99px;background:var(--card);color:var(--primario);font:inherit;font-size:12.5px;font-weight:600;white-space:nowrap}
+.chip2{font-size:12px;font-weight:600;background:#eef2ff;color:var(--primario);border-radius:99px;padding:3px 10px}
+
+/* ---- NUOVO, stile A: tre celle con numero (come il totalizzatore del responsabile) ---- */
+.tot3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0 0 10px}
+.tot3 button{--lc:#2563eb;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 2px;min-height:52px;border:2px solid var(--bordo);border-radius:11px;background:var(--card);color:var(--testo);font:inherit;line-height:1.1;min-width:0;cursor:pointer}
+.tot3 button b{font-size:22px;font-weight:800;color:var(--lc)}
+.tot3 button span{font-size:12px;font-weight:600;color:var(--sec);white-space:nowrap}
+.tot3 .dar{--lc:#64748b}.tot3 .cor{--lc:#2563eb}.tot3 .fin{--lc:#16a34a}
+.tot3 button.act{border-color:color-mix(in srgb,var(--lc) 75%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--lc) 40%,transparent);background:color-mix(in srgb,var(--lc) 10%,var(--card))}
+
+/* ---- NUOVO, stile B: barra a segmenti (come «Per persona / Per ramo») ---- */
+.seg{display:flex;background:#e8ecf4;border-radius:10px;padding:3px;margin:0 0 10px}
+.seg button{flex:1;min-height:44px;border:0;background:transparent;padding:6px 2px;border-radius:8px;font:inherit;font-size:13px;font-weight:600;color:var(--sec);cursor:pointer;white-space:nowrap}
+.seg button i{font-style:normal;font-weight:700;opacity:.75;margin-left:3px}
+.seg button.on{background:var(--card);color:var(--primario);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.tot3 button:focus-visible,.seg button:focus-visible{outline:2px solid var(--primario);outline-offset:2px}
+
+.it{background:var(--card);border:1px solid var(--bordo);border-left:5px solid var(--c,#999);border-radius:12px;padding:9px 12px;margin-bottom:8px}
+.it .t1{display:flex;justify-content:space-between;align-items:center;gap:8px}.it .t1 b{font-size:15px}
+.it .t2{font-size:12px;color:var(--sec);margin:2px 0 8px}
+.it .t3{display:flex;gap:8px;align-items:center}
+.it select{flex:1;min-width:0;height:36px;border:1px solid var(--bordo);border-radius:8px;background:var(--card);color:var(--testo);font:inherit;font-size:14px;padding:0 6px}
+.ib{border:1px solid var(--bordo);background:var(--card);color:var(--testo);border-radius:8px;padding:6px 9px;font:inherit;font-size:14px;white-space:nowrap}
+.num{font-size:12px;font-weight:700;color:var(--sec);margin-right:6px}
+.badge{font-size:12px;border-radius:99px;padding:2px 10px;font-weight:600;white-space:nowrap}
+.badge.w{background:#fef3c7;color:var(--warn)}.badge.e{background:#fee2e2;color:var(--err)}.badge.n{background:#eef2ff;color:var(--primario)}
+.sec{color:var(--sec);font-size:13.5px;text-align:center}
+.lk{text-align:center;font-size:13.5px}.lk a{color:var(--primario)}
+</style>
+</head>
+<body>
+<div class="demo"><b>Anteprima · Home operatore: tre bottoni per filtrare «Le mie attività» per stato</b> — due stili a confronto. Tocca un bottone per vedere solo quel gruppo, ritoccalo per tornare a tutte. Puoi anche cambiare lo stato dal menu di una riga: i numeri si aggiornano. Dati di esempio, nessun salvataggio.</div>
+<div class="wrap">
+  <div class="col"><h2>Stile A · celle con numero<small>come il totalizzatore della Home del responsabile</small></h2><div class="phone" data-stile="a"></div></div>
+  <div class="col"><h2>Stile B · barra a segmenti<small>come «Per persona / Per ramo», con il numero accanto</small></h2><div class="phone" data-stile="b"></div></div>
+</div>
+<script>
+const STATI = [['da_fare', 'Da fare', 'dar'], ['in_corso', 'In corso', 'cor'], ['fatto', 'Fatto', 'fin']];
+const BASE = [
+  { n: '1.2', t: 'Montaggio gazebo', p: 'Logistica', a: 'Campo', c: '#f59e0b', s: 'da_fare', sc: ['e', 'scaduta 08/11'] },
+  { n: '1.4', t: 'Transenne partenza', p: 'Logistica', a: 'Campo', c: '#f59e0b', s: 'in_corso', sc: ['w', 'scade 16/11'] },
+  { n: '2.1', t: 'Ordine bibite', p: 'Ristoro', a: 'Bar', c: '#10b981', s: 'da_fare', sc: ['w', 'scade 18/11'] },
+  { n: '2.3', t: 'Turni cucina', p: 'Ristoro', a: 'Bar', c: '#10b981', s: 'fatto', sc: null },
+  { n: '3.1', t: 'Pettorali', p: 'Segreteria', a: 'Tutte', c: '#8b5cf6', s: 'in_corso', sc: ['n', 'scade 02/12'] },
+  { n: '3.5', t: 'Elenco iscritti', p: 'Segreteria', a: 'Tutte', c: '#8b5cf6', s: 'da_fare', sc: null },
+  { n: '4.2', t: 'Coppe e medaglie', p: 'Premiazioni', a: 'Campo', c: '#f59e0b', s: 'finito', sc: null }
+];
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+
+document.querySelectorAll('.phone').forEach(ph => {
+  const stile = ph.dataset.stile, L = BASE.map(x => ({ ...x }));
+  let filtro = '', finite = false;
+  function render() {
+    const conta = k => L.filter(x => x.s === k).length, aperte = L.filter(x => x.s !== 'finito').length, nFin = conta('finito');
+    const main = el('main');
+    const riga = el('div', 'rigaOp'); riga.append(el('h1', 'ciao', 'Ciao, Anna'));
+    const sa = el('select'); sa.setAttribute('aria-label', 'Filtra per area'); sa.append(el('option', '', 'Tutte le aree')); riga.append(sa, el('span', 'pill', '🔍 Cerca'));
+    const top = el('div', 'top'); top.append(el('h1', '', 'Le mie attività'));
+    const dx = el('span', 'ordDx'); dx.append(el('span', 'ordBtn', '⇅ Scadenza'), el('span', 'chip2', aperte + ' aperte')); top.append(dx);
+    // i tre bottoni-filtro, appena sopra la lista
+    const barra = el('div', stile === 'a' ? 'tot3' : 'seg'); barra.setAttribute('role', 'group'); barra.setAttribute('aria-label', 'Filtra le mie attività per stato');
+    STATI.forEach(([k, et, cl]) => {
+      const b = el('button', stile === 'a' ? cl + (filtro === k ? ' act' : '') : (filtro === k ? 'on' : '')); b.type = 'button'; b.setAttribute('aria-pressed', filtro === k ? 'true' : 'false');
+      if (stile === 'a') b.append(el('b', '', conta(k)), el('span', '', et)); else b.append(et, el('i', '', conta(k)));
+      b.addEventListener('click', () => { filtro = filtro === k ? '' : k; render(); });
+      barra.append(b);
+    });
+    main.append(riga, top, barra);
+    const lista = L.filter(x => (finite || x.s !== 'finito') && (!filtro || x.s === filtro));
+    lista.forEach(x => {
+      const it = el('div', 'it'); it.style.setProperty('--c', x.c); it.style.background = 'color-mix(in srgb,' + x.c + ' 14%,#fff)';
+      const t1 = el('div', 't1'), b = el('b'); b.append(el('span', 'num', x.n), x.t); t1.append(b); if (x.sc) t1.append(el('span', 'badge ' + x.sc[0], x.sc[1]));
+      const sel = el('select'); sel.setAttribute('aria-label', 'Stato'); STATI.concat(x.s === 'finito' ? [['finito', 'Finito']] : []).forEach(([k, et]) => { const o = el('option', '', et); o.value = k; o.selected = x.s === k; sel.append(o); });
+      sel.disabled = x.s === 'finito'; sel.addEventListener('change', () => { x.s = sel.value; render(); });
+      const t3 = el('div', 't3'); t3.append(sel, el('span', 'ib', '📝 Consuntiva'));
+      it.append(t1, el('div', 't2', x.p + ' · ' + x.a), t3); main.append(it);
+    });
+    if (!lista.length) main.append(el('p', 'sec', filtro ? 'Nessuna attività «' + STATI.find(s => s[0] === filtro)[1] + '». Tocca di nuovo il bottone per vederle tutte.' : 'Tutte le tue attività sono finite. 🎉'));
+    if (nFin) { const p = el('p', 'lk'), a = el('a', '', (finite ? 'Nascondi' : 'Mostra') + ' le attività finite (' + nFin + ')'); a.href = '#'; a.addEventListener('click', e => { e.preventDefault(); finite = !finite; render(); }); p.append(a); main.append(p); }
+    const hd = el('div', 'hd'); hd.append(el('b', '', 'Gara Sociale 2027'), el('span', '', '14 mag'));
+    ph.replaceChildren(hd, main);
+  }
+  render();
+});
+</script>
+</body>
+</html>

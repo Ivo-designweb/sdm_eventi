@@ -652,3 +652,9 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
 @media (pointer:coarse){.ordBtn{min-height:44px}}
 .rigaOrd{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:2px 0 4px}
 .ordDx{display:inline-flex;align-items:center;gap:8px}
+
+/* v5.7: Home operatore, tre bottoni per filtrare «Le mie attività» per stato (barra a segmenti con il numero accanto) */
+.seg.segSt{margin:0 0 10px}
+.seg.segSt button{min-height:44px;padding:6px 2px;white-space:nowrap}
+.seg.segSt button i{font-style:normal;font-weight:700;opacity:.75;margin-left:4px}
+.seg.segSt button:focus-visible{outline:2px solid var(--primario);outline-offset:2px}
