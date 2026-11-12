@@ -145,3 +145,37 @@ Vedi `Readme.txt`. Le anteprime con dati finti sono in `anteprima/` (tra le ulti
 - Notifiche anche ai **responsabili dei rami superiori** (oggi solo il responsabile effettivo più vicino).
 - Le notifiche non possono cambiare lo stato dell'attività: serve il tocco dentro l'app.
 - Cancellazione dei vecchi branch su GitHub: non fatta (tutti uniti in `main` tranne `claude/serene-bell-ispd6y`, con un commit v4.4 non in `main`).
+
+## 6. Da realizzare alla prossima occasione
+
+Funzionalità già discusse e definite, **non ancora sviluppate**. Quando vengono realizzate vanno spostate nelle sezioni sopra e tolte da qui.
+
+### 6.1 Notifica all'amministratore quando un operatore scrive una nota (prevista come v5.9)
+
+Fattibilità verificata: si appoggia all'infrastruttura push già usata per le scadenze (chiavi sul server, tabella `push_sottoscrizioni`, ricezione in `sw.js`, tocco che apre l'attività). Nessun servizio nuovo e nessun costo aggiuntivo.
+
+**Comportamento deciso**
+- **Quando parte:** ogni volta che viene salvata una nota nuova o modificata di un incaricato su un'attività (`incarichi.nota`), qualunque sia lo stato. Il solo cambio di stato non genera notifiche.
+- **Destinatari:** tutti gli amministratori attivi che hanno attivato le notifiche sul dispositivo, escluso chi ha salvato la nota. Non il responsabile del ramo.
+- **Contenuto:** nome di chi ha scritto, numero e titolo dell'attività, inizio della nota (circa 120 caratteri), evento e ramo. Il testo è visibile anche a telefono bloccato (scelta voluta). Toccando la notifica si apre l'attività.
+- **Interruttori:** un parametro generale nei Parametri (solo proprietario) «Notifiche delle note degli operatori», separato da quello delle scadenze; in più una scelta personale nelle Impostazioni, dove ogni amministratore decide se ricevere le note, le scadenze o entrambe.
+- **Nota svuotata:** nessuna notifica.
+- **Salvataggi ravvicinati** della stessa persona sulla stessa attività: la nuova notifica sostituisce la precedente (stesso `tag`), non si accumulano.
+- **Nota salvata da un amministratore o responsabile** al posto dell'operatore: la notifica parte comunque per gli altri amministratori (conta chi ha salvato, non il ruolo).
+
+**Cosa serve per realizzarla**
+- **Database:** aggancio sul salvataggio della nota che richiama una funzione server (così la notifica parte anche se l'operatore chiude subito l'app), nuovo parametro generale e campo per la scelta personale. Lo script `db/01_schema_sdm_eventi.sql` cambia versione e va **rieseguito in Supabase**.
+- **Supabase:** nuova Edge Function (sul modello di `notifiche-scadenze`) da installare a mano, più il collegamento database → funzione. **Da verificare in sviluppo** quale delle due strade usare sul progetto (Database Webhook dal pannello oppure trigger SQL con `pg_net`): non è stato possibile provarle. Passi da scrivere in `docs/NOTIFICHE.md`.
+- **App:** interruttore nei Parametri, scelta personale nelle Impostazioni, guida aggiornata.
+
+**Limiti noti**
+- «Tempo reale» = pochi secondi, secondo i tempi di consegna di Google e Apple.
+- Se l'operatore è senza rete la nota resta in coda sul suo telefono: la notifica parte quando torna la connessione.
+- Ogni amministratore deve aver attivato le notifiche su ogni suo dispositivo; su iPhone/iPad l'app deve essere installata sulla schermata Home (iOS 16.4 o successivo).
+
+### 6.2 Punti aperti sulle versioni 5.6 – 5.8
+
+- **Prove nell'app reale:** le versioni 5.6, 5.7 e 5.8 sono sul branch `claude/app-lavori-sort-whatsapp-xdjv4a` e non sono ancora state provate con l'accesso vero né unite a `main`. Da provare per prime: la selezione delle persone per il messaggio WhatsApp nella Home e l'apertura reale di WhatsApp su telefono e su PC.
+- **Cella «Fatte» del responsabile/amministratore (v5.7):** con quella cella attiva, «Le mie attività» mostra anche le proprie attività finite senza passare dal link «Mostra le attività finite». Scelta fatta in sviluppo, da confermare.
+- **Schermate della guida:** le immagini in `assets/help/` sono precedenti alla 5.6 e non mostrano i nuovi bottoni (⇅, filtro per stato, 💬 Messaggio, ✔ Conferma).
+- **WhatsApp con invio automatico:** scartato. Richiederebbe la WhatsApp Business API (numero dedicato, account Meta Business verificato, modelli approvati, costo per messaggio, funzione server). Oggi «Invia» lo preme sempre l'utente.
