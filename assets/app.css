@@ -645,3 +645,64 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
 #modAtt.vista .inc{font-size:13px;color:var(--sec);padding:4px 0;cursor:pointer}
 #modAtt.vista .inc .det{margin-top:4px;color:var(--testo)}
 #modAtt.vista #attForm{max-width:520px !important}
+
+/* v5.6: bottone per l'ordine delle attività in Home (scadenza / ramo + scadenza) */
+.ordBtn{display:inline-flex;align-items:center;gap:2px;min-height:34px;padding:4px 12px;border:1px solid var(--bordo);border-radius:99px;background:var(--card);color:var(--primario);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.ordBtn:focus-visible{outline:2px solid var(--primario);outline-offset:2px}
+@media (pointer:coarse){.ordBtn{min-height:44px}}
+.rigaOrd{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:2px 0 4px}
+.ordDx{display:inline-flex;align-items:center;gap:8px}
+
+/* v5.7: Home operatore, tre bottoni per filtrare «Le mie attività» per stato (barra a segmenti con il numero accanto) */
+.seg.segSt{margin:0 0 10px}
+.seg.segSt button{min-height:44px;padding:6px 2px;white-space:nowrap}
+.seg.segSt button i{font-style:normal;font-weight:700;opacity:.75;margin-left:4px}
+.seg.segSt button:focus-visible{outline:2px solid var(--primario);outline-offset:2px}
+
+/* v5.8: messaggio WhatsApp a più persone (amministratore) */
+.rigaOrd{justify-content:flex-start}
+.rigaOrd .lkAll.dx{margin-left:auto;min-height:34px}
+.ordBtn.waBtn{border-color:#128c7e;color:#128c7e}
+.ordBtn.waBtn.on{background:#128c7e;color:#fff}
+.btn.wa{background:#128c7e;border-color:#128c7e;color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+.waAvv{background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:7px 10px;font-size:13px;margin:4px 0 6px;color:#065f46}
+.waAvv.fx{display:flex;align-items:center;gap:6px}.waAvv.fx span{flex:1}
+.waCk{flex:none;width:24px;height:24px;border:2px solid #94a3b8;border-radius:7px;display:inline-grid;place-items:center;font-style:normal;font-size:15px;font-weight:800;color:#fff;background:var(--card);margin-right:8px;vertical-align:middle}
+.waCk.on{background:#128c7e;border-color:#128c7e}
+.waCk.dis{border-style:dashed}
+.gr .gh.sel{min-height:46px}
+.gr .gh.sel.no{opacity:.55;cursor:default}
+.gr .gh.sel:focus-visible{outline:2px solid var(--primario);outline-offset:-2px}
+.gr .gh .nm .waNo{font-weight:400;font-size:11.5px;color:var(--sec);margin-left:6px}
+.selBar{position:sticky;bottom:0;z-index:5;display:flex;gap:8px;margin:8px -4px 0;padding:8px 4px;background:var(--card);border-top:1px solid var(--bordo)}
+.selBar .btn{min-height:46px}.selBar .btn.wa{flex:1}
+@media (max-width:760px), (pointer:coarse) and (max-height:500px){.selBar{bottom:calc(54px + env(safe-area-inset-bottom))}}
+#modWa{position:fixed;inset:0;z-index:65;background:rgba(15,21,35,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+#modWa.hidden{display:none}
+.waBox{display:flex;flex-direction:column;width:100%;max-width:480px;max-height:100%;background:var(--bg);border-radius:14px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.waHd{flex:none;display:flex;align-items:center;gap:8px;min-height:50px;padding:0 12px;background:var(--card);border-bottom:1px solid var(--bordo)}
+.waHd b{flex:1;font-size:16px;min-width:0}
+.waHd .lkAll{min-height:44px;font-size:14px}
+.waBk{flex:none;width:44px;height:44px;border:0;background:none;font-size:22px;color:var(--primario);cursor:pointer;margin-left:-8px}
+.waMain{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch}
+.waMain h3{font-size:12.5px;margin:12px 0 5px;color:var(--sec);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.waFoot{flex:none;display:flex;padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--bordo)}
+.waFoot .btn{flex:1;min-height:48px;font-size:15px}
+.waChips{display:flex;flex-wrap:wrap;gap:6px}
+.waChip{display:inline-flex;align-items:center;gap:2px;background:#eef2ff;color:var(--primario);border-radius:99px;font-size:13.5px;font-weight:600;padding:0 4px 0 12px;min-height:38px}
+.waChip button{width:34px;height:34px;border:0;background:none;color:inherit;font-size:16px;cursor:pointer}
+.waMain textarea{width:100%;min-height:120px;border:1px solid var(--bordo);border-radius:11px;padding:10px;font:inherit;font-size:16px;resize:vertical;background:var(--card);color:var(--testo)}
+.waOpt{display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px;cursor:pointer;font-weight:500}
+.waOpt input{width:22px;height:22px;accent-color:#128c7e;flex:none}
+.waBolla{background:#dcf8c6;color:#1c2333;border-radius:10px 10px 2px 10px;padding:8px 10px;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 1px 1px rgba(0,0,0,.12)}
+.waProg{height:8px;border-radius:99px;background:var(--bordo);overflow:hidden;margin:2px 0 10px}.waProg i{display:block;height:100%;background:#128c7e}
+.waCur{text-align:center;padding:14px 12px}
+.waCur .n{font-size:22px;font-weight:800;margin:2px 0}.waCur .t{font-size:13px;color:var(--sec);margin-bottom:8px}
+.waCur .waBolla{text-align:left;margin-bottom:12px;max-height:130px;overflow:auto}
+.waCur .btn.big{display:block;width:100%;min-height:58px;font-size:17px;border-radius:12px}
+.waCur .lkAll{min-height:44px;font-size:14px}
+.waEl{display:flex;align-items:center;gap:8px;min-height:40px;border-top:1px dashed var(--bordo);font-size:14px}.waEl:first-child{border-top:0}
+.waEl .s{flex:none;width:22px;text-align:center}.waEl .n2{flex:1;min-width:0}.waEl.att{font-weight:700}.waEl small{color:var(--sec);font-size:12px}
+.waFine{text-align:center;padding:22px 6px 10px}.waFine .e{font-size:44px}.waFine h2{font-size:19px;margin:6px 0}
+@media (max-width:760px), (pointer:coarse) and (max-height:500px){#modWa{padding:0}.waBox{max-width:none;height:100%;border-radius:0}.waHd{padding-top:env(safe-area-inset-top);min-height:calc(50px + env(safe-area-inset-top))}}

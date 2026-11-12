@@ -1588,6 +1588,27 @@
     return b;
   }
   let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null, homeStatoF = '', homeLuce = '', homeApriFiltro = false;
+  // v5.6: ordine delle attività in Home, scelto con il bottone e ricordato sul dispositivo: 'scad' = data di scadenza, 'num' = numero dell'attività (codice del ramo) e poi scadenza
+  let homeOpF = '';   // v5.7: filtro per stato di «Le mie attività» dell'operatore (tre bottoni sopra la lista); '' = tutte
+  let homeOrd = LS.get('sdm_home_ord') === 'num' ? 'num' : 'scad';
+  const cmpNum = (a, b) => {
+    const x = numTxt(a), y = numTxt(b);
+    if (!x || !y) return x ? -1 : y ? 1 : 0;   // senza numero in fondo
+    const p = x.split('.'), q = y.split('.');
+    for (let i = 0; i < Math.max(p.length, q.length); i++) {
+      if (p[i] === undefined) return -1; if (q[i] === undefined) return 1;
+      const d = (parseInt(p[i], 10) || 0) - (parseInt(q[i], 10) || 0); if (d) return d;
+    }
+    return 0;
+  };
+  const cmpScad = (a, b) => (a.scadenza || '9999').localeCompare(b.scadenza || '9999');   // senza scadenza in fondo
+  const cmpHome = (a, b) => (homeOrd === 'num' ? (cmpNum(a, b) || cmpScad(a, b)) : (cmpScad(a, b) || cmpNum(a, b))) || a.titolo.localeCompare(b.titolo);
+  function bottoneOrdine() {
+    const num = homeOrd === 'num';
+    const b = h('button', { type: 'button', class: 'ordBtn', title: 'Cambia l\'ordine delle attività', 'aria-label': 'Ordine delle attività: ' + (num ? 'numero del ramo e scadenza' : 'data di scadenza') + '. Premi per cambiare.' }, '⇅ ', h('span', {}, num ? 'Ramo + scadenza' : 'Scadenza'));
+    b.addEventListener('click', () => { homeOrd = num ? 'scad' : 'num'; LS.set('sdm_home_ord', homeOrd); renderHome(); });
+    return b;
+  }
   const passaStatoHome = n => !homeStatoF || (homeStatoF === 'fatte' ? (n.stato === 'fatto' || n.stato === 'finito') : homeStatoF === 'scad' ? !!scadClasse(n) : n.stato === homeStatoF);
   const radice = n => { const a = antenati(n); return a.length ? a[a.length - 1] : n; };
   const nomiInc = n => (S.inc[n.id] || []).map(x => nomeP(x.persona_id));
@@ -1632,6 +1653,87 @@
     if (stato.modoEv) delete stato.modoEv[stato.evento];
     if (MODI.uid === stato.persona.uid && MODI.ev) { delete MODI.ev[stato.evento]; LS.set('sdm_modo', MODI); }
     verificaScelta();
+  }
+
+  // ---- v5.8: messaggio WhatsApp a più persone (amministratore) ----
+  // L'app non può inviare da sola: apre WhatsApp sulla chat di ogni persona con il testo già scritto, una alla volta; «Invia» lo preme l'utente.
+  let homeSel = null;   // insieme degli id selezionati quando la selezione è accesa, altrimenti null
+  const WA = { inv: null, ripreso: false, blocco: 0 };   // inv = { uid, t, fase: 'scrivi'|'invio'|'fine', coda: [{ id, et, nome, cel }], i, esito: {}, testo, saluto }
+  const WA_LS = 'sdm_wa_invio';
+  const waTesto = d => (WA.inv.saluto ? 'Ciao ' + d.nome + ', ' : '') + WA.inv.testo.trim();
+  const waSalva = () => { WA.inv.t = Date.now(); LS.set(WA_LS, WA.inv); };
+  function waChiudi() { WA.inv = null; LS.del(WA_LS); $('#modWa').classList.add('hidden'); }
+  function waScrivi(coda) {
+    if (!coda.length) return;
+    WA.inv = { uid: stato.persona.uid, fase: 'scrivi', coda, i: 0, esito: {}, testo: '', saluto: true };
+    $('#modWa').classList.remove('hidden'); renderWa();
+    const ta = $('#waTesto'); if (ta) ta.focus();
+  }
+  // se il telefono ha chiuso l'app mentre si era in WhatsApp, al rientro l'invio riprende dal punto giusto (entro 2 ore)
+  function waRiprendi() {
+    if (WA.ripreso || WA.inv || !isAdmin()) return;
+    WA.ripreso = true;
+    const s = LS.get(WA_LS);
+    if (!s) return;
+    if (s.uid !== stato.persona.uid || !Array.isArray(s.coda) || !s.coda.length || s.fase === 'scrivi' || Date.now() - (s.t || 0) > 2 * 3600 * 1000) { LS.del(WA_LS); return; }
+    WA.inv = s; $('#modWa').classList.remove('hidden'); renderWa();
+  }
+  function waEsc() {   // Esc: chiude la scrittura e il riepilogo; durante l'invio chiede conferma
+    const v = WA.inv; if (!v || $('#modWa').classList.contains('hidden')) return;
+    if (v.fase === 'invio') { if (confirm('Interrompere l\'invio? Le persone rimaste non riceveranno il messaggio.')) { v.fase = 'fine'; waSalva(); renderWa(); } }
+    else { const fine = v.fase === 'fine'; waChiudi(); if (fine) { homeSel = null; renderHome(); } }
+  }
+  function renderWa() {
+    const v = WA.inv, box = $('#waCorpo'); if (!v || !box) return;
+    const bt = (cls, txt, fn, attr) => { const b = h('button', { type: 'button', class: cls, ...(attr || {}) }, txt); b.addEventListener('click', fn); return b; };
+    const stato1 = e => e === 'aperto' ? ['✅', 'aperto'] : e === 'saltato' ? ['⏭', 'saltato'] : null;
+    if (v.fase === 'scrivi') {
+      const ta = h('textarea', { id: 'waTesto', 'aria-label': 'Testo del messaggio', placeholder: 'Scrivi qui il messaggio…', maxlength: '1000', rows: '5' }); ta.value = v.testo;
+      const cb = h('input', { type: 'checkbox' }); cb.checked = v.saluto;
+      const tit = h('h3', {}, ''), bolla = h('div', { class: 'waBolla' }), via = bt('btn wa', '', () => { v.testo = ta.value; if (!v.testo.trim()) return; v.fase = 'invio'; v.i = 0; v.esito = {}; waSalva(); renderWa(); });
+      const agg = () => { tit.textContent = 'Come lo riceve ' + v.coda[0].nome; bolla.textContent = waTesto(v.coda[0]) || '…'; via.disabled = !v.testo.trim(); via.textContent = 'Inizia l\'invio (' + v.coda.length + ') →'; };
+      ta.addEventListener('input', () => { v.testo = ta.value; agg(); }); cb.addEventListener('change', () => { v.saluto = cb.checked; agg(); });
+      agg();
+      box.replaceChildren(
+        h('div', { class: 'waHd' }, bt('waBk', '←', () => waChiudi(), { 'aria-label': 'Torna alla selezione' }), h('b', {}, 'Messaggio WhatsApp')),
+        h('div', { class: 'waMain' },
+          h('h3', { style: 'margin-top:0' }, 'A ' + v.coda.length + (v.coda.length === 1 ? ' persona' : ' persone')),
+          h('div', { class: 'waChips' }, ...v.coda.map(d => h('span', { class: 'waChip' }, d.et, bt('', '✕', () => { v.coda = v.coda.filter(x => x.id !== d.id); if (homeSel) homeSel.delete(d.id); renderHome(); if (v.coda.length) { v.testo = ta.value; renderWa(); } else waChiudi(); }, { 'aria-label': 'Togli ' + d.et })))),
+          h('h3', {}, 'Messaggio'), ta,
+          h('label', { class: 'waOpt' }, cb, 'Inizia con «Ciao <nome>,»'),
+          tit, bolla,
+          h('p', { class: 'note' }, 'Ognuno riceve il messaggio nella sua chat privata: nessuno vede gli altri destinatari. L\'app apre WhatsApp con il testo già scritto, una persona alla volta: «Invia» lo premi tu in WhatsApp.')),
+        h('div', { class: 'waFoot' }, via));
+      return;
+    }
+    const elenco = corr => h('div', { class: 'card' }, ...v.coda.map((d, k) => { const s = stato1(v.esito[d.id]); return h('div', { class: 'waEl' + (k === corr ? ' att' : '') }, h('span', { class: 's' }, s ? s[0] : k === corr ? '👉' : '•'), h('span', { class: 'n2' }, d.et), h('small', {}, s ? s[1] : k === corr ? 'adesso' : corr < 0 ? 'non inviato' : 'in attesa')); }));
+    if (v.fase === 'invio' && v.coda[v.i]) {
+      const tot = v.coda.length, d = v.coda[v.i], prec = v.i > 0 ? v.coda[v.i - 1] : null;
+      const avanti = () => { v.i++; if (v.i >= tot) v.fase = 'fine'; waSalva(); renderWa(); };
+      const apri = bt('btn wa big', '💬 Apri WhatsApp · ' + d.nome, () => {
+        window.open('https://wa.me/' + waNumero(d.cel) + '?text=' + encodeURIComponent(waTesto(d)), '_blank', 'noopener');
+        v.esito[d.id] = 'aperto'; WA.blocco = Date.now() + 900; avanti();
+      });
+      const att = WA.blocco - Date.now(); if (att > 0) { apri.disabled = true; setTimeout(() => { apri.disabled = false; }, att); }   // evita il doppio tocco che aprirebbe subito la persona successiva
+      box.replaceChildren(
+        h('div', { class: 'waHd' }, h('b', {}, 'Invio ' + (v.i + 1) + ' di ' + tot), bt('lkAll', 'Interrompi', () => { if (confirm('Interrompere l\'invio? Le persone rimaste non riceveranno il messaggio.')) { v.fase = 'fine'; waSalva(); renderWa(); } })),
+        h('div', { class: 'waMain' },
+          h('div', { class: 'waProg' }, h('i', { style: 'width:' + Math.round(v.i / tot * 100) + '%' })),
+          h('div', { class: 'card waCur' }, h('div', { class: 't' }, 'Adesso scrivi a'), h('div', { class: 'n' }, d.et), h('div', { class: 't' }, d.cel), h('div', { class: 'waBolla' }, waTesto(d)), apri,
+            bt('lkAll', 'Salta ' + d.nome, () => { v.esito[d.id] = 'saltato'; avanti(); })),
+          prec && v.esito[prec.id] === 'aperto' ? h('div', { class: 'waAvv fx' }, h('span', {}, '✓ WhatsApp aperto per ' + prec.nome + '. Ricorda di premere «Invia».'), bt('lkAll', '↩ Ripeti', () => { v.i--; delete v.esito[prec.id]; WA.blocco = 0; waSalva(); renderWa(); })) : '',
+          elenco(v.i)));
+      return;
+    }
+    v.fase = 'fine';
+    const ap = v.coda.filter(d => v.esito[d.id] === 'aperto').length, sa = v.coda.filter(d => v.esito[d.id] === 'saltato').length, no = v.coda.length - ap - sa;
+    box.replaceChildren(
+      h('div', { class: 'waHd' }, h('b', {}, 'Invio terminato')),
+      h('div', { class: 'waMain' },
+        h('div', { class: 'waFine' }, h('div', { class: 'e' }, ap === v.coda.length ? '🎉' : '📋'), h('h2', {}, ap + ' di ' + v.coda.length + (ap === 1 ? ' messaggio aperto' : ' messaggi aperti') + ' in WhatsApp'),
+          h('p', { class: 'note' }, (sa ? sa + (sa === 1 ? ' saltato. ' : ' saltati. ') : '') + (no ? no + (no === 1 ? ' non raggiunto' : ' non raggiunti') + ' (invio interrotto). ' : '') + '«Aperto» significa che WhatsApp è stato aperto con il messaggio pronto: l\'app non può sapere se è stato inviato.')),
+        elenco(-1)),
+      h('div', { class: 'waFoot' }, bt('btn', 'Torna alla Home', () => { waChiudi(); homeSel = null; renderHome(); })));
   }
 
   function renderHome() {
@@ -1687,9 +1789,9 @@
         const blk = h('div', { class: 'blk conf' }, hd);
         if (aperto) {
           const det = h('div', { class: 'det' });
-          dc.forEach(n => {
+          [...dc].sort(cmpHome).forEach(n => {
             const cA = colArea(n.area);
-            const b = adm ? h('button', { class: 'bt2', type: 'button' }, '✔ Finito') : h('span', { class: 'badge ok' }, 'fatto');
+            const b = adm ? h('button', { class: 'bt2', type: 'button', title: 'Conferma e metti Finito' }, '✔ Conferma') : h('span', { class: 'badge ok' }, 'fatto');
             if (adm) b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); });
             const r = h('div', { class: 'ln', ...(cA ? { style: 'border-left-color:' + cA } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, (nomiInc(n).join(', ') || '—') + ' · ' + percorsoAnt(n))), b);
             r.addEventListener('click', () => apriScheda(n.id)); det.append(r);
@@ -1714,30 +1816,62 @@
       const seg = h('div', { class: 'seg' }, ...[['persona', 'Per persona'], ['ramo', 'Per ramo']].map(([k, t]) => { const b = h('button', { type: 'button', class: homeVista === k ? 'on' : '' }, t); b.addEventListener('click', () => { homeVista = k; homeAperti = new Set(); renderHome(); }); return b; }));
       const gv = gruppi.map(g => ({ ...g, lf: g.l.filter(passaStatoHome) })).filter(g => g.lf.length);
       if (homeApriFiltro) { gv.forEach(g => homeAperti.add(g.k)); homeApriFiltro = false; }   // scegliendo una cella le righe con risultati si aprono una volta sola
+      // v5.8: messaggio WhatsApp a più persone (solo amministratore, vista «Per persona»): la selezione avviene sulle righe delle persone
+      if (!adm || homeVista !== 'persona') homeSel = null;
+      const selOn = !!homeSel, celDi = id => { const p = P.elenco.find(x => x.id === id); return p && cifre(p.cellulare) ? p : null; }, selOk = g => !!(g.id && celDi(g.id));
+      if (selOn) { const vis = new Set(gv.filter(selOk).map(g => g.id)); [...homeSel].forEach(id => { if (!vis.has(id)) homeSel.delete(id); }); }
+      waRiprendi();
       const righe = gv.map(g => {
-        const cc = conteggio(g.l), aperto = homeAperti.has(g.k), nf = g.l.filter(n => n.stato === 'fatto').length;
-        const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, ...(homeVista === 'persona' ? [h('i', { class: 'cdot' + (g.id && (S.coll[g.id] || P.online.has(g.id)) ? ' v' : ' vuoto') + (g.id && P.online.has(g.id) ? ' live' : ''), 'data-pid': g.id || null })] : []), g.nome), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, (homeStatoF ? g.lf.length : cc.finito) + '/' + cc.tot), h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
-        gh.addEventListener('click', () => { if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); });
+        const cc = conteggio(g.l), aperto = !selOn && homeAperti.has(g.k), nf = g.l.filter(n => n.stato === 'fatto').length;
+        const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, ...(selOn ? [h('i', { class: 'waCk' + (homeSel.has(g.id) ? ' on' : '') + (selOk(g) ? '' : ' dis') }, homeSel.has(g.id) ? '✓' : '')] : homeVista === 'persona' ? [h('i', { class: 'cdot' + (g.id && (S.coll[g.id] || P.online.has(g.id)) ? ' v' : ' vuoto') + (g.id && P.online.has(g.id) ? ' live' : ''), 'data-pid': g.id || null })] : []), g.nome, selOn && g.id && !selOk(g) ? h('small', { class: 'waNo' }, 'senza cellulare in anagrafica') : ''), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, (homeStatoF ? g.lf.length : cc.finito) + '/' + cc.tot), selOn ? '' : h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
+        if (selOn) { gh.classList.add('sel'); if (!selOk(g)) gh.classList.add('no'); gh.setAttribute('role', 'checkbox'); gh.setAttribute('aria-checked', homeSel.has(g.id) ? 'true' : 'false'); gh.setAttribute('tabindex', selOk(g) ? '0' : '-1'); }
+        const tocca = () => { if (selOn) { if (!selOk(g)) return; if (homeSel.has(g.id)) homeSel.delete(g.id); else homeSel.add(g.id); } else if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); };
+        gh.addEventListener('click', tocca);
+        if (selOn) gh.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); tocca(); } });
         const gr = h('div', { class: 'gr' }, gh);
-        if (aperto) gr.append(h('div', { class: 'det' }, ...g.lf.map(n => {
+        if (aperto) gr.append(h('div', { class: 'det' }, ...[...g.lf].sort(cmpHome).map(n => {
           const cL = colArea(n.area), ln = h('div', { class: 'ln', ...(cL ? { style: 'border-left:5px solid ' + cL + ';padding-left:8px' } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, homeVista === 'persona' ? percorsoAnt(n) : (nomiInc(n).join(', ') || 'nessun incaricato') + (stato.parametri.percorso_completo === true ? ' · ' + percorsoAnt(n) : ''), ar.length ? h('span', { class: 'ar', title: 'Area' }, h('i', { style: 'background:' + (colArea(n.area) || '#cbd5e1') }), n.area || 'Tutte') : '')), badgeScad(n),
-            ...(n.stato === 'fatto' && adm ? [(() => { const b = h('button', { class: 'bt2', type: 'button' }, '✔ Finito'); b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); }); return b; })()] : [badgeStato(n.stato)]));
+            ...(n.stato === 'fatto' && adm ? [(() => { const b = h('button', { class: 'bt2', type: 'button', title: 'Conferma e metti Finito' }, '✔ Conferma'); b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); }); return b; })()] : [badgeStato(n.stato)]));
           ln.addEventListener('click', () => apriScheda(n.id)); return ln;
         })));
         return gr;
       });
       const tuttiAperti = gv.length > 0 && gv.every(g => homeAperti.has(g.k));
-      const lkTutti = gv.length ? (() => { const a = h('button', { type: 'button', class: 'lkAll' }, tuttiAperti ? 'Chiudi tutti' : 'Apri tutti'); a.addEventListener('click', () => { gv.forEach(g => (tuttiAperti ? homeAperti.delete(g.k) : homeAperti.add(g.k))); renderHome(); }); return h('div', { style: 'text-align:right' }, a); })() : '';
-      out.push(h('div', { class: 'card' }, seg, lkTutti, ...(righe.length ? righe : [h('p', { class: 'sec' }, 'Nessuna attività.')]),
-        h('p', { class: 'note', style: 'margin:8px 0 0;text-align:center' }, 'Tocca una riga per vedere le attività. ✔ n = da confermare.')));
+      const lkTutti = (() => {
+        const els = [bottoneOrdine()];
+        if (adm && homeVista === 'persona' && gv.some(g => g.id)) {
+          const m = h('button', { type: 'button', class: 'ordBtn waBtn' + (selOn ? ' on' : ''), 'aria-pressed': selOn ? 'true' : 'false', title: 'Scrivi un messaggio WhatsApp a più persone' }, '💬 ', h('span', {}, 'Messaggio'));
+          m.addEventListener('click', async () => { if (selOn) { homeSel = null; renderHome(); return; } if (!P.elenco.length) await caricaPersone(); homeSel = new Set(); renderHome(); });
+          els.push(m);
+        }
+        if (selOn) {
+          const ok = gv.filter(selOk), tutti = ok.length > 0 && ok.every(g => homeSel.has(g.id));
+          const a = h('button', { type: 'button', class: 'lkAll dx' }, tutti ? 'Nessuno' : 'Tutti'); a.addEventListener('click', () => { ok.forEach(g => (tutti ? homeSel.delete(g.id) : homeSel.add(g.id))); renderHome(); }); els.push(a);
+        } else if (gv.length) { const a = h('button', { type: 'button', class: 'lkAll dx' }, tuttiAperti ? 'Chiudi tutti' : 'Apri tutti'); a.addEventListener('click', () => { gv.forEach(g => (tuttiAperti ? homeAperti.delete(g.k) : homeAperti.add(g.k))); renderHome(); }); els.push(a); }
+        return h('div', { class: 'rigaOrd' }, ...els);
+      })();
+      const selBar = selOn ? (() => {
+        const n = homeSel.size, x = h('button', { type: 'button', class: 'btn sec' }, 'Annulla'), v = h('button', { type: 'button', class: 'btn wa' }, n ? 'Scrivi a ' + n + (n === 1 ? ' persona' : ' persone') + ' →' : 'Scegli le persone');
+        v.disabled = !n; x.addEventListener('click', () => { homeSel = null; renderHome(); });
+        v.addEventListener('click', () => waScrivi(gv.filter(g => homeSel.has(g.id)).map(g => { const p = celDi(g.id); return { id: g.id, et: g.nome, nome: p.nome || g.nome, cel: p.cellulare }; })));
+        return h('div', { class: 'selBar' }, x, v);
+      })() : '';
+      out.push(h('div', { class: 'card' }, seg, lkTutti, selOn ? h('div', { class: 'waAvv' }, 'Tocca le persone a cui vuoi scrivere.') : '', ...(righe.length ? righe : [h('p', { class: 'sec' }, 'Nessuna attività.')]),
+        h('p', { class: 'note', style: 'margin:8px 0 0;text-align:center' }, 'Tocca una riga per vedere le attività. ✔ n = da confermare.'), selBar));
     }
     // le mie attività
-    const ordine = n => (n.stato === 'finito' ? '3' : scadClasse(n) === 'e' ? '0' : scadClasse(n) === 'w' ? '1' : '2') + (n.scadenza || '9999');
-    const mie = tutte.filter(n => (S.inc[n.id] || []).some(x => x.persona_id === me)).sort((a, b) => ordine(a).localeCompare(ordine(b)));
+    const mie = tutte.filter(n => (S.inc[n.id] || []).some(x => x.persona_id === me)).sort(cmpHome);
     const nFin = mie.filter(n => n.stato === 'finito').length, aperte = mie.length - nFin;
-    const lista = homeFinite ? mie : mie.filter(n => n.stato !== 'finito');
+    // v5.7: l'operatore filtra con i tre bottoni sopra la lista; responsabile/amministratore con le celle del totalizzatore in alto
+    const filtroMie = op ? homeOpF : homeStatoF;
+    const lista = mie.filter(n => (homeFinite || n.stato !== 'finito' || (!op && homeStatoF === 'fatte')) && (op ? (!homeOpF || n.stato === homeOpF) : passaStatoHome(n)));
     if (op || mie.length) {
-      out.push(h('div', { class: 'top', style: 'margin-top:' + (op ? '0' : '6px') }, op ? h('h1', {}, 'Le mie attività') : h('h2', { style: 'margin:0;font-size:16px' }, 'Le mie attività'), h('span', { class: 'chip2' }, aperte + (aperte === 1 ? ' aperta' : ' aperte'))));
+      out.push(h('div', { class: 'top', style: 'margin-top:' + (op ? '0' : '6px') }, op ? h('h1', {}, 'Le mie attività') : h('h2', { style: 'margin:0;font-size:16px' }, 'Le mie attività'), h('span', { class: 'ordDx' }, op ? bottoneOrdine() : '', h('span', { class: 'chip2' }, aperte + (aperte === 1 ? ' aperta' : ' aperte')))));
+      if (op && mie.length) out.push(h('div', { class: 'seg segSt', role: 'group', 'aria-label': 'Filtra le mie attività per stato' }, ...['da_fare', 'in_corso', 'fatto'].map(k => {
+        const b = h('button', { type: 'button', class: homeOpF === k ? 'on' : '', 'aria-pressed': homeOpF === k ? 'true' : 'false' }, STATI[k], h('i', {}, String(mie.filter(n => n.stato === k).length)));
+        b.addEventListener('click', () => { homeOpF = homeOpF === k ? '' : k; renderHome(); });
+        return b;
+      })));
       out.push(...(lista.length ? lista.map(n => {
         const chiuso = n.stato === 'finito', puoFin = adm;
         const sel = h('select', { class: 'st' }, ...['da_fare', 'in_corso', 'fatto', ...(puoFin || chiuso ? ['finito'] : [])].map(k => { const o = h('option', { value: k }, STATI[k].replace(' (confermato dall\'amministratore)', '')); if (n.stato === k) o.selected = true; if (chiuso && !puoFin && k !== 'finito') o.disabled = true; return o; }));
@@ -1756,7 +1890,7 @@
           return h('div', { class: 'ln mia', ...(cA ? { style: 'background:color-mix(in srgb,' + cA + ' 14%,var(--card));border-left-color:' + cA } : {}) }, tt, sel, ck, nota);
         }
         return h('div', { class: 'it', ...(cA ? { style: 'background:color-mix(in srgb,' + cA + ' 18%,var(--card));border-left:5px solid ' + cA } : {}) }, t1, t2, h('div', { class: 't3' }, sel, ck, nota, S.pend.has(n.id) ? h('span', { class: 'pend' }, '⏳ in attesa') : ''));
-      }) : [h('p', { class: 'sec', style: 'text-align:center' }, mie.length ? 'Tutte le tue attività sono finite. 🎉' : 'Non hai attività assegnate in questo evento.')]));
+      }) : [h('p', { class: 'sec', style: 'text-align:center' }, !mie.length ? 'Non hai attività assegnate in questo evento.' : filtroMie ? (op ? 'Nessuna attività «' + STATI[homeOpF] + '». Tocca di nuovo il bottone per vederle tutte.' : 'Nessuna tua attività per il filtro scelto in alto.') : 'Tutte le tue attività sono finite. 🎉')]));
       if (nFin) { const a = h('a', { href: '#' }, (homeFinite ? 'Nascondi' : 'Mostra') + ' le attività finite (' + nFin + ')'); a.addEventListener('click', e => { e.preventDefault(); homeFinite = !homeFinite; renderHome(); }); out.push(h('p', { class: 'sec', style: 'text-align:center' }, a)); }
       if (op) out.push(h('p', { class: 'note', style: 'text-align:center' }, 'Tocca "Consuntiva" per registrare cosa hai fatto, la nota e la check-list. Le modifiche partono da sole appena c\'è rete.'));
     }
@@ -2453,7 +2587,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
     $('#perNuova').onclick = () => apriPersona(null);
     $('#fIsc').onchange = () => $('#fNumW').classList.toggle('hidden', !$('#fIsc').checked);
     ['#perCerca', '#perFiltro', '#perNonAttivi'].forEach(id => $(id).addEventListener('input', renderPersone));
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') { chiudiPersona(); chiudiEvento(); chiudiNodo(); chiudiScheda(); chiudiImport(); $('#modDup').classList.add('hidden'); $('#modPriv').classList.add('hidden'); } });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (WA.inv && !$('#modWa').classList.contains('hidden')) { waEsc(); return; } chiudiPersona(); chiudiEvento(); chiudiNodo(); chiudiScheda(); chiudiImport(); $('#modDup').classList.add('hidden'); $('#modPriv').classList.add('hidden'); } });
     $('#installa').onclick = installa;
     $('#vaiPar').onclick = () => vai('par');
     $('#bkBtn').onclick = indietro;

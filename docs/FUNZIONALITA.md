@@ -1,6 +1,6 @@
 # SDM Eventi - funzionalità e storico delle versioni
 
-Versione dell'app: **5.5** · Script database: **2.0** · Ultimo aggiornamento di questo file: versione 5.5
+Versione dell'app: **5.8** · Script database: **2.0** · Ultimo aggiornamento di questo file: versione 5.8
 
 > Questo file va aggiornato a ogni nuova versione: sezione «Funzionalità» se cambia il comportamento, tabella «Storico» con una riga per versione (e l'indicazione se serve rieseguire `db/01_schema_sdm_eventi.sql`).
 
@@ -30,6 +30,9 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
   - **Da confermare** (amministratore) / **in attesa di conferma** (responsabile): l'amministratore conferma «Finito».
   - **Per persona / per ramo:** righe chiuse di default, si aprono una a una; con una cella-filtro le righe con risultati si aprono una volta sola; link **Apri tutti / Chiudi tutti**. Ogni attività mostra numero, ramo di primo livello, area colorata e stato; lo stesso in «Le mie attività» dell'operatore. Con il parametro **Mostra il percorso completo delle attività** (Parametri, default no) si vedono invece tutti i livelli sopra l'attività, su più righe.
   - Avviso «senza incaricati», filtro per area.
+- **Messaggio WhatsApp a più persone (v5.8, solo amministratore):** nella vista «Per persona» il bottone **💬 Messaggio** accende la selezione: un tocco sulla riga seleziona la persona (le righe non si aprono), link **Tutti / Nessuno**, barra fissa in basso **Annulla / Scrivi a N persone →**. Si seleziona solo tra le persone visibili con i filtri attivi (cella di stato, area, ricerca); chi non ha il cellulare in anagrafica è in grigio e non selezionabile. Schermata **Messaggio**: destinatari (togli con ✕), testo unico (max 1000 caratteri), spunta «Inizia con «Ciao <nome>,»» (default sì), anteprima. **Invio uno per uno**: il bottone verde apre `wa.me` sulla chat della persona con il testo già scritto e l'app passa subito alla successiva; **«Invia» lo preme l'utente in WhatsApp** (l'app non può inviare né sapere se è stato inviato: segna «aperto»). Salta, ↩ Ripeti, Interrompi, riepilogo finale. Vale su telefono e su PC (WhatsApp Web/Desktop). L'invio in corso è salvato sul dispositivo (`sdm_wa_invio`) e riprende dal punto giusto se l'app viene ricaricata (entro 2 ore). Il testo non viene ricordato per la volta successiva. Nessun dato inviato al server.
+- **Filtro per stato di «Le mie attività» (v5.7):** l'**operatore** ha, appena sopra la lista, una barra con tre bottoni **Da fare / In corso / Fatto** e il numero di attività accanto: uno alla volta, ritoccando lo stesso bottone si torna a tutte; all'apertura nessun filtro; un'attività a cui si cambia stato esce subito dall'elenco filtrato; le «Finito» restano dietro il link «Mostra le attività finite». Per **responsabile/amministratore** la sezione «Le mie attività» in fondo alla Home segue le celle del totalizzatore in alto (Da fare, In corso, Fatte = fatto + finito, In scadenza).
+- **Ordine delle attività (v5.6):** bottone **⇅** per tutti i ruoli (operatore: accanto a «Le mie attività»; responsabile/amministratore: sopra l'elenco per persona / per ramo, e vale anche per «Da confermare» e «Le mie attività»). Alterna tra **Scadenza** (data crescente, senza scadenza in fondo; a parità, numero) e **Ramo + scadenza** (numero gerarchico dell'attività, es. 1.2 prima di 1.10; a parità, scadenza). Predefinito: Scadenza. La scelta è ricordata sul dispositivo (`sdm_home_ord`).
 - **Cerca (solo smartphone):** pulsante con lente e scritta **Cerca** nella riga in alto della Home, per tutti i ruoli, senza occupare spazio in più: per l'**operatore** sta sulla stessa riga di «Ciao, nome» (tagliato con … se lungo) e del filtro «Tutte le aree» (ridotto); per **amministratore e responsabile** è una cella a destra dei cinque bottoni di stato (resi più piccoli). Apre sotto la riga un campo di ricerca libera che filtra in tempo reale le attività che l'utente vede in Home (le sue per l'operatore, quelle che gestisce per responsabile e amministratore): cerca in numero, titolo, descrizione, note, area, stato, scadenza (gg/mm/aaaa), percorso, incaricati, responsabile, note degli incaricati e check-list; più parole = devono esserci tutte, in qualsiasi ordine, senza distinguere maiuscole e accenti. Totali, percentuale ed elenchi seguono la ricerca; la **✕** a destra la cancella e chiude il campo, tornando alla vista standard. Si azzera cambiando evento o uscendo.
 
 ### Struttura (albero rami e attività)
@@ -76,6 +79,9 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 | Versione | Novità | DB |
 |---|---|---|
+| 5.8 | Home amministratore («Per persona»): messaggio WhatsApp a più persone, con selezione, testo unico con saluto personalizzato e invio guidato uno per uno | – |
+| 5.7 | Home operatore: tre bottoni Da fare / In corso / Fatto sopra «Le mie attività» per filtrarle per stato; per responsabile/amministratore «Le mie attività» segue il filtro delle celle in alto | – |
+| 5.6 | Home: bottone ⇅ per ordinare le attività per scadenza oppure per numero del ramo e scadenza, per operatore e responsabile/amministratore | – |
 | 5.5 | La Guida all'uso si adatta al ruolo: prima dell'accesso solo info generali e accesso; operatore, responsabile (+ operatore) e amministratore (tutto) vedono solo le proprie pagine | – |
 | 5.4 | Il logo SdM Eventi, in qualsiasi videata, apre la Guida all'uso; schermate della guida con nomi di esempio generici | – |
 | 5.3 | Pagina «Guida all'uso» (`help.html`) con manuale per gli utenti e schermate; voce in Altro e link dall'accesso | – |
@@ -139,3 +145,37 @@ Vedi `Readme.txt`. Le anteprime con dati finti sono in `anteprima/` (tra le ulti
 - Notifiche anche ai **responsabili dei rami superiori** (oggi solo il responsabile effettivo più vicino).
 - Le notifiche non possono cambiare lo stato dell'attività: serve il tocco dentro l'app.
 - Cancellazione dei vecchi branch su GitHub: non fatta (tutti uniti in `main` tranne `claude/serene-bell-ispd6y`, con un commit v4.4 non in `main`).
+
+## 8. Da realizzare alla prossima occasione
+
+Funzionalità già discusse e definite, **non ancora sviluppate**. Quando vengono realizzate vanno spostate nelle sezioni sopra e tolte da qui.
+
+### 8.1 Notifica all'amministratore quando un operatore scrive una nota (prevista come v5.9)
+
+Fattibilità verificata: si appoggia all'infrastruttura push già usata per le scadenze (chiavi sul server, tabella `push_sottoscrizioni`, ricezione in `sw.js`, tocco che apre l'attività). Nessun servizio nuovo e nessun costo aggiuntivo.
+
+**Comportamento deciso**
+- **Quando parte:** ogni volta che viene salvata una nota nuova o modificata di un incaricato su un'attività (`incarichi.nota`), qualunque sia lo stato. Il solo cambio di stato non genera notifiche.
+- **Destinatari:** tutti gli amministratori attivi che hanno attivato le notifiche sul dispositivo, escluso chi ha salvato la nota. Non il responsabile del ramo.
+- **Contenuto:** nome di chi ha scritto, numero e titolo dell'attività, inizio della nota (circa 120 caratteri), evento e ramo. Il testo è visibile anche a telefono bloccato (scelta voluta). Toccando la notifica si apre l'attività.
+- **Interruttori:** un parametro generale nei Parametri (solo proprietario) «Notifiche delle note degli operatori», separato da quello delle scadenze; in più una scelta personale nelle Impostazioni, dove ogni amministratore decide se ricevere le note, le scadenze o entrambe.
+- **Nota svuotata:** nessuna notifica.
+- **Salvataggi ravvicinati** della stessa persona sulla stessa attività: la nuova notifica sostituisce la precedente (stesso `tag`), non si accumulano.
+- **Nota salvata da un amministratore o responsabile** al posto dell'operatore: la notifica parte comunque per gli altri amministratori (conta chi ha salvato, non il ruolo).
+
+**Cosa serve per realizzarla**
+- **Database:** aggancio sul salvataggio della nota che richiama una funzione server (così la notifica parte anche se l'operatore chiude subito l'app), nuovo parametro generale e campo per la scelta personale. Lo script `db/01_schema_sdm_eventi.sql` cambia versione e va **rieseguito in Supabase**.
+- **Supabase:** nuova Edge Function (sul modello di `notifiche-scadenze`) da installare a mano, più il collegamento database → funzione. **Da verificare in sviluppo** quale delle due strade usare sul progetto (Database Webhook dal pannello oppure trigger SQL con `pg_net`): non è stato possibile provarle. Passi da scrivere in `docs/NOTIFICHE.md`.
+- **App:** interruttore nei Parametri, scelta personale nelle Impostazioni, guida aggiornata.
+
+**Limiti noti**
+- «Tempo reale» = pochi secondi, secondo i tempi di consegna di Google e Apple.
+- Se l'operatore è senza rete la nota resta in coda sul suo telefono: la notifica parte quando torna la connessione.
+- Ogni amministratore deve aver attivato le notifiche su ogni suo dispositivo; su iPhone/iPad l'app deve essere installata sulla schermata Home (iOS 16.4 o successivo).
+
+### 8.2 Punti aperti sulle versioni 5.6 – 5.8
+
+- **Prove nell'app reale:** le versioni 5.6, 5.7 e 5.8 sono sul branch `claude/app-lavori-sort-whatsapp-xdjv4a` e non sono ancora state provate con l'accesso vero né unite a `main`. Da provare per prime: la selezione delle persone per il messaggio WhatsApp nella Home e l'apertura reale di WhatsApp su telefono e su PC.
+- **Cella «Fatte» del responsabile/amministratore (v5.7):** con quella cella attiva, «Le mie attività» mostra anche le proprie attività finite senza passare dal link «Mostra le attività finite». Scelta fatta in sviluppo, da confermare.
+- **Schermate della guida:** le immagini in `assets/help/` sono precedenti alla 5.6 e non mostrano i nuovi bottoni (⇅, filtro per stato, 💬 Messaggio, ✔ Conferma).
+- **WhatsApp con invio automatico:** scartato. Richiederebbe la WhatsApp Business API (numero dedicato, account Meta Business verificato, modelli approvati, costo per messaggio, funzione server). Oggi «Invia» lo preme sempre l'utente.
