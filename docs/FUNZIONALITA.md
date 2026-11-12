@@ -146,11 +146,11 @@ Vedi `Readme.txt`. Le anteprime con dati finti sono in `anteprima/` (tra le ulti
 - Le notifiche non possono cambiare lo stato dell'attività: serve il tocco dentro l'app.
 - Cancellazione dei vecchi branch su GitHub: non fatta (tutti uniti in `main` tranne `claude/serene-bell-ispd6y`, con un commit v4.4 non in `main`).
 
-## 6. Da realizzare alla prossima occasione
+## 8. Da realizzare alla prossima occasione
 
 Funzionalità già discusse e definite, **non ancora sviluppate**. Quando vengono realizzate vanno spostate nelle sezioni sopra e tolte da qui.
 
-### 6.1 Notifica all'amministratore quando un operatore scrive una nota (prevista come v5.9)
+### 8.1 Notifica all'amministratore quando un operatore scrive una nota (prevista come v5.9)
 
 Fattibilità verificata: si appoggia all'infrastruttura push già usata per le scadenze (chiavi sul server, tabella `push_sottoscrizioni`, ricezione in `sw.js`, tocco che apre l'attività). Nessun servizio nuovo e nessun costo aggiuntivo.
 
@@ -173,7 +173,7 @@ Fattibilità verificata: si appoggia all'infrastruttura push già usata per le s
 - Se l'operatore è senza rete la nota resta in coda sul suo telefono: la notifica parte quando torna la connessione.
 - Ogni amministratore deve aver attivato le notifiche su ogni suo dispositivo; su iPhone/iPad l'app deve essere installata sulla schermata Home (iOS 16.4 o successivo).
 
-### 6.2 Punti aperti sulle versioni 5.6 – 5.8
+### 8.2 Punti aperti sulle versioni 5.6 – 5.8
 
 - **Prove nell'app reale:** le versioni 5.6, 5.7 e 5.8 sono sul branch `claude/app-lavori-sort-whatsapp-xdjv4a` e non sono ancora state provate con l'accesso vero né unite a `main`. Da provare per prime: la selezione delle persone per il messaggio WhatsApp nella Home e l'apertura reale di WhatsApp su telefono e su PC.
 - **Cella «Fatte» del responsabile/amministratore (v5.7):** con quella cella attiva, «Le mie attività» mostra anche le proprie attività finite senza passare dal link «Mostra le attività finite». Scelta fatta in sviluppo, da confermare.
