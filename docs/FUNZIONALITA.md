@@ -1,6 +1,6 @@
 # SDM Eventi - funzionalità e storico delle versioni
 
-Versione dell'app: **5.5** · Script database: **2.0** · Ultimo aggiornamento di questo file: versione 5.5
+Versione dell'app: **5.6** · Script database: **2.0** · Ultimo aggiornamento di questo file: versione 5.6
 
 > Questo file va aggiornato a ogni nuova versione: sezione «Funzionalità» se cambia il comportamento, tabella «Storico» con una riga per versione (e l'indicazione se serve rieseguire `db/01_schema_sdm_eventi.sql`).
 
@@ -30,6 +30,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
   - **Da confermare** (amministratore) / **in attesa di conferma** (responsabile): l'amministratore conferma «Finito».
   - **Per persona / per ramo:** righe chiuse di default, si aprono una a una; con una cella-filtro le righe con risultati si aprono una volta sola; link **Apri tutti / Chiudi tutti**. Ogni attività mostra numero, ramo di primo livello, area colorata e stato; lo stesso in «Le mie attività» dell'operatore. Con il parametro **Mostra il percorso completo delle attività** (Parametri, default no) si vedono invece tutti i livelli sopra l'attività, su più righe.
   - Avviso «senza incaricati», filtro per area.
+- **Ordine delle attività (v5.6):** bottone **⇅** per tutti i ruoli (operatore: accanto a «Le mie attività»; responsabile/amministratore: sopra l'elenco per persona / per ramo, e vale anche per «Da confermare» e «Le mie attività»). Alterna tra **Scadenza** (data crescente, senza scadenza in fondo; a parità, numero) e **Ramo + scadenza** (numero gerarchico dell'attività, es. 1.2 prima di 1.10; a parità, scadenza). Predefinito: Scadenza. La scelta è ricordata sul dispositivo (`sdm_home_ord`).
 - **Cerca (solo smartphone):** pulsante con lente e scritta **Cerca** nella riga in alto della Home, per tutti i ruoli, senza occupare spazio in più: per l'**operatore** sta sulla stessa riga di «Ciao, nome» (tagliato con … se lungo) e del filtro «Tutte le aree» (ridotto); per **amministratore e responsabile** è una cella a destra dei cinque bottoni di stato (resi più piccoli). Apre sotto la riga un campo di ricerca libera che filtra in tempo reale le attività che l'utente vede in Home (le sue per l'operatore, quelle che gestisce per responsabile e amministratore): cerca in numero, titolo, descrizione, note, area, stato, scadenza (gg/mm/aaaa), percorso, incaricati, responsabile, note degli incaricati e check-list; più parole = devono esserci tutte, in qualsiasi ordine, senza distinguere maiuscole e accenti. Totali, percentuale ed elenchi seguono la ricerca; la **✕** a destra la cancella e chiude il campo, tornando alla vista standard. Si azzera cambiando evento o uscendo.
 
 ### Struttura (albero rami e attività)
@@ -76,6 +77,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 | Versione | Novità | DB |
 |---|---|---|
+| 5.6 | Home: bottone ⇅ per ordinare le attività per scadenza oppure per numero del ramo e scadenza, per operatore e responsabile/amministratore | – |
 | 5.5 | La Guida all'uso si adatta al ruolo: prima dell'accesso solo info generali e accesso; operatore, responsabile (+ operatore) e amministratore (tutto) vedono solo le proprie pagine | – |
 | 5.4 | Il logo SdM Eventi, in qualsiasi videata, apre la Guida all'uso; schermate della guida con nomi di esempio generici | – |
 | 5.3 | Pagina «Guida all'uso» (`help.html`) con manuale per gli utenti e schermate; voce in Altro e link dall'accesso | – |

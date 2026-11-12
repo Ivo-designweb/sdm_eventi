@@ -1,6 +1,6 @@
 // Service worker: l'app si apre anche senza rete.
 // Ad ogni nuova versione dell'app cambiare VERSIONE (stesso numero di index.html).
-const VERSIONE = '5.5';
+const VERSIONE = '5.6';
 const BUILD = 'b1';   // aumenta a ogni modifica ai file in cache, anche senza cambio di versione
 const CACHE = 'sdm-eventi-' + VERSIONE + '-' + BUILD;
 const SHELL = [

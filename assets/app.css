@@ -645,3 +645,10 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
 #modAtt.vista .inc{font-size:13px;color:var(--sec);padding:4px 0;cursor:pointer}
 #modAtt.vista .inc .det{margin-top:4px;color:var(--testo)}
 #modAtt.vista #attForm{max-width:520px !important}
+
+/* v5.6: bottone per l'ordine delle attività in Home (scadenza / ramo + scadenza) */
+.ordBtn{display:inline-flex;align-items:center;gap:2px;min-height:34px;padding:4px 12px;border:1px solid var(--bordo);border-radius:99px;background:var(--card);color:var(--primario);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.ordBtn:focus-visible{outline:2px solid var(--primario);outline-offset:2px}
+@media (pointer:coarse){.ordBtn{min-height:44px}}
+.rigaOrd{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:2px 0 4px}
+.ordDx{display:inline-flex;align-items:center;gap:8px}

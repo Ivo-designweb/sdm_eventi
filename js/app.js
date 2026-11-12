@@ -1588,6 +1588,26 @@
     return b;
   }
   let homeVista = 'persona', homeAperti = new Set(), homeAvv = '', homeConf = null, homeStatoF = '', homeLuce = '', homeApriFiltro = false;
+  // v5.6: ordine delle attività in Home, scelto con il bottone e ricordato sul dispositivo: 'scad' = data di scadenza, 'num' = numero dell'attività (codice del ramo) e poi scadenza
+  let homeOrd = LS.get('sdm_home_ord') === 'num' ? 'num' : 'scad';
+  const cmpNum = (a, b) => {
+    const x = numTxt(a), y = numTxt(b);
+    if (!x || !y) return x ? -1 : y ? 1 : 0;   // senza numero in fondo
+    const p = x.split('.'), q = y.split('.');
+    for (let i = 0; i < Math.max(p.length, q.length); i++) {
+      if (p[i] === undefined) return -1; if (q[i] === undefined) return 1;
+      const d = (parseInt(p[i], 10) || 0) - (parseInt(q[i], 10) || 0); if (d) return d;
+    }
+    return 0;
+  };
+  const cmpScad = (a, b) => (a.scadenza || '9999').localeCompare(b.scadenza || '9999');   // senza scadenza in fondo
+  const cmpHome = (a, b) => (homeOrd === 'num' ? (cmpNum(a, b) || cmpScad(a, b)) : (cmpScad(a, b) || cmpNum(a, b))) || a.titolo.localeCompare(b.titolo);
+  function bottoneOrdine() {
+    const num = homeOrd === 'num';
+    const b = h('button', { type: 'button', class: 'ordBtn', title: 'Cambia l\'ordine delle attività', 'aria-label': 'Ordine delle attività: ' + (num ? 'numero del ramo e scadenza' : 'data di scadenza') + '. Premi per cambiare.' }, '⇅ ', h('span', {}, num ? 'Ramo + scadenza' : 'Scadenza'));
+    b.addEventListener('click', () => { homeOrd = num ? 'scad' : 'num'; LS.set('sdm_home_ord', homeOrd); renderHome(); });
+    return b;
+  }
   const passaStatoHome = n => !homeStatoF || (homeStatoF === 'fatte' ? (n.stato === 'fatto' || n.stato === 'finito') : homeStatoF === 'scad' ? !!scadClasse(n) : n.stato === homeStatoF);
   const radice = n => { const a = antenati(n); return a.length ? a[a.length - 1] : n; };
   const nomiInc = n => (S.inc[n.id] || []).map(x => nomeP(x.persona_id));
@@ -1687,7 +1707,7 @@
         const blk = h('div', { class: 'blk conf' }, hd);
         if (aperto) {
           const det = h('div', { class: 'det' });
-          dc.forEach(n => {
+          [...dc].sort(cmpHome).forEach(n => {
             const cA = colArea(n.area);
             const b = adm ? h('button', { class: 'bt2', type: 'button' }, '✔ Finito') : h('span', { class: 'badge ok' }, 'fatto');
             if (adm) b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); });
@@ -1719,7 +1739,7 @@
         const gh = h('div', { class: 'gh' }, h('span', { class: 'nm' }, ...(homeVista === 'persona' ? [h('i', { class: 'cdot' + (g.id && (S.coll[g.id] || P.online.has(g.id)) ? ' v' : ' vuoto') + (g.id && P.online.has(g.id) ? ' live' : ''), 'data-pid': g.id || null })] : []), g.nome), nf ? h('span', { class: 'badge ok', title: nf + ' da confermare' }, '✔ ' + nf) : '', h('span', { class: 'bar' }, barraStack(cc)), h('span', { class: 'fr' }, (homeStatoF ? g.lf.length : cc.finito) + '/' + cc.tot), h('span', { class: 'ar' }, aperto ? '▾' : '▸'));
         gh.addEventListener('click', () => { if (aperto) homeAperti.delete(g.k); else homeAperti.add(g.k); renderHome(); });
         const gr = h('div', { class: 'gr' }, gh);
-        if (aperto) gr.append(h('div', { class: 'det' }, ...g.lf.map(n => {
+        if (aperto) gr.append(h('div', { class: 'det' }, ...[...g.lf].sort(cmpHome).map(n => {
           const cL = colArea(n.area), ln = h('div', { class: 'ln', ...(cL ? { style: 'border-left:5px solid ' + cL + ';padding-left:8px' } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, homeVista === 'persona' ? percorsoAnt(n) : (nomiInc(n).join(', ') || 'nessun incaricato') + (stato.parametri.percorso_completo === true ? ' · ' + percorsoAnt(n) : ''), ar.length ? h('span', { class: 'ar', title: 'Area' }, h('i', { style: 'background:' + (colArea(n.area) || '#cbd5e1') }), n.area || 'Tutte') : '')), badgeScad(n),
             ...(n.stato === 'fatto' && adm ? [(() => { const b = h('button', { class: 'bt2', type: 'button' }, '✔ Finito'); b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); }); return b; })()] : [badgeStato(n.stato)]));
           ln.addEventListener('click', () => apriScheda(n.id)); return ln;
@@ -1727,17 +1747,16 @@
         return gr;
       });
       const tuttiAperti = gv.length > 0 && gv.every(g => homeAperti.has(g.k));
-      const lkTutti = gv.length ? (() => { const a = h('button', { type: 'button', class: 'lkAll' }, tuttiAperti ? 'Chiudi tutti' : 'Apri tutti'); a.addEventListener('click', () => { gv.forEach(g => (tuttiAperti ? homeAperti.delete(g.k) : homeAperti.add(g.k))); renderHome(); }); return h('div', { style: 'text-align:right' }, a); })() : '';
+      const lkTutti = (() => { if (!gv.length) return h('div', { class: 'rigaOrd' }, bottoneOrdine()); const a = h('button', { type: 'button', class: 'lkAll' }, tuttiAperti ? 'Chiudi tutti' : 'Apri tutti'); a.addEventListener('click', () => { gv.forEach(g => (tuttiAperti ? homeAperti.delete(g.k) : homeAperti.add(g.k))); renderHome(); }); return h('div', { class: 'rigaOrd' }, bottoneOrdine(), a); })();
       out.push(h('div', { class: 'card' }, seg, lkTutti, ...(righe.length ? righe : [h('p', { class: 'sec' }, 'Nessuna attività.')]),
         h('p', { class: 'note', style: 'margin:8px 0 0;text-align:center' }, 'Tocca una riga per vedere le attività. ✔ n = da confermare.')));
     }
     // le mie attività
-    const ordine = n => (n.stato === 'finito' ? '3' : scadClasse(n) === 'e' ? '0' : scadClasse(n) === 'w' ? '1' : '2') + (n.scadenza || '9999');
-    const mie = tutte.filter(n => (S.inc[n.id] || []).some(x => x.persona_id === me)).sort((a, b) => ordine(a).localeCompare(ordine(b)));
+    const mie = tutte.filter(n => (S.inc[n.id] || []).some(x => x.persona_id === me)).sort(cmpHome);
     const nFin = mie.filter(n => n.stato === 'finito').length, aperte = mie.length - nFin;
     const lista = homeFinite ? mie : mie.filter(n => n.stato !== 'finito');
     if (op || mie.length) {
-      out.push(h('div', { class: 'top', style: 'margin-top:' + (op ? '0' : '6px') }, op ? h('h1', {}, 'Le mie attività') : h('h2', { style: 'margin:0;font-size:16px' }, 'Le mie attività'), h('span', { class: 'chip2' }, aperte + (aperte === 1 ? ' aperta' : ' aperte'))));
+      out.push(h('div', { class: 'top', style: 'margin-top:' + (op ? '0' : '6px') }, op ? h('h1', {}, 'Le mie attività') : h('h2', { style: 'margin:0;font-size:16px' }, 'Le mie attività'), h('span', { class: 'ordDx' }, op ? bottoneOrdine() : '', h('span', { class: 'chip2' }, aperte + (aperte === 1 ? ' aperta' : ' aperte')))));
       out.push(...(lista.length ? lista.map(n => {
         const chiuso = n.stato === 'finito', puoFin = adm;
         const sel = h('select', { class: 'st' }, ...['da_fare', 'in_corso', 'fatto', ...(puoFin || chiuso ? ['finito'] : [])].map(k => { const o = h('option', { value: k }, STATI[k].replace(' (confermato dall\'amministratore)', '')); if (n.stato === k) o.selected = true; if (chiuso && !puoFin && k !== 'finito') o.disabled = true; return o; }));
