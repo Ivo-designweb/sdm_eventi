@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="app-version" content="1.0">
+<title>SDM Eventi - Anteprima scritta del bottone di conferma</title>
+<style>
+:root{--primario:#1d4ed8;--bg:#f4f6fa;--card:#fff;--testo:#1c2333;--sec:#5b6578;--bordo:#dde2ec;--ok:#15803d}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#cfd5e1;color:var(--testo)}
+.demo{background:#111827;color:#e5e7eb;padding:10px 14px;font-size:13px}
+.wrap{display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:center;padding:6px 10px 24px}
+.col{width:360px;max-width:100%}
+h2{font-size:14px;margin:14px 0 6px;padding:0 4px;color:#374151}
+h2 small{display:block;font-weight:400;color:#4b5563;font-size:12.5px}
+.phone{background:var(--bg);border:1px solid #b8c0d0;border-radius:18px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.18);padding:10px}
+.blk{background:#f0fdf4;border:1px solid #86efac;border-radius:12px;overflow:hidden}
+.bh{display:flex;align-items:center;gap:8px;padding:8px 12px;font-weight:700;font-size:14px}
+.bh .ar2{margin-left:auto;color:var(--sec);font-size:12px}
+.badge{font-size:12px;border-radius:99px;padding:2px 10px;background:#dcfce7;color:var(--ok);font-weight:600}
+.det{border-top:1px solid var(--bordo);padding:0 0 2px}
+.ln{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 8px;font-size:13.5px;border-left:5px solid var(--c)}
+.ln .tt{flex:1;min-width:0;line-height:1.2}
+.ln .tt b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.ln .tt small{color:var(--sec);font-size:11px;display:block}
+.num{font-size:12px;font-weight:700;color:var(--sec);margin-right:8px}
+.bt2{background:var(--ok);color:#fff;border:0;border-radius:8px;padding:5px 10px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="demo"><b>Anteprima · scritta del bottone con cui l'amministratore rende «Finito» un'attività fatta</b> — riquadro «Da confermare» della Home a 360 px. Cambia solo la scritta: colore, posizione e funzione restano uguali.</div>
+<div class="wrap" id="w"></div>
+<script>
+const OPZ = [['Oggi', '✔ Finito', 'sembra uno stato già raggiunto, non un\'azione'], ['Proposta consigliata', '✔ Conferma', 'riprende il titolo «Da confermare»; è un\'azione chiara e corta'], ['Alternativa', '✔ Metti Finito', 'dice l\'azione e lo stato finale, ma è più lunga'], ['La tua idea', '✔ Metti Eseguito', '«Eseguito» è una parola nuova: lo stato nell\'app si chiama «Finito»']];
+const RIGHE = [['1.2', 'Montaggio gazebo zona partenza', 'Luca Verdi · Logistica', '#f59e0b'], ['2.3', 'Turni cucina', 'Giulia Neri, Marco Bianchi · Ristoro', '#10b981'], ['3.1', 'Pettorali', 'Anna Rossi · Segreteria', '#8b5cf6']];
+document.getElementById('w').innerHTML = OPZ.map(([t, s, d]) => `<div class="col"><h2>${t}: «${s}»<small>${d}</small></h2><div class="phone"><div class="blk"><div class="bh">Da confermare <span class="badge">3</span><span class="ar2">▾</span></div><div class="det">${RIGHE.map(r => `<div class="ln" style="--c:${r[3]}"><div class="tt"><b><span class="num">${r[0]}</span>${r[1]}</b><small>${r[2]}</small></div><button class="bt2" type="button">${s}</button></div>`).join('')}</div></div></div></div>`).join('');
+</script>
+</body>
+</html>

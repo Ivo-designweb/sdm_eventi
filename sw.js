@@ -1,7 +1,7 @@
 // Service worker: l'app si apre anche senza rete.
 // Ad ogni nuova versione dell'app cambiare VERSIONE (stesso numero di index.html).
 const VERSIONE = '5.7';
-const BUILD = 'b1';   // aumenta a ogni modifica ai file in cache, anche senza cambio di versione
+const BUILD = 'b2';   // aumenta a ogni modifica ai file in cache, anche senza cambio di versione
 const CACHE = 'sdm-eventi-' + VERSIONE + '-' + BUILD;
 const SHELL = [
   './', 'index.html', 'help.html', 'assets/app.css', 'js/config.js', 'js/zip.js', 'js/app.js', 'vendor/supabase.js', 'vendor/sortable.min.js', 'vendor/xlsx.mini.min.js',

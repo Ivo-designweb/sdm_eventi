@@ -1710,7 +1710,7 @@
           const det = h('div', { class: 'det' });
           [...dc].sort(cmpHome).forEach(n => {
             const cA = colArea(n.area);
-            const b = adm ? h('button', { class: 'bt2', type: 'button' }, '✔ Finito') : h('span', { class: 'badge ok' }, 'fatto');
+            const b = adm ? h('button', { class: 'bt2', type: 'button', title: 'Conferma e metti Finito' }, '✔ Conferma') : h('span', { class: 'badge ok' }, 'fatto');
             if (adm) b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); });
             const r = h('div', { class: 'ln', ...(cA ? { style: 'border-left-color:' + cA } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, (nomiInc(n).join(', ') || '—') + ' · ' + percorsoAnt(n))), b);
             r.addEventListener('click', () => apriScheda(n.id)); det.append(r);
@@ -1742,7 +1742,7 @@
         const gr = h('div', { class: 'gr' }, gh);
         if (aperto) gr.append(h('div', { class: 'det' }, ...[...g.lf].sort(cmpHome).map(n => {
           const cL = colArea(n.area), ln = h('div', { class: 'ln', ...(cL ? { style: 'border-left:5px solid ' + cL + ';padding-left:8px' } : {}) }, h('div', { class: 'tt' }, h('b', {}, h('span', { class: 'num' }, numTxt(n)), n.titolo), h('small', {}, homeVista === 'persona' ? percorsoAnt(n) : (nomiInc(n).join(', ') || 'nessun incaricato') + (stato.parametri.percorso_completo === true ? ' · ' + percorsoAnt(n) : ''), ar.length ? h('span', { class: 'ar', title: 'Area' }, h('i', { style: 'background:' + (colArea(n.area) || '#cbd5e1') }), n.area || 'Tutte') : '')), badgeScad(n),
-            ...(n.stato === 'fatto' && adm ? [(() => { const b = h('button', { class: 'bt2', type: 'button' }, '✔ Finito'); b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); }); return b; })()] : [badgeStato(n.stato)]));
+            ...(n.stato === 'fatto' && adm ? [(() => { const b = h('button', { class: 'bt2', type: 'button', title: 'Conferma e metti Finito' }, '✔ Conferma'); b.addEventListener('click', e => { e.stopPropagation(); statoRapido(n, 'finito'); }); return b; })()] : [badgeStato(n.stato)]));
           ln.addEventListener('click', () => apriScheda(n.id)); return ln;
         })));
         return gr;
