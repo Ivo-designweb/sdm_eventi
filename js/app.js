@@ -904,6 +904,8 @@
   function suggerimentoRamo(e, tipo) {   // tipo: 'dentro' (entra), 'muovi', 'fuori' (esce o clic)
     if (tipo === 'fuori' || isMobile() || !(window.matchMedia && window.matchMedia('(hover:hover) and (pointer:fine)').matches)) { tipChiudi(); TIP.fatto = false; return; }
     if (tipo === 'dentro') { tipChiudi(); TIP.fatto = false; }
+    // solo sopra la scritta (numero, titolo, descrizione): non su maniglia, freccia, pulsanti né sulla parte vuota a destra
+    if (e && !(e.target.closest && e.target.closest('.num, .tt2 b, .tt2 .ds'))) { tipChiudi(); TIP.fatto = false; return; }
     if (e) { TIP.x = e.clientX; TIP.y = e.clientY; }
     if (TIP.fatto || TIP.el) return;   // già mostrato in questo passaggio
     clearTimeout(TIP.t1);   // ogni movimento fa ripartire l'attesa: serve stare fermi
