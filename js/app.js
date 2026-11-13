@@ -905,7 +905,7 @@
     if (avvia === null) return;
     clearTimeout(TIP.t1); clearTimeout(TIP.t2);
     if (TIP.el) { TIP.el.remove(); TIP.el = null; }
-    if (!avvia || isMobile() || (window.matchMedia && !window.matchMedia('(hover:hover)').matches)) return;
+    if (!avvia || isMobile() || (window.matchMedia && !window.matchMedia('(hover:hover) and (pointer:fine)').matches)) return;
     TIP.t1 = setTimeout(() => {
       TIP.el = h('div', { class: 'tipRamo', role: 'tooltip' }, 'Doppio clic: apre/chiude ramo');
       TIP.el.style.left = (TIP.x + 14) + 'px'; TIP.el.style.top = (TIP.y + 18) + 'px';

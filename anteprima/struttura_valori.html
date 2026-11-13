@@ -97,7 +97,7 @@ function riga(n){
     const tutti=x=>[x,...(x.f||[]).flatMap(tutti)].filter(y=>y.f);
     row.querySelector('.tg').onclick=()=>{ap?aperti.delete(n.n):aperti.add(n.n);disegna()};
     let tp=null,t1=0,t2=0,px=0,py=0;const fine=()=>{clearTimeout(t1);clearTimeout(t2);if(tp){tp.remove();tp=null}};
-    row.onmouseenter=e=>{px=e.clientX;py=e.clientY;fine();t1=setTimeout(()=>{tp=document.createElement('div');tp.className='tipRamo';tp.textContent='Doppio clic: apre/chiude ramo';tp.style.left=(px+14)+'px';tp.style.top=(py+18)+'px';document.body.append(tp);t2=setTimeout(fine,1800)},350)};
+    row.onmouseenter=e=>{px=e.clientX;py=e.clientY;fine();if(!matchMedia('(hover:hover) and (pointer:fine)').matches)return;t1=setTimeout(()=>{tp=document.createElement('div');tp.className='tipRamo';tp.textContent='Doppio clic: apre/chiude ramo';tp.style.left=(px+14)+'px';tp.style.top=(py+18)+'px';document.body.append(tp);t2=setTimeout(fine,1800)},350)};
     row.onmousemove=e=>{px=e.clientX;py=e.clientY;if(tp){tp.style.left=(px+14)+'px';tp.style.top=(py+18)+'px'}};
     row.onmouseleave=fine;row.onmousedown=fine;
     row.ondblclick=e=>{ if(e.target.closest('button'))return; const l=tutti(n); if(ap) l.forEach(y=>aperti.delete(y.n)); else l.forEach(y=>aperti.add(y.n)); disegna(); };
