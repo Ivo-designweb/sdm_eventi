@@ -720,3 +720,7 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
 .rigaF,.rigaI{display:flex;align-items:center;gap:12px}
 .rigaF input[type=text],.rigaI input[type=number]{flex:1;min-width:0}
 .rigaF label.flag,.rigaI label.flag{flex:none;margin:0;min-height:44px}
+
+/* v6.1: suggerimento del doppio clic sui rami (solo PC) */
+.tipRamo{position:fixed;z-index:200;pointer-events:none;background:#111827;color:#fff;font-size:12.5px;line-height:1;padding:7px 10px;border-radius:7px;box-shadow:0 4px 14px rgba(0,0,0,.3);white-space:nowrap;animation:tipRamo .18s ease-out}
+@keyframes tipRamo{from{opacity:0}to{opacity:1}}

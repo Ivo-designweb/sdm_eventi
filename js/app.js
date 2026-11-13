@@ -898,6 +898,22 @@
     return pan;
   }
 
+  // suggerimento «doppio clic apre/chiude ramo»: parte dopo 350 ms di permanenza sul ramo, resta 1,8 secondi e poi sparisce
+  const TIP = { el: null, t1: 0, t2: 0, x: 0, y: 0 };
+  function suggerimentoRamo(e, avvia) {
+    if (e) { TIP.x = e.clientX; TIP.y = e.clientY; if (TIP.el) { TIP.el.style.left = (TIP.x + 14) + 'px'; TIP.el.style.top = (TIP.y + 18) + 'px'; } }
+    if (avvia === null) return;
+    clearTimeout(TIP.t1); clearTimeout(TIP.t2);
+    if (TIP.el) { TIP.el.remove(); TIP.el = null; }
+    if (!avvia || isMobile() || (window.matchMedia && !window.matchMedia('(hover:hover)').matches)) return;
+    TIP.t1 = setTimeout(() => {
+      TIP.el = h('div', { class: 'tipRamo', role: 'tooltip' }, 'Doppio clic: apre/chiude ramo');
+      TIP.el.style.left = (TIP.x + 14) + 'px'; TIP.el.style.top = (TIP.y + 18) + 'px';
+      document.body.append(TIP.el);
+      TIP.t2 = setTimeout(() => { if (TIP.el) { TIP.el.remove(); TIP.el = null; } }, 1800);
+    }, 350);
+  }
+
   function rigaNodo(n) {
     const lf = isLeaf(n), aperto = !S.collassati.has(n.id), lv = n.livello, det = S.aperti.has(n.id);
     const chip = (t, cl, tit) => h('span', { class: 'badge' + (cl ? ' ' + cl : ''), title: tit || '' }, t);
@@ -946,7 +962,9 @@
       if (e.detail > 2 && !isMobile()) return;
       commuta();
     });
-    if (!lf) row.addEventListener('mousedown', e => { if (e.detail > 1 && !isMobile()) e.preventDefault(); });   // niente selezione del testo col doppio clic
+    if (!lf) row.addEventListener('mousedown', e => { if (e.detail > 1 && !isMobile()) e.preventDefault(); });
+    // v6.1 (solo PC): passando sopra un ramo compare per un attimo il suggerimento del doppio clic
+    if (!lf) { row.addEventListener('mouseenter', e => suggerimentoRamo(e, true)); row.addEventListener('mousemove', e => suggerimentoRamo(e, null)); row.addEventListener('mouseleave', () => suggerimentoRamo(null, false)); row.addEventListener('mousedown', () => suggerimentoRamo(null, false)); }   // niente selezione del testo col doppio clic
     row.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === row) commuta(); });
     const li = h('li', { 'data-id': n.id, class: canEdit(n) ? 'mvb' : '' }, row);
     if (det) li.append(dettagliNodo(n));
