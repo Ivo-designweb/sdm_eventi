@@ -588,13 +588,17 @@
   const oggi = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const concluso = e => (e.data_fine || e.data_inizio || '9999') < oggi();
   const eventoCorrente = () => stato.eventi.find(e => e.id === stato.evento) || null;
+  // v5.9: responsabile dell'evento (anagrafica evento): lo ereditano rami e attività che non ne hanno uno proprio o sopra di sé
+  const respEvento = () => { const e = eventoCorrente(); return e && e.responsabile_id ? e.responsabile_id : null; };
+  const sonoRespEvento = () => !!stato.persona && respEvento() === stato.persona.id;
 
   async function caricaEventi() {
     const cache = LS.get('sdm_eventi');
     let ok = false;
     if (navigator.onLine) {
       const qEv = cols => stato.sb.from('eventi').select(cols).order('data_inizio', { ascending: false, nullsFirst: false }).order('titolo');
-      let { data, error } = await qEv('id, titolo, data_inizio, data_fine, aree, aree_colori');
+      let { data, error } = await qEv('id, titolo, data_inizio, data_fine, aree, aree_colori, responsabile_id');
+      if (error) ({ data, error } = await qEv('id, titolo, data_inizio, data_fine, aree, aree_colori'));
       if (error) ({ data, error } = await qEv('id, titolo, data_inizio, data_fine, aree'));
       if (error) ({ data, error } = await qEv('id, titolo, data_inizio, data_fine'));   // database non ancora aggiornato
       if (!error) {
@@ -689,6 +693,15 @@
     }));
     if ($('#eAreaAdd')) $('#eAreaAdd').disabled = EA.length >= 10;
   }
+  async function caricaRespEv(sel) {
+    const el = $('#eResp'); if (!el) return;
+    const mk = lista => { const op = [h('option', { value: '' }, '— nessuno')]; lista.forEach(p => op.push(h('option', { value: p.id }, (p.cognome + ' ' + p.nome).trim()))); el.replaceChildren(...op); el.value = sel || ''; };
+    const nome = id => { return { id, cognome: S.nomi[id] || '(responsabile attuale)', nome: '' }; };
+    mk(sel ? [nome(sel)] : []);
+    if (!navigator.onLine) return;
+    const r = await stato.sb.rpc('persone_assegnabili');
+    if (!r.error && r.data) { const l = [...r.data]; if (sel && !l.some(x => x.id === sel)) l.push(nome(sel)); mk(l); }
+  }
   function apriEvento(id) {
     evCorr = stato.eventi.find(x => x.id === id) || null;
     const e = evCorr || { titolo: '', data_inizio: '', data_fine: '' };
@@ -696,6 +709,7 @@
     (e.aree || []).forEach((v, i) => { const col = (e.aree_colori || {})[v] || PALETTE[i % PALETTE.length]; EA.push({ orig: v, val: v, col }); });
     renderAreeEv();
     $('#evModTit').textContent = evCorr ? 'Modifica evento' : 'Nuovo evento';
+    caricaRespEv(e.responsabile_id || '');
     $('#eTit').value = e.titolo; $('#eIni').value = e.data_inizio || ''; $('#eFin').value = e.data_fine || '';
     $('#eDel').classList.toggle('hidden', !evCorr);
     $('#eErr').classList.add('hidden');
@@ -707,6 +721,9 @@
   async function salvaEvento(ev) {
     ev.preventDefault();
     const rec = { titolo: $('#eTit').value.trim(), data_inizio: $('#eIni').value || null, data_fine: $('#eFin').value || null };
+    const nuovoResp = $('#eResp') ? ($('#eResp').value || null) : null;
+    const respInizio = evCorr ? (evCorr.responsabile_id || null) : null;
+    if (nuovoResp !== respInizio) rec.responsabile_id = nuovoResp;   // senza modifiche non tocco la colonna (utile se il database non è ancora aggiornato)
     const aree = EA.map(a => a.val.trim()).filter(Boolean);
     if (aree.some(a => norm(a) === 'tutte')) { erroreEv('"Tutte" è sempre presente: non va inserita tra le aree.'); return; }
     if (new Set(aree.map(norm)).size !== aree.length) { erroreEv('Ci sono due aree con lo stesso nome.'); return; }
@@ -759,11 +776,11 @@
   const altezza = n => 1 + Math.max(0, ...figli(n.id).map(altezza));
   const foglie = n => isLeaf(n) ? [n] : figli(n.id).flatMap(foglie);
   const dentro = (a, b) => antenati(b).some(x => x.id === a.id);   // b è sotto a
-  const respDi = (n, incl) => { const me = stato.persona.id; return (incl && n.responsabile_id === me) || antenati(n).some(a => a.responsabile_id === me); };
+  const respDi = (n, incl) => { const me = stato.persona.id; return (incl && n.responsabile_id === me) || antenati(n).some(a => a.responsabile_id === me) || sonoRespEvento(); };
   const canEdit = n => isAdmin() || respDi(n, true);
   const canDel = n => isAdmin() || respDi(n, false);
-  // responsabile effettivo di un ramo: il proprio, altrimenti quello del ramo sopra (a cascata)
-  const respEff = n => { let x = n, ered = false; while (x) { if (x.responsabile_id) return { id: x.responsabile_id, ered }; x = x.parent_id ? nodo(x.parent_id) : null; ered = true; } return { id: null, ered: false }; };
+  // responsabile effettivo di un ramo: il proprio, altrimenti quello del ramo sopra (a cascata) e, in fondo, quello dell'evento
+  const respEff = n => { let x = n, ered = false; while (x) { if (x.responsabile_id) return { id: x.responsabile_id, ered }; x = x.parent_id ? nodo(x.parent_id) : null; ered = true; } const re = respEvento(); return re ? { id: re, ered: true } : { id: null, ered: false }; };
   const canDup = () => isAdmin();
   const canAdd = n => isAdmin() || (!!stato.parametri.responsabile_crea_rami && respDi(n, true));
   const nIncarichi = n => (S.inc[n.id] || []).length;
@@ -783,16 +800,17 @@
   // un ramo compare se almeno una sua attività li rispetta (o se il testo cercato è nel ramo stesso)
   S.f = { q: '', stato: '', pers: '', scad: '' };
   const filtriAttivi = () => !!(S.f.q || S.f.stato || S.f.pers || S.f.scad || S.areaF);
-  const testoNodo = n => [n.titolo, n.descrizione, n.note, n.area, n.responsabile_id ? nomeP(n.responsabile_id) : '', ...(S.inc[n.id] || []).flatMap(x => [nomeP(x.persona_id), x.nota]), numTxt(n)].filter(Boolean).join(' ');
+  const testoNodo = n => [n.titolo, n.descrizione, n.note, n.area, LAB_STATO[n.stato], ddmmyyyy(n.scadenza), n.responsabile_id ? nomeP(n.responsabile_id) : '', ...(S.inc[n.id] || []).flatMap(x => [nomeP(x.persona_id), x.nota]), numTxt(n)].filter(Boolean).join(' ');
+  const passaTesto = (hay, q) => { const t = normCerca(hay); return q.split(/\s+/).filter(Boolean).every(w => t.includes(normCerca(w))); };   // v5.9: più parole = devono esserci tutte
   const passaFiltri = n => {
     if (!filtriAttivi()) return true;
-    if (!isLeaf(n)) return figli(n.id).some(passaFiltri) || (!S.f.stato && !S.f.pers && !S.f.scad && !S.areaF && !!S.f.q && norm(testoNodo(n)).includes(norm(S.f.q)));
+    if (!isLeaf(n)) return figli(n.id).some(passaFiltri) || (!S.f.stato && !S.f.pers && !S.f.scad && !S.areaF && !!S.f.q && passaTesto(testoNodo(n), S.f.q));
     const f = S.f;
     if (S.areaF && n.area && n.area !== S.areaF) return false;
     if (f.stato && n.stato !== f.stato) return false;
     if (f.pers) { const inc = S.inc[n.id] || []; if (f.pers === '__no' ? inc.length : !(inc.some(x => x.persona_id === f.pers) || n.responsabile_id === f.pers)) return false; }
     if (f.scad) { const c = scadClasse(n); if (f.scad === 'e' && c !== 'e') return false; if (f.scad === 'w' && c !== 'w') return false; if (f.scad === 'con' && !n.scadenza) return false; if (f.scad === 'senza' && n.scadenza) return false; }
-    if (f.q) { const q = norm(f.q); if (!(norm(testoNodo(n)).includes(q) || antenati(n).some(a => norm(a.titolo).includes(q)))) return false; }
+    if (f.q) { if (!(passaTesto(testoNodo(n), f.q) || passaTesto(antenati(n).map(a => a.titolo).join(' ') + ' ' + testoNodo(n), f.q))) return false; }
     return true;
   };
   const righeCheck = n => (n.checklist && Array.isArray(n.checklist.righe)) ? n.checklist.righe : [];
@@ -914,7 +932,19 @@
       h('span', { class: 'num nf' }, numTxt(n)), h('span', { class: 'num nc' }, (p => p.length > 2 ? '…' + p.slice(-2).join('.') : p.join('.'))(numTxt(n).split('.'))),
       h('div', { class: 'tt2' }, h('b', { title: n.titolo }, n.titolo), n.descrizione ? h('span', { class: 'ds' }, n.descrizione) : ''), meta, btns);
     const commuta = () => { if (S.aperti.has(n.id)) S.aperti.delete(n.id); else S.aperti.add(n.id); renderStruttura(); };
-    row.addEventListener('click', e => { if (e.target.closest('button,a,input,select,.dgh') || Date.now() - (S.dragFine || 0) < 400) return; commuta(); });
+    // v5.9 (solo PC): doppio clic su un ramo = apre (se è chiuso) o chiude (se è aperto) tutto il ramo fino all'ultimo livello.
+    // Il primo clic ha già commutato i dettagli e ridisegnato la riga: il secondo clic (detail 2) annulla quella commutazione e fa il lavoro.
+    const tuttoRamo = () => {
+      const tutti = [n, ...sottoalbero(n)].filter(x => !isLeaf(x));
+      if (S.collassati.has(n.id)) tutti.forEach(x => S.collassati.delete(x.id)); else tutti.forEach(x => S.collassati.add(x.id));
+    };
+    row.addEventListener('click', e => {
+      if (e.target.closest('button,a,input,select,.dgh') || Date.now() - (S.dragFine || 0) < 400) return;
+      if (e.detail === 2 && !lf && !isMobile()) { if (S.aperti.has(n.id)) S.aperti.delete(n.id); else S.aperti.add(n.id); tuttoRamo(); renderStruttura(); return; }
+      if (e.detail > 2 && !isMobile()) return;
+      commuta();
+    });
+    if (!lf) row.addEventListener('mousedown', e => { if (e.detail > 1 && !isMobile()) e.preventDefault(); });   // niente selezione del testo col doppio clic
     row.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === row) commuta(); });
     const li = h('li', { 'data-id': n.id, class: canEdit(n) ? 'mvb' : '' }, row);
     if (det) li.append(dettagliNodo(n));
@@ -926,7 +956,7 @@
   function renderStruttura() {
     ordina(); S.pend = nodiInAttesa();
     const adm = isAdmin();
-    const puoMod = adm || S.nodi.some(n => n.responsabile_id === stato.persona.id);
+    const puoMod = adm || sonoRespEvento() || S.nodi.some(n => n.responsabile_id === stato.persona.id);
     const lista = $('#strLista');
     $('#strInfo').textContent = adm ? 'Albero completo dell\'evento · max ' + maxLivelli() + ' livelli'
       : (puoMod ? 'I rami di cui sei responsabile e le tue attività' : 'Le attività in cui sei incaricato');
@@ -1047,7 +1077,8 @@
     $('#nPercorso').textContent = S.corr ? percorsoTxt(S.corr) : (padre ? 'Dentro: ' + percorsoTxt(nodo(padre)) : 'Primo livello');
     $('#nTit').value = n.titolo; $('#nDes').value = n.descrizione || ''; $('#nNot').value = n.note || '';
     const padreN = S.corr ? (S.corr.parent_id ? nodo(S.corr.parent_id) : null) : (padre ? nodo(padre) : null), ered = padreN ? respEff(padreN) : null;
-    const op = [h('option', { value: '' }, ered && ered.id ? 'Eredita dal ramo sopra: ' + nomeP(ered.id) : (padreN ? 'Eredita dal ramo sopra (nessuno)' : '— (nessuno)'))];
+    const eredR = padreN ? ered : (respEvento() ? { id: respEvento() } : null);
+    const op = [h('option', { value: '' }, eredR && eredR.id ? (padreN ? 'Eredita dal ramo sopra: ' : 'Eredita dall\'evento: ') + nomeP(eredR.id) : (padreN ? 'Eredita dal ramo sopra (nessuno)' : '— (nessuno)'))];
     const elenco = [...S.assegnabili];
     if (n.responsabile_id && !elenco.some(p => p.id === n.responsabile_id)) elenco.push({ id: n.responsabile_id, cognome: nomeP(n.responsabile_id), nome: '' });
     elenco.forEach(p => op.push(h('option', { value: p.id }, (p.cognome + ' ' + p.nome).trim())));
@@ -1563,10 +1594,10 @@
     accodaStato(n, v);
   }
 
-  // ricerca libera nelle attività (solo smartphone): filtra in tempo reale le attività che l'utente vede in Home (le sue, o quelle che gestisce)
-  let homeCerca = '';
+  // ricerca libera nelle attività (v5.9: anche su PC, dove la riga «Cerca» è sempre visibile): filtra in tempo reale le attività che l'utente vede in Home (le sue, o quelle che gestisce)
+  let homeCerca = '', cercaPC = false;
   const normCerca = s => String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  const cercaAttiva = () => isMobile() && !!homeCerca.trim();
+  const cercaAttiva = () => !!homeCerca.trim();
   function passaCerca(n) {
     if (!cercaAttiva()) return true;
     const campi = [numTxt(n), n.titolo, n.descrizione, n.note, n.area, LAB_STATO[n.stato], ddmmyyyy(n.scadenza), percorsoTxt(n), nomiInc(n).join(' '), n.responsabile_id ? nomeP(n.responsabile_id) : '',
@@ -1577,8 +1608,9 @@
   const cercaAperta = () => !$('#cercaBox').classList.contains('hidden');
   function chiudiCerca(rendi) {
     homeCerca = ''; const q = $('#cercaQ'); if (q) q.value = '';
-    $('#cercaBox').classList.add('hidden');
+    if (isMobile()) $('#cercaBox').classList.add('hidden');   // su PC la riga resta sempre visibile
     if (rendi) renderHome();
+    if (rendi && !isMobile()) { const q = $('#cercaQ'); if (q) q.focus(); }
   }
   // pulsante Cerca: sta nella riga in alto della Home (vicino al filtro area per l'operatore, a destra dei bottoni di stato per gli altri)
   const LENTE = () => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = '<circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>'; return s; };
@@ -1614,13 +1646,13 @@
   const nomiInc = n => (S.inc[n.id] || []).map(x => nomeP(x.persona_id));
   // chi ha due ruoli nell'evento (gestione: amministratore o responsabile di un ramo; operatore: incaricato di attività)
   // sceglie all'ingresso come entrare: le due interfacce sono diverse. La scelta vale per l'evento.
-  const haGestione = () => !!stato.persona && (isAdmin() || S.nodi.some(n => n.responsabile_id === stato.persona.id));
+  const haGestione = () => !!stato.persona && (isAdmin() || sonoRespEvento() || S.nodi.some(n => n.responsabile_id === stato.persona.id));
   const haOperativo = () => !!stato.persona && S.nodi.some(n => isLeaf(n) && (S.inc[n.id] || []).some(x => x.persona_id === stato.persona.id));
   const dueRuoli = () => stato.evento !== null && haGestione() && haOperativo();
   const MODI = (LS.get('sdm_modo') || {});
   const modoScelto = () => (stato.modoEv && stato.modoEv[stato.evento]) || (MODI.uid === (stato.persona && stato.persona.uid) && (MODI.ev || {})[stato.evento]) || null;
   const inModoOp = () => dueRuoli() && modoScelto() === 'op';
-  const isOperatore = () => !!stato.persona && (inModoOp() || (!isAdmin() && !S.nodi.some(n => n.responsabile_id === stato.persona.id)));
+  const isOperatore = () => !!stato.persona && (inModoOp() || (!isAdmin() && !sonoRespEvento() && !S.nodi.some(n => n.responsabile_id === stato.persona.id)));
   const nomeGestione = () => isAdmin() ? 'Amministratore' : 'Responsabile';
   // la guida si adatta al ruolo: login (non entrato), operatore, responsabile, admin (&s=1 se proprietario)
   const urlGuida = () => 'help.html?r=' + (!stato.persona ? 'login' : isOperatore() ? 'operatore' : isAdmin() ? 'admin' : 'responsabile') + (stato.persona && isSuper() && !isOperatore() ? '&s=1' : '');
@@ -1744,6 +1776,9 @@
     const adm = isAdmin(), me = stato.persona.id, op = isOperatore();
     $('#homeTop').classList.toggle('hidden', op);
     const mob = isMobile(), riga = [];   // riga in alto della Home (solo smartphone): contiene il pulsante Cerca
+    // v5.9: su PC la riga di ricerca è sempre visibile; su smartphone si apre dal pulsante Cerca
+    if (!mob) { $('#cercaBox').classList.remove('hidden'); cercaPC = true; }
+    else if (cercaPC) { cercaPC = false; if (!homeCerca.trim()) $('#cercaBox').classList.add('hidden'); }
     const tutte = S.nodi.filter(isLeaf).filter(passaArea).filter(passaCerca);
     const gestisco = adm ? tutte : tutte.filter(canEdit);
     const out = [];
@@ -2454,7 +2489,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
   async function sottoscrizione() { const reg = await navigator.serviceWorker.ready; return reg.pushManager.getSubscription(); }
   async function aggiornaNotifiche() {
     const card = $('#cardNot'); if (!card) return;
-    const ricevono = !!stato.persona && (isAdmin() || S.nodi.some(n => n.responsabile_id === stato.persona.id));
+    const ricevono = !!stato.persona && (isAdmin() || sonoRespEvento() || S.nodi.some(n => n.responsabile_id === stato.persona.id));
     card.classList.toggle('hidden', !ricevono); if (!ricevono) return;
     const st = $('#nStato'), b = $('#nBtn'), m = $('#nMsg'); m.textContent = ''; b.disabled = false; b.classList.remove('hidden');
     if (stato.parametri.notifiche_scadenze === false) { st.textContent = 'Disattivate dal proprietario'; b.classList.add('hidden'); return; }

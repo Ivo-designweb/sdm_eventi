@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 2.0
+-- Versione script: 2.1
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -145,6 +145,9 @@ do $$ begin
   end if;
 end $$;
 alter table sdm_eventi.eventi add column if not exists aree_colori jsonb not null default '{}'::jsonb;   -- {"<area>":"#rrggbb"}
+-- v2.1: responsabile dell'evento: lo ereditano tutti i rami e le attività che non hanno un responsabile proprio o sopra di sé
+alter table sdm_eventi.eventi add column if not exists responsabile_id uuid references sdm_eventi.persone(id) on delete set null;
+create index if not exists eventi_responsabile_idx on sdm_eventi.eventi (responsabile_id);
 alter table sdm_eventi.nodi add column if not exists area text;                     -- null = "Tutte"
 alter table sdm_eventi.nodi add column if not exists checklist jsonb;               -- {"descrizione":"..","righe":[{"id":"..","testo":"..","qta":0}]}
 alter table sdm_eventi.nodi add column if not exists checklist_esito jsonb not null default '{}'::jsonb;
@@ -196,7 +199,7 @@ language sql stable security definer set search_path = sdm_eventi, public, pg_te
                  where auth_user_id = auth.uid() and ruolo = 'admin' and superadmin and attivo)
 $$;
 
--- true se l'utente è responsabile del nodo (se _incluso) o di un suo antenato
+-- true se l'utente è responsabile del nodo (se _incluso), di un suo antenato o dell'intero evento (v2.1)
 create or replace function sdm_eventi.is_responsabile_di(_nodo uuid, _incluso boolean default true) returns boolean
 language sql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
   select exists (
@@ -206,6 +209,11 @@ language sql stable security definer set search_path = sdm_eventi, public, pg_te
       on r.responsabile_id = sdm_eventi.persona_corrente()
      and ((_incluso and r.id = n.id) or r.id = any(n.percorso))
     where n.id = _nodo)
+  or exists (
+    select 1
+    from sdm_eventi.nodi n
+    join sdm_eventi.eventi e on e.id = n.evento_id
+    where n.id = _nodo and e.responsabile_id = sdm_eventi.persona_corrente())
 $$;
 
 create or replace function sdm_eventi.param_bool(_chiave text) returns boolean
@@ -239,6 +247,8 @@ $$;
 create or replace function sdm_eventi.puo_vedere_evento(_evento uuid) returns boolean
 language sql stable security definer set search_path = sdm_eventi, public, pg_temp as $$
   select sdm_eventi.is_admin()
+      or exists (select 1 from sdm_eventi.eventi e
+                 where e.id = _evento and e.responsabile_id = sdm_eventi.persona_corrente())
       or exists (select 1 from sdm_eventi.nodi n
                  where n.evento_id = _evento and sdm_eventi.puo_vedere_nodo(n.id))
 $$;
@@ -963,7 +973,8 @@ language sql stable security definer set search_path = sdm_eventi, public, pg_te
   select p.id from sdm_eventi.persone p
   where p.ultima_connessione is not null
     and ( sdm_eventi.is_admin()
-       or exists (select 1 from sdm_eventi.nodi r where r.responsabile_id = sdm_eventi.persona_corrente()) )
+       or exists (select 1 from sdm_eventi.nodi r where r.responsabile_id = sdm_eventi.persona_corrente())
+       or exists (select 1 from sdm_eventi.eventi e where e.responsabile_id = sdm_eventi.persona_corrente()) )
 $$;
 
 -- Diritto di accesso/portabilità: tutti i dati di una persona (admin: chiunque; gli altri: solo i propri)
@@ -980,7 +991,9 @@ begin
                   from sdm_eventi.incarichi i join sdm_eventi.nodi n on n.id = i.nodo_id join sdm_eventi.eventi e on e.id = n.evento_id
                   where i.persona_id = v_id), '[]'::jsonb),
     'responsabile_di', coalesce((select jsonb_agg(jsonb_build_object('evento', e.titolo, 'percorso', sdm_eventi.percorso_testo(n.id)) order by e.titolo)
-                  from sdm_eventi.nodi n join sdm_eventi.eventi e on e.id = n.evento_id where n.responsabile_id = v_id), '[]'::jsonb),
+                  from sdm_eventi.nodi n join sdm_eventi.eventi e on e.id = n.evento_id where n.responsabile_id = v_id), '[]'::jsonb)
+                  || coalesce((select jsonb_agg(jsonb_build_object('evento', e.titolo, 'percorso', '(intero evento)') order by e.titolo)
+                  from sdm_eventi.eventi e where e.responsabile_id = v_id), '[]'::jsonb),
     'movimenti', coalesce((select jsonb_agg(jsonb_build_object('data', m.data_ora, 'tabella', m.tabella, 'azione', m.azione,
                   'evento', m.evento, 'ramo', m.ramo, 'descrizione', m.descrizione) order by m.data_ora desc)
                   from (select * from sdm_eventi.movimenti where persona_id = v_id order by data_ora desc limit 1000) m), '[]'::jsonb));
@@ -1233,7 +1246,7 @@ begin
   if auth.uid() is not null then raise exception 'Funzione riservata al server'; end if;
   return query
   with f as (
-    select n.id, n.evento_id, n.titolo, n.scadenza, n.percorso, n.responsabile_id, ev.titolo as evento
+    select n.id, n.evento_id, n.titolo, n.scadenza, n.percorso, n.responsabile_id, ev.titolo as evento, ev.responsabile_id as resp_evento
     from sdm_eventi.nodi n
     join sdm_eventi.eventi ev on ev.id = n.evento_id
     where n.scadenza is not null and n.stato in ('da_fare', 'in_corso')
@@ -1245,7 +1258,8 @@ begin
       coalesce(f.responsabile_id,
         (select a.responsabile_id from unnest(f.percorso) with ordinality u(id, ord)
            join sdm_eventi.nodi a on a.id = u.id
-          where a.responsabile_id is not null order by u.ord desc limit 1)) as resp,
+          where a.responsabile_id is not null order by u.ord desc limit 1),
+        f.resp_evento) as resp,
       (select a.titolo from unnest(f.percorso) with ordinality u(id, ord)
          join sdm_eventi.nodi a on a.id = u.id order by u.ord limit 1) as radice,
       (select string_agg(a.titolo, ' › ' order by u.ord) from unnest(f.percorso) with ordinality u(id, ord)
@@ -1281,7 +1295,9 @@ language sql stable security definer set search_path = sdm_eventi, public, pg_te
                     and sdm_eventi.puo_vedere_nodo(n.id))
        or exists (select 1 from sdm_eventi.nodi n
                   where n.responsabile_id = p.id and n.evento_id = _evento
-                    and sdm_eventi.puo_vedere_nodo(n.id)) )
+                    and sdm_eventi.puo_vedere_nodo(n.id))
+       or exists (select 1 from sdm_eventi.eventi e
+                  where e.id = _evento and e.responsabile_id = p.id and sdm_eventi.puo_vedere_evento(e.id)) )
   order by p.cognome, p.nome
 $$;
 
@@ -1295,7 +1311,9 @@ language sql stable security definer set search_path = sdm_eventi, public, pg_te
   where p.attivo
     and ( sdm_eventi.is_admin()
        or exists (select 1 from sdm_eventi.nodi r
-                  where r.responsabile_id = sdm_eventi.persona_corrente()) )
+                  where r.responsabile_id = sdm_eventi.persona_corrente())
+       or exists (select 1 from sdm_eventi.eventi e
+                  where e.responsabile_id = sdm_eventi.persona_corrente()) )
   order by p.cognome, p.nome
 $$;
 drop view if exists sdm_eventi.v_persone_elenco;

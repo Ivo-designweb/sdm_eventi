@@ -590,7 +590,16 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
 .invCard b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* v4.7: ricerca nelle attività, solo smartphone: pulsante Cerca nella riga in alto della Home */
-.cercaBox{display:none}
+.cercaBox{display:flex;align-items:center;gap:8px;height:44px;margin:0 0 8px;padding:0 4px 0 14px;border:1px solid var(--bordo);border-radius:22px;background:var(--card);color:var(--sec);max-width:560px}
+.cercaBox.hidden{display:none}
+.cercaBox>svg{width:20px;height:20px;flex:none}
+.cercaBox:focus-within{border-color:var(--primario);box-shadow:0 0 0 2px color-mix(in srgb,var(--primario) 25%,transparent)}
+.cercaBox input{flex:1;min-width:0;height:100%;border:0;outline:0;background:transparent;color:var(--testo);font:inherit;font-size:16px;padding:0}
+.cercaBox input::-webkit-search-cancel-button{display:none}
+.cercaX{flex:none;width:38px;height:38px;border:0;border-radius:50%;background:color-mix(in srgb,var(--primario) 12%,transparent);color:var(--primario);display:grid;place-items:center;cursor:pointer;padding:0}
+.cercaX svg{width:20px;height:20px}
+.cercaX:focus-visible{outline:3px solid var(--primario);outline-offset:2px}
+.cercaInfo{margin:0 0 8px;font-size:12.5px}
 @media (max-width:760px), (pointer:coarse) and (max-height:500px){
   .cercaBtn{display:flex;align-items:center;justify-content:center;border:1.5px solid color-mix(in srgb,var(--primario) 40%,transparent);background:color-mix(in srgb,var(--primario) 10%,var(--card));color:var(--primario);font:inherit;font-weight:700;cursor:pointer;line-height:1}
   .cercaBtn svg{width:20px;height:20px;flex:none}
