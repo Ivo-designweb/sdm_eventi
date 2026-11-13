@@ -1,6 +1,6 @@
 -- =====================================================================
 -- SDM Eventi - schema database (Supabase / PostgreSQL)
--- Versione script: 2.1
+-- Versione script: 2.2
 --
 -- Crea lo schema dedicato "sdm_eventi" dentro un database già esistente.
 -- Non tocca lo schema "public" né altri schemi.
@@ -162,6 +162,9 @@ create table if not exists sdm_eventi.nodi_sponsor (
   importo        numeric(12,2),
   aggiornato_il  timestamptz not null default now()
 );
+-- v2.2: il soggetto è anche un fornitore (flag) e l'importo è una spesa anziché un contributo (flag)
+alter table sdm_eventi.nodi_sponsor add column if not exists is_fornitore boolean not null default false;
+alter table sdm_eventi.nodi_sponsor add column if not exists is_spesa boolean not null default false;
 -- data e ora di chiusura (stato "fatto"): proposta dall'app, modificabile dall'operatore
 alter table sdm_eventi.nodi add column if not exists data_chiusura timestamptz;
 alter table sdm_eventi.incarichi add column if not exists nota_il  timestamptz not null default now();
@@ -826,8 +829,8 @@ begin
   end loop;
   insert into sdm_eventi.incarichi (nodo_id, persona_id)
     select m.new_id, i.persona_id from sdm_eventi.incarichi i join _dupr_map m on m.old_id = i.nodo_id;
-  insert into sdm_eventi.nodi_sponsor (nodo_id, fornitore, referente, cellulare, importo)
-    select m.new_id, sp.fornitore, sp.referente, sp.cellulare, sp.importo from sdm_eventi.nodi_sponsor sp join _dupr_map m on m.old_id = sp.nodo_id;
+  insert into sdm_eventi.nodi_sponsor (nodo_id, fornitore, referente, cellulare, importo, is_fornitore, is_spesa)
+    select m.new_id, sp.fornitore, sp.referente, sp.cellulare, sp.importo, sp.is_fornitore, sp.is_spesa from sdm_eventi.nodi_sponsor sp join _dupr_map m on m.old_id = sp.nodo_id;
   perform sdm_eventi.sposta_nodo(v_root, o.parent_id, v_idx + 1);
   return v_root;
 end $$;

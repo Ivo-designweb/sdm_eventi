@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="app-version" content="1.0">
+<title>SDM Eventi - Anteprima Struttura con Valori</title>
+<style>
+:root{--primario:#1d4ed8;--bg:#f4f6fa;--card:#fff;--testo:#1c2333;--sec:#5b6578;--bordo:#dde2ec;--ok:#15803d;--err:#b91c1c;--ind:30px;--w:112px}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#cfd5e1;color:var(--testo)}
+button{font:inherit}
+.demo{background:#111827;color:#e5e7eb;padding:8px 14px;font-size:13px}
+.vista{background:var(--bg);margin:0 auto;max-width:1060px;padding:18px;min-height:calc(100vh - 40px)}
+h1{font-size:22px;margin:0 0 2px}.sec{color:var(--sec);font-size:13px}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.bar .f{border:1px solid var(--bordo);background:#fff;border-radius:8px;padding:7px 10px;color:var(--sec);min-width:150px}
+.bt{border:1px solid var(--primario);background:#fff;color:var(--primario);border-radius:8px;padding:7px 14px;font-weight:700;cursor:pointer;min-height:38px}
+.bt.on{background:var(--primario);color:#fff}
+.bt:focus-visible{outline:3px solid var(--primario);outline-offset:2px}
+.sp{flex:1}
+/* intestazione colonne valori */
+.cols{display:none;justify-content:flex-end;gap:0;padding:0 8px 4px;font-size:12px;font-weight:700;color:var(--sec);text-transform:uppercase;letter-spacing:.03em}
+.val .cols{display:flex}
+.cols span,.v span{width:var(--w);text-align:right;flex:none}
+.cols .az{width:76px;flex:none}
+ul{list-style:none;margin:0;padding:0}
+ul ul{margin-left:var(--ind);border-left:1.5px dashed #94a3b8;padding-left:6px}
+.tn{display:flex;align-items:center;gap:6px;padding:5px 8px;min-height:38px;border:1px solid var(--bordo);border-radius:10px;margin-bottom:3px;background:var(--card);cursor:default}
+.tn.br{background:color-mix(in srgb,var(--primario) 5%,var(--card));border-left:5px solid var(--primario)}
+.tn.lf{border-left:5px solid #22c55e}
+.tg{width:22px;border:0;background:none;cursor:pointer;color:var(--sec);font-size:12px;flex:none;padding:0}
+.tg0{width:22px;flex:none}
+.num{font-size:11px;color:var(--sec);font-weight:700;flex:none}
+.tt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.br .tt{font-weight:800}
+.v{display:none;flex:none;font-variant-numeric:tabular-nums;font-size:14px}
+.val .v{display:flex}
+.v span.c{color:var(--ok)}.v span.s{color:var(--err)}
+.v span.z{color:#9ca3af}
+.br .v span{font-weight:800}
+.az{display:flex;gap:2px;width:76px;flex:none;justify-content:flex-end}
+.ib{border:1px solid var(--bordo);background:#fff;border-radius:7px;padding:2px 7px;font-size:14px}
+.tot{display:none;margin-top:8px;border:2px solid var(--primario);border-radius:10px;padding:6px 8px;background:#fff;font-weight:800;align-items:center}
+.val .tot{display:flex}
+.tot .tt{flex:1}
+.nota{margin:14px 0 0;font-size:13px;color:var(--sec)}
+</style>
+</head>
+<body>
+<div class="demo"><b>Anteprima</b> · Pagina Struttura (PC, solo amministratore) con il bottone <b>Valori</b>. Prova: Valori acceso/spento, ▶/▼ per aprire e chiudere i rami, doppio clic su un ramo (apre/chiude tutto), «Comprimi tutto».</div>
+<div class="vista" id="vista">
+  <h1>Struttura</h1><p class="sec">Albero completo dell'evento · max 10 livelli</p>
+  <div class="bar">
+    <span class="f">🔍 Cerca…</span><span class="f">Stato</span><span class="f">Persona</span><span class="f">Scadenza</span>
+    <span class="sp"></span>
+    <button class="bt" id="bEsp" type="button">Comprimi tutto</button>
+    <button class="bt" id="bVal" type="button" aria-pressed="false">Valori</button>
+  </div>
+  <div class="cols"><span>Contributi</span><span>Spese</span><span class="az"></span></div>
+  <ul id="albero"></ul>
+  <div class="tot"><span class="tt">Totale evento</span><div class="v" id="tv"></div><span class="az"></span></div>
+  <p class="nota">Le righe delle attività mostrano il proprio importo: nella colonna <b>Contributi</b> se è un contributo, nella colonna <b>Spese</b> se è una spesa. Ogni ramo mostra la somma di tutto ciò che sta sotto, anche da compattato. I valori non compaiono mai su smartphone né per gli altri ruoli.</p>
+</div>
+<script>
+// c = contributo, s = spesa
+const T=[
+ {n:'01',t:'Logistica',f:[
+  {n:'01.01',t:'Allestimento campo',f:[
+    {n:'01.01.01',t:'Noleggio gazebo',s:850},
+    {n:'01.01.02',t:'Transenne e segnaletica',s:420},
+    {n:'01.01.03',t:'Contributo Comune per suolo pubblico',c:600}]},
+  {n:'01.02',t:'Trasporti',f:[
+    {n:'01.02.01',t:'Furgone materiali',s:300},
+    {n:'01.02.02',t:'Sponsor carburante',c:250}]}]},
+ {n:'02',t:'Sponsor e comunicazione',f:[
+  {n:'02.01',t:'Sponsor principale',c:5000},
+  {n:'02.02',t:'Stampa locandine',s:380},
+  {n:'02.03',t:'Sponsor tecnici',f:[
+    {n:'02.03.01',t:'Rossi Arredi Srl',c:1500},
+    {n:'02.03.02',t:'Bar Centrale (rinfresco)',c:400}]}]},
+ {n:'03',t:'Cerimonia e premi',f:[
+  {n:'03.01',t:'Coppe e medaglie',s:1250},
+  {n:'03.02',t:'Rinfresco finale',s:700}]}
+];
+const aperti=new Set();
+const fmt=x=>x?x.toLocaleString('it-IT',{minimumFractionDigits:2})+' €':'—';
+function som(n){ if(!n.f) return {c:n.c||0,s:n.s||0}; return n.f.reduce((a,x)=>{const r=som(x);return {c:a.c+r.c,s:a.s+r.s}},{c:0,s:0}); }
+function vals(r){return `<span class="${r.c?'c':'z'}">${fmt(r.c)}</span><span class="${r.s?'s':'z'}">${fmt(r.s)}</span>`}
+function riga(n){
+  const lf=!n.f, ap=aperti.has(n.n), r=som(n);
+  const li=document.createElement('li');
+  li.innerHTML=`<div class="tn ${lf?'lf':'br'}">${lf?'<span class="tg0"></span>':`<button class="tg" type="button" aria-label="${ap?'Comprimi':'Espandi'}">${ap?'▼':'▶'}</button>`}<span class="num">${n.n}</span><span class="tt">${n.t}</span><div class="v">${vals(r)}</div><div class="az"><span class="ib">✎</span><span class="ib">⋯</span></div></div>`;
+  const row=li.firstChild;
+  if(!lf){
+    const tutti=x=>[x,...(x.f||[]).flatMap(tutti)].filter(y=>y.f);
+    row.querySelector('.tg').onclick=()=>{ap?aperti.delete(n.n):aperti.add(n.n);disegna()};
+    row.ondblclick=e=>{ if(e.target.closest('button'))return; const l=tutti(n); if(ap) l.forEach(y=>aperti.delete(y.n)); else l.forEach(y=>aperti.add(y.n)); disegna(); };
+    if(ap){const ul=document.createElement('ul');n.f.forEach(c=>ul.append(riga(c)));li.append(ul)}
+  }
+  return li;
+}
+function disegna(){
+  const ul=document.getElementById('albero');ul.replaceChildren(...T.map(riga));
+  const r=T.reduce((a,x)=>{const s=som(x);return {c:a.c+s.c,s:a.s+s.s}},{c:0,s:0});
+  document.getElementById('tv').innerHTML=vals(r);
+  const tutti=x=>[x,...(x.f||[]).flatMap(tutti)].filter(y=>y.f);
+  document.getElementById('bEsp').textContent=aperti.size?'Comprimi tutto':'Espandi tutto';
+}
+document.getElementById('bVal').onclick=e=>{const on=document.getElementById('vista').classList.toggle('val');e.currentTarget.classList.toggle('on',on);e.currentTarget.setAttribute('aria-pressed',on)};
+document.getElementById('bEsp').onclick=()=>{ if(aperti.size) aperti.clear(); else {const t=x=>[x,...(x.f||[]).flatMap(t)].filter(y=>y.f);T.flatMap(t).forEach(y=>aperti.add(y.n));} disegna(); };
+disegna();
+</script>
+</body>
+</html>

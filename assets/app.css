@@ -715,3 +715,8 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
 .waEl .s{flex:none;width:22px;text-align:center}.waEl .n2{flex:1;min-width:0}.waEl.att{font-weight:700}.waEl small{color:var(--sec);font-size:12px}
 .waFine{text-align:center;padding:22px 6px 10px}.waFine .e{font-size:44px}.waFine h2{font-size:19px;margin:6px 0}
 @media (max-width:760px), (pointer:coarse) and (max-height:500px){#modWa{padding:0}.waBox{max-width:none;height:100%;border-radius:0}.waHd{padding-top:env(safe-area-inset-top);min-height:calc(50px + env(safe-area-inset-top))}}
+
+/* v6.0: scheda attività, sponsor/fornitore: flag «Fornitore» a destra del nome, flag «Spesa» davanti all'importo */
+.rigaF,.rigaI{display:flex;align-items:center;gap:12px}
+.rigaF input[type=text],.rigaI input[type=number]{flex:1;min-width:0}
+.rigaF label.flag,.rigaI label.flag{flex:none;margin:0;min-height:44px}

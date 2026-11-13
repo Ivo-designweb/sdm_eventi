@@ -368,6 +368,7 @@
     if (finestreAperte.length) { const id = finestreAperte.pop(); const e = document.getElementById(id); if (e) e.classList.add('hidden'); return; }
     const prec = stato.cronologia.pop(); if (prec) vai(prec, true);
   });
+  let compattaTutti = false;
   function vai(p, senzaStoria) {
     const prima = stato.pagina;
     if ((p === 'home' || p === 'str') && stato.evento === null && stato.persona) p = 'eventi';
@@ -382,6 +383,7 @@
     segnaNav(p);
     if (p === 'par') riempiParametri();
     if (p === 'persone') caricaPersone();
+    if (p === 'str' && !isMobile() && prima !== 'str') compattaTutti = true;   // v6.0: su PC la Struttura si presenta con tutti i rami compattati
     if (p === 'str' || p === 'home') caricaStruttura();
     if (p === 'rev') renderRivedere();
     if (p === 'imp') aggiornaNotifiche();
@@ -842,7 +844,7 @@
         stato.sb.rpc('persone_evento', { _evento: stato.evento }),
         stato.sb.rpc('persone_assegnabili'),
         stato.sb.rpc('numerazione', { _evento: stato.evento }),
-        isAdmin() ? stato.sb.from('nodi_sponsor').select('nodo_id, fornitore, referente, cellulare, importo') : Promise.resolve({ data: [] }),
+        isAdmin() ? stato.sb.from('nodi_sponsor').select('nodo_id, fornitore, referente, cellulare, importo, is_fornitore, is_spesa').then(r => r.error ? stato.sb.from('nodi_sponsor').select('nodo_id, fornitore, referente, cellulare, importo') : r) : Promise.resolve({ data: [] }),
         isOperatore() ? Promise.resolve({ data: [] }) : stato.sb.rpc('persone_collegate')
       ]);
       if (!n.error) {
@@ -878,7 +880,7 @@
 
   // dettagli di una riga (si aprono con un click sulla riga)
   function dettagliNodo(n) {
-    const lf = isLeaf(n), inc = S.inc[n.id] || [], sp = isAdmin() ? S.sponsor[n.id] : null;
+    const lf = isLeaf(n), inc = S.inc[n.id] || [], sp = isAdmin() ? S.sponsor[n.id] : null, vediImporti = isAdmin() && !isMobile();   // v6.0: gli importi si vedono solo su PC, per l'amministratore
     const dr = (et, v) => (v ? h('div', { class: 'dr' }, h('span', { class: 'dl' }, et), h('div', { class: 'dv' }, v)) : '');
     const els = [dr('Descrizione', n.descrizione), dr('Note', n.note), dr('Responsabile', lf ? '' : (() => { const r = respEff(n); return r.id ? nomeP(r.id) + (r.ered ? ' (ereditato)' : '') : ''; })()),
       lf ? dr('Scadenza', n.scadenza ? fmtData(n.scadenza) : '') : '', lf && n.data_chiusura && (n.stato === 'fatto' || n.stato === 'finito') ? dr('Chiusa il', fmtDataOra(n.data_chiusura)) : '', lf ? dr('Area', n.area || 'Tutte') : ''];
@@ -888,7 +890,7 @@
       if (n.checklist) els.push(dr('Check-list', h('div', {}, n.checklist.descrizione ? h('div', {}, h('b', {}, n.checklist.descrizione)) : '',
         ...rc.map(r => { const e = esitoRiga(n, r.id); return h('div', {}, (e.ok ? '☑ ' : '☐ ') + r.testo, h('span', { class: 'sec' }, ' · previste ' + (r.qta == null || r.qta === '' ? '—' : r.qta) + (e.qta != null && e.qta !== '' ? ' · rilevate ' + e.qta : ''))); }),
         rc.length ? '' : h('span', { class: 'sec' }, 'nessuna riga'))));
-      if (sp) els.push(dr('Sponsor', h('div', {}, h('b', {}, sp.fornitore || '—'), sp.referente ? ' · ' + sp.referente : '', sp.cellulare ? ' · ' + sp.cellulare : '', sp.importo != null ? ' · € ' + Number(sp.importo).toLocaleString('it-IT', { minimumFractionDigits: 2 }) : '')));
+      if (sp) els.push(dr(sp.is_fornitore ? 'Fornitore' : 'Sponsor', h('div', {}, h('b', {}, sp.fornitore || '—'), sp.is_spesa ? h('span', { class: 'badge' }, 'Spesa') : '', sp.referente ? ' · ' + sp.referente : '', sp.cellulare ? ' · ' + sp.cellulare : '', vediImporti && sp.importo != null ? ' · € ' + Number(sp.importo).toLocaleString('it-IT', { minimumFractionDigits: 2 }) : '')));
     }
     const pan = h('div', { class: 'dett' }, ...els.filter(Boolean));
     if (!pan.children.length) pan.append(h('span', { class: 'sec' }, 'Nessun dettaglio.'));
@@ -905,7 +907,7 @@
     if (lf) {
       meta.append(badgeStato(n.stato), badgeScad(n), chip('👥 ' + nIncarichi(n), '', 'Persone incaricate'));
       if (righeCheck(n).length) meta.append(chip('☑ ' + checkFatte(n) + '/' + righeCheck(n).length, '', 'Check-list'));
-      if (isAdmin() && S.sponsor[n.id]) meta.append(chip('€ sponsor', 'ok', 'Sponsor: ' + (S.sponsor[n.id].fornitore || '')));
+      if (isAdmin() && S.sponsor[n.id]) meta.append(chip(S.sponsor[n.id].is_fornitore ? '€ fornitore' : '€ sponsor', 'ok', (S.sponsor[n.id].is_fornitore ? 'Fornitore: ' : 'Sponsor: ') + (S.sponsor[n.id].fornitore || '')));
     } else {
       const ls = foglie(n), f = ls.filter(x => x.stato === 'finito').length, p = ls.length ? Math.round(100 * f / ls.length) : 0, re = respEff(n);
       meta.append(h('span', { class: 'sec nsot' }, figli(n.id).length + ' sotto · ' + f + '/' + ls.length + ' fatte ', h('span', { class: 'mini' }, h('i', { style: 'width:' + p + '%' })), ' ' + p + '%'));
@@ -955,6 +957,7 @@
 
   function renderStruttura() {
     ordina(); S.pend = nodiInAttesa();
+    if (compattaTutti && S.nodi.length) { compattaTutti = false; S.collassati = new Set(S.nodi.filter(x => !isLeaf(x)).map(x => x.id)); S.aperti = new Set(); }
     const adm = isAdmin();
     const puoMod = adm || sonoRespEvento() || S.nodi.some(n => n.responsabile_id === stato.persona.id);
     const lista = $('#strLista');
@@ -1193,8 +1196,12 @@
       const sp = S.sponsor[bozza ? orig.id : n.id] || null;
       corpo.push(h('div', { class: 'so' }, flag('aSpOn', 'Questa attività ha uno sponsor', !!sp),
         h('div', { id: 'aSpBox', class: 'ckbox' + (sp ? '' : ' hidden') },
-          h('div', { class: 'grid2' }, campo('Nome fornitore *', h('input', { type: 'text', id: 'aSpFor', maxlength: '120', value: (sp && sp.fornitore) || '' })), campo('Nome referente', h('input', { type: 'text', id: 'aSpRef', maxlength: '120', value: (sp && sp.referente) || '' }))),
-          h('div', { class: 'grid2' }, campo('Cellulare', h('input', { type: 'tel', id: 'aSpCel', maxlength: '40', value: (sp && sp.cellulare) || '' })), campo('Importo del contributo (€)', h('input', { type: 'number', id: 'aSpImp', min: '0', step: '0.01', inputmode: 'decimal', value: sp && sp.importo != null ? sp.importo : '' }))))));
+          h('div', { class: 'grid2' }, campo('Sponsor/Fornit. *', h('div', { class: 'rigaF' }, h('input', { type: 'text', id: 'aSpFor', maxlength: '120', value: (sp && sp.fornitore) || '' }), flag('aSpForn', 'Fornitore', !!(sp && sp.is_fornitore)))), campo('Nome referente', h('input', { type: 'text', id: 'aSpRef', maxlength: '120', value: (sp && sp.referente) || '' }))),
+          h('div', { class: 'grid2' }, campo('Cellulare', h('input', { type: 'tel', id: 'aSpCel', maxlength: '40', value: (sp && sp.cellulare) || '' })), (() => {
+            const f = flag('aSpSpesa', 'Spesa', !!(sp && sp.is_spesa)), c = campo(sp && sp.is_spesa ? 'Importo Spesa (€)' : 'Importo del contributo (€)', h('div', { class: 'rigaI' }, f, h('input', { type: 'number', id: 'aSpImp', min: '0', step: '0.01', inputmode: 'decimal', value: sp && sp.importo != null ? sp.importo : '' })));
+            f.querySelector('input').addEventListener('change', e => { c.querySelector('label').textContent = e.target.checked ? 'Importo Spesa (€)' : 'Importo del contributo (€)'; });
+            return c;
+          })()))));
     }
     corpo.push(h('label', {}, 'Persone incaricate'), h('div', { id: 'aInc' }));
     const mob = isMobile(); S.cmpt = mob || sl;
@@ -1338,9 +1345,9 @@
       if (adm) {
         if ($('#aSpOn').checked) {
           const f = $('#aSpFor').value.trim(), imp = $('#aSpImp').value.trim().replace(',', '.');
-          if (!f) { erroreScheda('Indica il nome del fornitore sponsor oppure togli il flag.'); return; }
+          if (!f) { erroreScheda('Indica il nome dello sponsor/fornitore oppure togli il flag.'); return; }
           if (imp !== '' && (isNaN(Number(imp)) || Number(imp) < 0)) { erroreScheda('L\'importo dello sponsor non è valido.'); return; }
-          sp = { fornitore: f, referente: $('#aSpRef').value.trim() || null, cellulare: $('#aSpCel').value.trim() || null, importo: imp === '' ? null : Math.round(Number(imp) * 100) / 100 };
+          sp = { fornitore: f, referente: $('#aSpRef').value.trim() || null, cellulare: $('#aSpCel').value.trim() || null, importo: imp === '' ? null : Math.round(Number(imp) * 100) / 100, is_fornitore: $('#aSpForn').checked, is_spesa: $('#aSpSpesa').checked };
         } else sp = null;
       }
     }
@@ -1372,7 +1379,7 @@
     }
     const diff = Object.fromEntries(Object.entries(rec).filter(([k, v]) => stab(v) !== stab(n[k])));
     const spOrig = S.sponsor[n.id] || null;
-    const spNorm = o => o && { fornitore: o.fornitore || '', referente: o.referente || null, cellulare: o.cellulare || null, importo: o.importo == null ? null : Number(o.importo) };
+    const spNorm = o => o && { fornitore: o.fornitore || '', referente: o.referente || null, cellulare: o.cellulare || null, importo: o.importo == null ? null : Number(o.importo), is_fornitore: !!o.is_fornitore, is_spesa: !!o.is_spesa };
     const spCambia = sp !== undefined && stab(spNorm(sp)) !== stab(spNorm(spOrig));
     const orig = S.inc[n.id] || [];
     let tolti = [], aggiunti = [], cambiatiAltri = [], miaNota = null;

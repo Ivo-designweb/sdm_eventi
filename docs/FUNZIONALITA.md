@@ -1,6 +1,6 @@
 # SDM Eventi - funzionalità e storico delle versioni
 
-Versione dell'app: **5.9** · Script database: **2.1** · Ultimo aggiornamento di questo file: versione 5.9
+Versione dell'app: **6.0** · Script database: **2.2** · Ultimo aggiornamento di questo file: versione 6.0
 
 > Questo file va aggiornato a ogni nuova versione: sezione «Funzionalità» se cambia il comportamento, tabella «Storico» con una riga per versione (e l'indicazione se serve rieseguire `db/01_schema_sdm_eventi.sql`).
 
@@ -39,6 +39,8 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 - Modifica diretta, senza «modalità modifica»: ogni riga ha **✎** (modifica), **＋** (aggiungi sotto), **⧉** (duplica, solo amministratore), **🗑** (elimina). Su smartphone ✎ resta in vista e il resto sta nel menu **⋯**.
 - **Trascinamento** solo dalla **maniglia ⋮⋮** a sinistra, tenendola premuta 140 ms (`DRAG_DELAY_MS` in `js/config.js`). Destinazione evidenziata (riquadro tratteggiato, ramo ricevente bordato, rosso se non permesso). **↶ Annulla spostamento** per gli ultimi 3 trascinamenti.
 - **Rientri forti** (52 px per livello su PC, 20 px su smartphone) con guide verticali tratteggiate e colorate per livello. Rami in grassetto con barra blu; attività in tinta con il colore dell'area.
+- **Ingresso (solo PC, v6.0):** entrando nella pagina Struttura tutti i rami sono compattati.
+- **Sponsor/fornitori (v6.0, solo amministratore):** nella scheda attività il campo «Sponsor/Fornit.» ha il flag **Fornitore**; il flag **Spesa** davanti all'importo lo trasforma in «Importo Spesa» (altrimenti è un contributo). Il dettaglio degli importi compare solo nella maschera dell'attività e nel dettaglio della Struttura su PC, mai su smartphone né in altre liste. Serve rieseguire lo script SQL (2.2).
 - **Doppio clic (solo PC, v5.9):** doppio clic su una riga di ramo apre (se è chiuso) o chiude (se è aperto) tutto il ramo fino all'ultimo livello. Non vale su smartphone né sui pulsanti e sulla maniglia di trascinamento.
 - **Cerca (v5.9):** il campo «🔍 Cerca…» cerca anche in stato e scadenza (gg/mm/aaaa); più parole = devono esserci tutte, senza distinguere maiuscole e accenti.
 - **Riga del ramo:** «N sotto · fatte/totali», barra e responsabile (👤 impostato, ↳ ereditato dal ramo sopra o, in cima, dall'evento).
@@ -86,6 +88,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 | Versione | Novità | DB |
 |---|---|---|
+| 6.0 | Struttura su PC sempre con tutti i rami compattati all'ingresso; sponsor: etichetta «Sponsor/Fornit.» con flag «Fornitore» e flag «Spesa» davanti all'importo («Importo Spesa»); gli importi si vedono solo su PC per l'amministratore (maschera attività e dettaglio Struttura) | 2.2 |
 | 5.9 | Responsabile dell'evento (ereditato da rami e attività senza responsabile); doppio clic su un ramo della Struttura (solo PC) apre/chiude tutto il ramo; riga «Cerca» sempre visibile nella Home su PC e ricerca più ampia in Struttura | 2.1 |
 | 5.8 | Home amministratore («Per persona»): messaggio WhatsApp a più persone, con selezione, testo unico con saluto personalizzato e invio guidato uno per uno | – |
 | 5.7 | Home operatore: tre bottoni Da fare / In corso / Fatto sopra «Le mie attività» per filtrarle per stato; per responsabile/amministratore «Le mie attività» segue il filtro delle celle in alto | – |
