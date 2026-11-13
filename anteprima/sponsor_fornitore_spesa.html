@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="app-version" content="1.0">
+<title>SDM Eventi - Anteprima Sponsor/Fornit. e Spesa</title>
+<style>
+:root{--primario:#1d4ed8;--bg:#f4f6fa;--card:#fff;--testo:#1c2333;--sec:#5b6578;--bordo:#dde2ec;--ok:#15803d}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#cfd5e1;color:var(--testo)}
+.demo{background:#111827;color:#e5e7eb;padding:10px 14px;font-size:13px}
+.wrap{display:flex;flex-wrap:wrap;gap:8px 28px;justify-content:center;align-items:flex-start;padding:6px 10px 28px}
+h2{font-size:14px;margin:14px 0 6px;padding:0 4px;color:#374151}
+h2 small{display:block;font-weight:400;color:#4b5563;font-size:12.5px}
+.pc{width:640px;max-width:100%}.tel{width:360px;max-width:100%}
+.card{background:var(--card);border:1px solid #b8c0d0;border-radius:14px;padding:14px;box-shadow:0 6px 24px rgba(0,0,0,.14)}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
+label.flag{display:flex;align-items:center;gap:8px;font-weight:600;margin:0;min-height:44px;cursor:pointer}
+input[type=checkbox]{width:20px;height:20px;accent-color:var(--primario);flex:none}
+input[type=text],input[type=tel],input[type=number]{width:100%;min-height:44px;padding:9px 12px;border:1px solid var(--bordo);border-radius:8px;font:inherit;background:#fff;color:var(--testo)}
+.ckbox{border:1px solid var(--bordo);border-radius:10px;padding:4px 12px 12px;margin-top:6px;background:color-mix(in srgb,var(--primario) 3%,var(--card))}
+.hidden{display:none!important}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+.tel .grid2{grid-template-columns:1fr}
+/* riga nome + flag Fornitore a destra */
+.rigaF{display:flex;align-items:center;gap:12px}
+.rigaF input[type=text]{flex:1;min-width:0}
+.rigaF .flag{flex:none}
+/* riga flag Spesa davanti all'importo */
+.rigaI{display:flex;align-items:center;gap:12px}
+.rigaI input[type=number]{flex:1;min-width:0}
+.rigaI .flag{flex:none}
+.nota{font-size:12.5px;color:var(--sec);margin:8px 4px 0}
+.vis{margin-top:10px;font-size:13.5px;border-top:1px dashed var(--bordo);padding-top:8px;color:var(--sec)}
+.vis b{color:var(--testo)}
+.chip{display:inline-block;font-size:12px;border-radius:99px;padding:2px 10px;background:#dcfce7;color:var(--ok);font-weight:600;margin-right:4px}
+.chip.f{background:#e0e7ff;color:#3730a3}.chip.s{background:#fee2e2;color:#991b1b}
+</style>
+</head>
+<body>
+<div class="demo"><b>Anteprima</b> · Scheda attività (solo amministratore): sezione Sponsor. I flag sono provabili: «Fornitore» e «Spesa». Il resto della scheda non cambia.</div>
+<div class="wrap">
+  <div class="pc">
+    <h2>PC <small>Nome sul lato sinistro, flag «Fornitore» a destra; flag «Spesa» davanti all'importo.</small></h2>
+    <div class="card" id="c1"></div>
+  </div>
+  <div class="tel">
+    <h2>Smartphone <small>Stessa struttura, campi uno sotto l'altro.</small></h2>
+    <div class="card" id="c2"></div>
+  </div>
+</div>
+<script>
+function blocco(id){
+  const el=document.getElementById(id);
+  el.innerHTML=`
+  <label class="flag"><input type="checkbox" class="on" checked> Questa attività ha uno sponsor</label>
+  <div class="ckbox">
+    <div class="grid2">
+      <div><label>Sponsor/Fornit. *</label>
+        <div class="rigaF"><input type="text" value="Rossi Arredi Srl"><label class="flag"><input type="checkbox" class="forn"> Fornitore</label></div></div>
+      <div><label>Nome referente</label><input type="text" value="Marco Rossi"></div>
+    </div>
+    <div class="grid2">
+      <div><label>Cellulare</label><input type="tel" value="333 1234567"></div>
+      <div><label class="etImp">Importo del contributo (€)</label>
+        <div class="rigaI"><label class="flag"><input type="checkbox" class="spesa"> Spesa</label><input type="number" value="1500.00" step="0.01"></div></div>
+    </div>
+  </div>
+  <div class="vis"></div>`;
+  const forn=el.querySelector('.forn'),sp=el.querySelector('.spesa'),et=el.querySelector('.etImp'),vis=el.querySelector('.vis');
+  function agg(){
+    et.textContent=sp.checked?'Importo Spesa (€)':'Importo del contributo (€)';
+    vis.innerHTML='Come compare nel dettaglio: '+(forn.checked?'<span class="chip f">Fornitore</span>':'<span class="chip">Sponsor</span>')+(sp.checked?'<span class="chip s">Spesa</span>':'')+' <b>Rossi Arredi Srl</b> · Marco Rossi · € 1.500,00';
+  }
+  forn.onchange=sp.onchange=agg; agg();
+}
+blocco('c1');blocco('c2');
+</script>
+</body>
+</html>
