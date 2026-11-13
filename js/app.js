@@ -898,20 +898,22 @@
     return pan;
   }
 
-  // suggerimento «doppio clic apre/chiude ramo»: parte dopo 350 ms di permanenza sul ramo, resta 1,8 secondi e poi sparisce
-  const TIP = { el: null, t1: 0, t2: 0, x: 0, y: 0 };
-  function suggerimentoRamo(e, avvia) {
-    if (e) { TIP.x = e.clientX; TIP.y = e.clientY; if (TIP.el) { TIP.el.style.left = (TIP.x + 14) + 'px'; TIP.el.style.top = (TIP.y + 18) + 'px'; } }
-    if (avvia === null) return;
-    clearTimeout(TIP.t1); clearTimeout(TIP.t2);
-    if (TIP.el) { TIP.el.remove(); TIP.el = null; }
-    if (!avvia || isMobile() || (window.matchMedia && !window.matchMedia('(hover:hover) and (pointer:fine)').matches)) return;
+  // suggerimento «doppio clic apre/chiude ramo»: compare se il mouse resta fermo 0,8 secondi sul ramo, sparisce dopo 1,5 secondi (una volta per ogni passaggio sul ramo)
+  const TIP = { el: null, t1: 0, t2: 0, x: 0, y: 0, fatto: false };
+  const tipChiudi = () => { clearTimeout(TIP.t1); clearTimeout(TIP.t2); if (TIP.el) { TIP.el.remove(); TIP.el = null; } };
+  function suggerimentoRamo(e, tipo) {   // tipo: 'dentro' (entra), 'muovi', 'fuori' (esce o clic)
+    if (tipo === 'fuori' || isMobile() || !(window.matchMedia && window.matchMedia('(hover:hover) and (pointer:fine)').matches)) { tipChiudi(); TIP.fatto = false; return; }
+    if (tipo === 'dentro') { tipChiudi(); TIP.fatto = false; }
+    if (e) { TIP.x = e.clientX; TIP.y = e.clientY; }
+    if (TIP.fatto || TIP.el) return;   // già mostrato in questo passaggio
+    clearTimeout(TIP.t1);   // ogni movimento fa ripartire l'attesa: serve stare fermi
     TIP.t1 = setTimeout(() => {
+      TIP.fatto = true;
       TIP.el = h('div', { class: 'tipRamo', role: 'tooltip' }, 'Doppio clic: apre/chiude ramo');
       TIP.el.style.left = (TIP.x + 14) + 'px'; TIP.el.style.top = (TIP.y + 18) + 'px';
       document.body.append(TIP.el);
-      TIP.t2 = setTimeout(() => { if (TIP.el) { TIP.el.remove(); TIP.el = null; } }, 1800);
-    }, 350);
+      TIP.t2 = setTimeout(tipChiudi, 1500);
+    }, 800);
   }
 
   function rigaNodo(n) {
@@ -964,7 +966,7 @@
     });
     if (!lf) row.addEventListener('mousedown', e => { if (e.detail > 1 && !isMobile()) e.preventDefault(); });
     // v6.1 (solo PC): passando sopra un ramo compare per un attimo il suggerimento del doppio clic
-    if (!lf) { row.addEventListener('mouseenter', e => suggerimentoRamo(e, true)); row.addEventListener('mousemove', e => suggerimentoRamo(e, null)); row.addEventListener('mouseleave', () => suggerimentoRamo(null, false)); row.addEventListener('mousedown', () => suggerimentoRamo(null, false)); }   // niente selezione del testo col doppio clic
+    if (!lf) { row.addEventListener('mouseenter', e => suggerimentoRamo(e, 'dentro')); row.addEventListener('mousemove', e => suggerimentoRamo(e, 'muovi')); row.addEventListener('mouseleave', () => suggerimentoRamo(null, 'fuori')); row.addEventListener('mousedown', () => suggerimentoRamo(null, 'fuori')); }
     row.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === row) commuta(); });
     const li = h('li', { 'data-id': n.id, class: canEdit(n) ? 'mvb' : '' }, row);
     if (det) li.append(dettagliNodo(n));

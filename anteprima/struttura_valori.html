@@ -49,7 +49,7 @@ ul ul{margin-left:var(--ind);border-left:1.5px dashed #94a3b8;padding-left:6px}
 </style>
 </head>
 <body>
-<div class="demo"><b>Anteprima</b> · Pagina Struttura (PC, solo amministratore) con il bottone <b>Valori</b>. Prova: passa il mouse su un ramo (suggerimento breve), Valori acceso/spento, ▶/▼ per aprire e chiudere i rami, doppio clic su un ramo (apre/chiude tutto), «Comprimi tutto».</div>
+<div class="demo"><b>Anteprima</b> · Pagina Struttura (PC, solo amministratore) con il bottone <b>Valori</b>. Prova: ferma il mouse 0,8 secondi su un ramo (il suggerimento sparisce dopo 1,5 s), Valori acceso/spento, ▶/▼ per aprire e chiudere i rami, doppio clic su un ramo (apre/chiude tutto), «Comprimi tutto».</div>
 <div class="vista" id="vista">
   <h1>Struttura</h1><p class="sec">Albero completo dell'evento · max 10 livelli</p>
   <div class="bar">
@@ -96,10 +96,11 @@ function riga(n){
   if(!lf){
     const tutti=x=>[x,...(x.f||[]).flatMap(tutti)].filter(y=>y.f);
     row.querySelector('.tg').onclick=()=>{ap?aperti.delete(n.n):aperti.add(n.n);disegna()};
-    let tp=null,t1=0,t2=0,px=0,py=0;const fine=()=>{clearTimeout(t1);clearTimeout(t2);if(tp){tp.remove();tp=null}};
-    row.onmouseenter=e=>{px=e.clientX;py=e.clientY;fine();if(!matchMedia('(hover:hover) and (pointer:fine)').matches)return;t1=setTimeout(()=>{tp=document.createElement('div');tp.className='tipRamo';tp.textContent='Doppio clic: apre/chiude ramo';tp.style.left=(px+14)+'px';tp.style.top=(py+18)+'px';document.body.append(tp);t2=setTimeout(fine,1800)},350)};
-    row.onmousemove=e=>{px=e.clientX;py=e.clientY;if(tp){tp.style.left=(px+14)+'px';tp.style.top=(py+18)+'px'}};
-    row.onmouseleave=fine;row.onmousedown=fine;
+    let tp=null,t1=0,t2=0,px=0,py=0,fatto=false;const fine=()=>{clearTimeout(t1);clearTimeout(t2);if(tp){tp.remove();tp=null}};
+    const attesa=()=>{ if(fatto||tp||!matchMedia('(hover:hover) and (pointer:fine)').matches)return; clearTimeout(t1); t1=setTimeout(()=>{fatto=true;tp=document.createElement('div');tp.className='tipRamo';tp.textContent='Doppio clic: apre/chiude ramo';tp.style.left=(px+14)+'px';tp.style.top=(py+18)+'px';document.body.append(tp);t2=setTimeout(fine,1500)},800)};
+    row.onmouseenter=e=>{px=e.clientX;py=e.clientY;fine();fatto=false;attesa()};
+    row.onmousemove=e=>{px=e.clientX;py=e.clientY;attesa()};
+    row.onmouseleave=()=>{fine();fatto=false};row.onmousedown=()=>{fine();fatto=false};
     row.ondblclick=e=>{ if(e.target.closest('button'))return; const l=tutti(n); if(ap) l.forEach(y=>aperti.delete(y.n)); else l.forEach(y=>aperti.add(y.n)); disegna(); };
     if(ap){const ul=document.createElement('ul');n.f.forEach(c=>ul.append(riga(c)));li.append(ul)}
   }

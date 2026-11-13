@@ -41,7 +41,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 - **Rientri forti** (52 px per livello su PC, 20 px su smartphone) con guide verticali tratteggiate e colorate per livello. Rami in grassetto con barra blu; attività in tinta con il colore dell'area.
 - **Ingresso (solo PC, v6.0):** entrando nella pagina Struttura tutti i rami sono compattati.
 - **Sponsor/fornitori (v6.0, solo amministratore):** nella scheda attività il campo «Sponsor/Fornit.» ha il flag **Fornitore**; il flag **Spesa** davanti all'importo lo trasforma in «Importo Spesa» (altrimenti è un contributo). Il dettaglio degli importi compare solo nella maschera dell'attività e nel dettaglio della Struttura su PC, mai su smartphone né in altre liste. Serve rieseguire lo script SQL (2.2).
-- **Doppio clic (solo PC, v5.9):** doppio clic su una riga di ramo apre (se è chiuso) o chiude (se è aperto) tutto il ramo fino all'ultimo livello. Non vale su smartphone né sui pulsanti e sulla maniglia di trascinamento. Passando il mouse sopra un ramo compare per un attimo il suggerimento «Doppio clic: apre/chiude ramo» (v6.1).
+- **Doppio clic (solo PC, v5.9):** doppio clic su una riga di ramo apre (se è chiuso) o chiude (se è aperto) tutto il ramo fino all'ultimo livello. Non vale su smartphone né sui pulsanti e sulla maniglia di trascinamento. Tenendo il mouse fermo 0,8 secondi su un ramo compare per 1,5 secondi il suggerimento «Doppio clic: apre/chiude ramo» (v6.1).
 - **Cerca (v5.9):** il campo «🔍 Cerca…» cerca anche in stato e scadenza (gg/mm/aaaa); più parole = devono esserci tutte, senza distinguere maiuscole e accenti.
 - **Riga del ramo:** «N sotto · fatte/totali», barra e responsabile (👤 impostato, ↳ ereditato dal ramo sopra o, in cima, dall'evento).
 - **Duplica a catena:** chiede titolo e descrizione della copia; la spunta «Duplica anche tutti i sottorami» (default sì) copia l'intera catena con le stesse caratteristiche.
@@ -88,7 +88,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 | Versione | Novità | DB |
 |---|---|---|
-| 6.1 | Struttura su PC: passando sopra un ramo compare per 1,8 secondi il suggerimento «Doppio clic: apre/chiude ramo» | – |
+| 6.1 | Struttura su PC: passando sopra un ramo compare, se il mouse resta fermo 0,8 secondi, per 1,5 secondi il suggerimento «Doppio clic: apre/chiude ramo» | – |
 | 6.0 | Struttura su PC sempre con tutti i rami compattati all'ingresso; sponsor: etichetta «Sponsor/Fornit.» con flag «Fornitore» e flag «Spesa» davanti all'importo («Importo Spesa»); gli importi si vedono solo su PC per l'amministratore (maschera attività e dettaglio Struttura) | 2.2 |
 | 5.9 | Responsabile dell'evento (ereditato da rami e attività senza responsabile); doppio clic su un ramo della Struttura (solo PC) apre/chiude tutto il ramo; riga «Cerca» sempre visibile nella Home su PC e ricerca più ampia in Struttura | 2.1 |
 | 5.8 | Home amministratore («Per persona»): messaggio WhatsApp a più persone, con selezione, testo unico con saluto personalizzato e invio guidato uno per uno | – |
