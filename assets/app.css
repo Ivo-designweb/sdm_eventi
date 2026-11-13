@@ -724,3 +724,16 @@ body.drg ul.trl.vuoto{border:1px dashed var(--primario)!important}
 /* v6.1: suggerimento del doppio clic sui rami (solo PC) */
 .tipRamo{position:fixed;z-index:200;pointer-events:none;background:#111827;color:#fff;font-size:12.5px;line-height:1;padding:7px 10px;border-radius:7px;box-shadow:0 4px 14px rgba(0,0,0,.3);white-space:nowrap;animation:tipRamo .18s ease-out}
 @keyframes tipRamo{from{opacity:0}to{opacity:1}}
+
+/* v6.2: Struttura, bottone Valori (solo amministratore su PC): colonne Contributi e Spese */
+#strValori.act{background:var(--primario);color:#fff}
+.valCols{display:flex;justify-content:flex-end;padding:0 8px 4px;font-size:12px;font-weight:700;color:var(--sec);text-transform:uppercase;letter-spacing:.03em}
+.valCols.hidden,.valTot.hidden{display:none}
+.valCols span,.tn .vals span,.valTot .vals span{width:112px;text-align:right;flex:none}
+.valCols .vsp,.valTot .vsp{width:var(--vsp,150px);flex:none}
+.tn .vals,.valTot .vals{display:flex;flex:none;font-variant-numeric:tabular-nums;font-size:14px}
+.vals .c{color:var(--ok)}.vals .s{color:var(--err)}.vals .z{color:#9ca3af}
+.tn.br .vals span{font-weight:800}
+.conValori .tn .azn{min-width:var(--vsp,150px);justify-content:flex-end}
+.valTot{display:flex;align-items:center;margin-top:8px;padding:6px 8px;border:2px solid var(--primario);border-radius:10px;background:var(--card);font-weight:800}
+.valTot .tt{flex:1}

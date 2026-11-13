@@ -1,6 +1,6 @@
 # SDM Eventi - funzionalità e storico delle versioni
 
-Versione dell'app: **6.1** · Script database: **2.2** · Ultimo aggiornamento di questo file: versione 6.1
+Versione dell'app: **6.2** · Script database: **2.2** · Ultimo aggiornamento di questo file: versione 6.2
 
 > Questo file va aggiornato a ogni nuova versione: sezione «Funzionalità» se cambia il comportamento, tabella «Storico» con una riga per versione (e l'indicazione se serve rieseguire `db/01_schema_sdm_eventi.sql`).
 
@@ -41,6 +41,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 - **Rientri forti** (52 px per livello su PC, 20 px su smartphone) con guide verticali tratteggiate e colorate per livello. Rami in grassetto con barra blu; attività in tinta con il colore dell'area.
 - **Ingresso (solo PC, v6.0):** entrando nella pagina Struttura tutti i rami sono compattati.
 - **Sponsor/fornitori (v6.0, solo amministratore):** nella scheda attività il campo «Sponsor/Fornit.» ha il flag **Fornitore**; il flag **Spesa** davanti all'importo lo trasforma in «Importo Spesa» (altrimenti è un contributo). Il dettaglio degli importi compare solo nella maschera dell'attività e nel dettaglio della Struttura su PC, mai su smartphone né in altre liste. Serve rieseguire lo script SQL (2.2).
+- **Valori (v6.2, solo amministratore su PC):** il bottone **Valori** accanto a Espandi/Comprimi mostra due colonne, Contributi e Spese. Le attività con sponsor/fornitore con flag «Spesa» finiscono nella colonna Spese, le altre in Contributi. Ogni ramo mostra la somma di tutto ciò che sta sotto (anche compattato) e in fondo c'è il **Totale evento**. I totali sono calcolati su tutto l'albero, senza tener conto dei filtri. Non compare su smartphone né per gli altri ruoli.
 - **Doppio clic (solo PC, v5.9):** doppio clic su una riga di ramo apre (se è chiuso) o chiude (se è aperto) tutto il ramo fino all'ultimo livello. Non vale su smartphone né sui pulsanti e sulla maniglia di trascinamento. Tenendo il mouse fermo 0,8 secondi sulla scritta di un ramo (numero e titolo, non su maniglia, freccia, pulsanti o zona vuota) compare per 1,5 secondi il suggerimento «Doppio clic: apre/chiude ramo» (v6.1).
 - **Cerca (v5.9):** il campo «🔍 Cerca…» cerca anche in stato e scadenza (gg/mm/aaaa); più parole = devono esserci tutte, senza distinguere maiuscole e accenti.
 - **Riga del ramo:** «N sotto · fatte/totali», barra e responsabile (👤 impostato, ↳ ereditato dal ramo sopra o, in cima, dall'evento).
@@ -88,6 +89,7 @@ App per gestire eventi sportivi: struttura ad albero di rami e attività, person
 
 | Versione | Novità | DB |
 |---|---|---|
+| 6.2 | Struttura (solo amministratore, solo PC): bottone **Valori** acceso/spento; due colonne distinte Contributi e Spese con l'importo di ogni attività e la somma per ogni ramo (visibile anche a ramo compattato), più il totale evento in fondo | – |
 | 6.1 | Struttura su PC: passando sopra un ramo compare, se il mouse resta fermo 0,8 secondi, per 1,5 secondi il suggerimento «Doppio clic: apre/chiude ramo» | – |
 | 6.0 | Struttura su PC sempre con tutti i rami compattati all'ingresso; sponsor: etichetta «Sponsor/Fornit.» con flag «Fornitore» e flag «Spesa» davanti all'importo («Importo Spesa»); gli importi si vedono solo su PC per l'amministratore (maschera attività e dettaglio Struttura) | 2.2 |
 | 5.9 | Responsabile dell'evento (ereditato da rami e attività senza responsabile); doppio clic su un ramo della Struttura (solo PC) apre/chiude tutto il ramo; riga «Cerca» sempre visibile nella Home su PC e ricerca più ampia in Struttura | 2.1 |

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="6.1">
+<meta name="app-version" content="6.2">
 <meta name="theme-color" content="#1d4ed8">
 <meta name="description" content="SdM Eventi">
 <meta property="og:type" content="website">
@@ -220,6 +220,7 @@
           <button class="btn sec need-net" id="strUndo" type="button" disabled aria-label="Annulla l'ultimo spostamento" title="Annulla l'ultimo spostamento"></button>
           <button class="btn sec" id="strEspandi" type="button">Espandi</button>
           <button class="btn sec" id="strComprimi" type="button">Comprimi</button>
+          <button class="btn sec hidden" id="strValori" type="button" aria-pressed="false" title="Mostra o nascondi contributi e spese">Valori</button>
         </div></div>
       <div class="avviso off-only">Sei offline: puoi consultare la struttura ma non modificarla.</div>
       <div class="fbar hidden" id="strFiltri">
@@ -231,7 +232,9 @@
         <button class="btn sec hidden" id="fReset" type="button">✕ Azzera</button>
         <span class="sec" id="fCnt"></span>
       </div>
+      <div class="valCols hidden" id="strValCols" aria-hidden="true"><span>Contributi</span><span>Spese</span><span class="vsp"></span></div>
       <div id="strLista"></div>
+      <div class="valTot hidden" id="strValTot"><span class="tt">Totale evento</span><div class="vals"></div><span class="vsp"></span></div>
     </div>
 
     <div id="modNodo" class="hidden" style="position:fixed;inset:0;background:rgba(15,21,35,.55);z-index:60;overflow:auto;padding:16px">

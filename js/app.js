@@ -918,6 +918,24 @@
     }, 800);
   }
 
+  // v6.2: contributi e spese in Struttura (solo amministratore, solo PC): colonne distinte, somme per ramo
+  let strValori = false;
+  const mostraValori = () => strValori && isAdmin() && !isMobile();
+  const eur = x => x ? x.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '—';
+  function calcolaValori() {   // somma per nodo su tutto l'albero (senza filtri)
+    const m = {};
+    const vai = n => {
+      const sp = S.sponsor[n.id], r = { c: 0, s: 0 };
+      if (sp && sp.importo != null) { if (sp.is_spesa) r.s += Number(sp.importo); else r.c += Number(sp.importo); }
+      figli(n.id).forEach(f => { const q = vai(f); r.c += q.c; r.s += q.s; });
+      m[n.id] = r; return r;
+    };
+    const tot = { c: 0, s: 0 };
+    figli(null).forEach(n => { const q = vai(n); tot.c += q.c; tot.s += q.s; });
+    S.val = m; S.valTot = tot;
+  }
+  const celleValori = r => [h('span', { class: r.c ? 'c' : 'z' }, eur(r.c)), h('span', { class: r.s ? 's' : 'z' }, eur(r.s))];
+
   function rigaNodo(n) {
     const lf = isLeaf(n), aperto = !S.collassati.has(n.id), lv = n.livello, det = S.aperti.has(n.id);
     const chip = (t, cl, tit) => h('span', { class: 'badge' + (cl ? ' ' + cl : ''), title: tit || '' }, t);
@@ -952,7 +970,7 @@
     const ca = lf ? colArea(n.area) : null;
     const row = h('div', { class: 'tn cmp' + (lf ? '' : ' br') + (det ? ' op' : '') + (n.id === S.menuId ? ' mn' : ''), ...(ca ? { style: 'background:color-mix(in srgb,' + ca + ' 22%,var(--card));border-left:5px solid ' + ca } : {}), tabindex: '0', role: 'button', 'aria-expanded': det ? 'true' : 'false' }, canEdit(n) ? h('span', { class: 'dgh', title: 'Trascina', 'aria-label': 'Trascina' }, '⋮⋮') : '', tg,
       h('span', { class: 'num nf' }, numTxt(n)), h('span', { class: 'num nc' }, (p => p.length > 2 ? '…' + p.slice(-2).join('.') : p.join('.'))(numTxt(n).split('.'))),
-      h('div', { class: 'tt2' }, h('b', { title: n.titolo }, n.titolo), n.descrizione ? h('span', { class: 'ds' }, n.descrizione) : ''), meta, btns);
+      h('div', { class: 'tt2' }, h('b', { title: n.titolo }, n.titolo), n.descrizione ? h('span', { class: 'ds' }, n.descrizione) : ''), meta, mostraValori() ? h('div', { class: 'vals' }, ...celleValori(S.val[n.id] || { c: 0, s: 0 })) : '', btns);
     const commuta = () => { if (S.aperti.has(n.id)) S.aperti.delete(n.id); else S.aperti.add(n.id); renderStruttura(); };
     // v5.9 (solo PC): doppio clic su un ramo = apre (se è chiuso) o chiude (se è aperto) tutto il ramo fino all'ultimo livello.
     // Il primo clic ha già commutato i dettagli e ridisegnato la riga: il secondo clic (detail 2) annulla quella commutazione e fa il lavoro.
@@ -1001,6 +1019,14 @@
       $('#fReset').classList.toggle('hidden', !filtriAttivi());
       $('#strFiltri').classList.toggle('hidden', !S.nodi.length);
     }
+    // v6.2: bottone Valori (solo amministratore su PC), intestazione colonne e totale evento
+    const vOn = mostraValori(), bv = $('#strValori');
+    if (bv) { bv.classList.toggle('hidden', !(adm && !isMobile())); bv.classList.toggle('act', vOn); bv.setAttribute('aria-pressed', vOn ? 'true' : 'false'); }
+    $('#p-str').classList.toggle('conValori', vOn);
+    if (vOn) calcolaValori();
+    $('#strValCols').classList.toggle('hidden', !vOn);
+    $('#strValTot').classList.toggle('hidden', !vOn || !S.nodi.length);
+    if (vOn) $('#strValTot .vals').replaceChildren(...celleValori(S.valTot));
     S.sort.forEach(x => x.destroy()); S.sort = [];
     const nuovo = adm ? h('div', { style: 'margin-bottom:10px' }, (() => { const b = h('button', { class: 'btn need-net', type: 'button' }, '+ Ramo di primo livello'); b.addEventListener('click', () => apriNodo(null, null)); return b; })()) : '';
     const radice = h('ul', { class: 'trl' });
@@ -2642,6 +2668,7 @@ Strumenti: l'app usa solo strumenti tecnici (sessione e copia locale dei dati pe
       $('#fReset').onclick = () => { S.f = { q: '', stato: '', pers: '', scad: '' }; S.areaF = ''; renderStruttura(); renderHome(); };
     }
     $('#strUndo').onclick = annullaSpostamento;
+    $('#strValori').onclick = () => { strValori = !strValori; renderStruttura(); };
     $('#strEspandi').onclick = () => { S.collassati = new Set(); renderStruttura(); };
     $('#strComprimi').onclick = () => { S.collassati = new Set(S.nodi.filter(n => S.nodi.some(x => x.parent_id === n.id)).map(n => n.id)); renderStruttura(); };
     $('#lgFile').addEventListener('change', caricaLogo); $('#lgDel').onclick = ripristinaLogo;
