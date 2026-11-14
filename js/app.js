@@ -1242,7 +1242,7 @@
     // sponsor (solo amministratori)
     if (adm) {
       const sp = S.sponsor[bozza ? orig.id : n.id] || null;
-      corpo.push(h('div', { class: 'so' }, flag('aSpOn', 'Questa attività ha uno sponsor', !!sp),
+      corpo.push(h('div', { class: 'so' }, flag('aSpOn', 'Questa attività ha Sponsor/Spesa', !!sp),
         h('div', { id: 'aSpBox', class: 'ckbox' + (sp ? '' : ' hidden') },
           h('div', { class: 'grid2' }, campo('Sponsor/Fornit. *', h('div', { class: 'rigaF' }, h('input', { type: 'text', id: 'aSpFor', maxlength: '120', value: (sp && sp.fornitore) || '' }), flag('aSpForn', 'Fornitore', !!(sp && sp.is_fornitore)))), campo('Nome referente', h('input', { type: 'text', id: 'aSpRef', maxlength: '120', value: (sp && sp.referente) || '' }))),
           h('div', { class: 'grid2' }, campo('Cellulare', h('input', { type: 'tel', id: 'aSpCel', maxlength: '40', value: (sp && sp.cellulare) || '' })), (() => {
